@@ -42,6 +42,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         coordinator.settings.onHideMenuBarIconChange = { [weak self] hide in
             self?.applyHideMenuBarIconSetting(hide)
         }
+        // Third trigger for the anti-stranding guard: `hideMenuBarIcon` itself doesn't
+        // change when the user clears the shelf summon hotkey from Settings, so
+        // `onHideMenuBarIconChange` above never fires for that edit. Without this,
+        // hiding the icon and then clearing the hotkey in the same session would leave
+        // the user with neither the icon nor the hotkey — re-running the guard here
+        // (it re-reads `KeyboardShortcuts.getShortcut` itself) restores the icon in
+        // that case. See `SettingsStore.onShelfHotkeyChange`'s doc comment.
+        coordinator.settings.onShelfHotkeyChange = { [weak self] in
+            guard let self else { return }
+            self.applyHideMenuBarIconSetting(self.coordinator.settings.hideMenuBarIcon)
+        }
 
         coordinator.start()
 
@@ -80,8 +91,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Creates or removes the status item to honor `SettingsStore.hideMenuBarIcon`,
-    /// called both at launch and live via `onHideMenuBarIconChange`.
+    /// Creates or removes the status item to honor `SettingsStore.hideMenuBarIcon`.
+    /// Called at launch, live via `onHideMenuBarIconChange` (the setting itself
+    /// flipping), and live via `onShelfHotkeyChange` (the shelf hotkey changing while
+    /// the setting stays put) — three triggers feeding one authoritative check, so the
+    /// guard below can't go stale under either kind of edit.
     ///
     /// Anti-stranding guard: hiding the icon must never leave the user with no way to
     /// reach Copy. The shelf's summon hotkey (`KeyboardShortcuts.Name.toggleShelf`,

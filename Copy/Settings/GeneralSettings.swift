@@ -11,11 +11,24 @@ struct GeneralSettings: View {
     @State private var launchAtLoginEnabled = false
     @State private var launchAtLoginNeedsApproval = false
     @State private var launchAtLoginError: String?
+    /// Mirrors whether `.toggleShelf` currently has a shortcut, for this view's own
+    /// disabled/footer state. Tracked in `@State` (updated by the recorder's `onChange`
+    /// below and refreshed `onAppear`) rather than read fresh on every body evaluation,
+    /// since nothing else in this view is `@Observable`-tracked to that shortcut —
+    /// without this, clearing the hotkey wouldn't visibly re-enable/disable anything
+    /// here until some unrelated state change happened to force a redraw.
+    @State private var shelfHotkeySet = true
 
     var body: some View {
         Form {
             Section {
-                KeyboardShortcuts.Recorder("Open Copy:", name: .toggleShelf)
+                KeyboardShortcuts.Recorder("Open Copy:", name: .toggleShelf) { shortcut in
+                    shelfHotkeySet = shortcut != nil
+                    // Third trigger for AppDelegate's anti-stranding guard — see
+                    // `SettingsStore.onShelfHotkeyChange`'s doc comment. Must fire
+                    // here even though `hideMenuBarIcon` itself isn't changing.
+                    settings.onShelfHotkeyChange?()
+                }
                 KeyboardShortcuts.Recorder("Paste Stack:", name: .togglePasteStack)
                 KeyboardShortcuts.Recorder("Quick Paste Latest:", name: .quickPasteLatest)
                 KeyboardShortcuts.Recorder("Next Pinboard:", name: .nextPinboard)
@@ -52,8 +65,12 @@ struct GeneralSettings: View {
             }
 
             Section {
+                // Only blocks turning the toggle ON without a hotkey — never blocks
+                // turning it OFF, so a user who's already stranded (hotkey cleared
+                // while this was on) can always self-rescue by flipping it back off.
+                // AppDelegate's guard is still the authoritative check either way.
                 Toggle("Hide the menu bar icon", isOn: $settings.hideMenuBarIcon)
-                    .disabled(!shelfHotkeySet)
+                    .disabled(!shelfHotkeySet && !settings.hideMenuBarIcon)
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     if !shelfHotkeySet {
@@ -68,16 +85,10 @@ struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
-        .onAppear { refreshLaunchAtLoginStatus() }
-    }
-
-    /// The anti-stranding guard mirrored from `AppDelegate.applyHideMenuBarIconSetting`
-    /// (the authoritative check): hiding the icon is only safe while the shelf summon
-    /// hotkey is set, since it's the drawer-first model's other entry point once the
-    /// icon is gone. Re-evaluated on every render (not cached in `@State`) so editing
-    /// the "Open Copy" recorder above immediately un-disables this toggle.
-    private var shelfHotkeySet: Bool {
-        KeyboardShortcuts.getShortcut(for: .toggleShelf) != nil
+        .onAppear {
+            refreshLaunchAtLoginStatus()
+            shelfHotkeySet = KeyboardShortcuts.getShortcut(for: .toggleShelf) != nil
+        }
     }
 
     private var launchAtLoginBinding: Binding<Bool> {

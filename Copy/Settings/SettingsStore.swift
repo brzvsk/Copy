@@ -124,6 +124,15 @@ final class SettingsStore {
     @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
     @ObservationIgnored var onCompactShelfChange: ((Bool) -> Void)?
     @ObservationIgnored var onHideMenuBarIconChange: ((Bool) -> Void)?
+    /// Not backed by a stored property here — the shelf summon hotkey itself lives in
+    /// `KeyboardShortcuts`' own storage (see `KeyboardShortcuts.Name.toggleShelf`), not
+    /// in `SettingsStore`. This is a pure passthrough notification: `GeneralSettings`
+    /// calls it from the `.toggleShelf` `KeyboardShortcuts.Recorder`'s `onChange`, and
+    /// `AppDelegate` uses it as the third trigger to re-run its `hideMenuBarIcon`
+    /// anti-stranding guard (`applyHideMenuBarIconSetting`) — that guard must re-check
+    /// even when `hideMenuBarIcon` itself didn't change, since clearing the hotkey while
+    /// already hidden is exactly the case it exists to catch.
+    @ObservationIgnored var onShelfHotkeyChange: (() -> Void)?
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
