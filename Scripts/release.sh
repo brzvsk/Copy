@@ -152,23 +152,38 @@ sign_one() {
 
 FRAMEWORKS_DIR="$APP_PATH/Contents/Frameworks"
 if [[ -d "$FRAMEWORKS_DIR" ]]; then
+  # Every `find` below writes its NUL-delimited results to a temp file via a plain
+  # redirect (a simple command) rather than a pipe or process substitution feeding a
+  # `while read` loop -- a pipeline/process-substitution's exit status is invisible to
+  # `set -e` (the reading loop still exits 0 even if `find` itself failed partway
+  # through), which would let a partial listing silently under-sign the bundle. A
+  # redirect's exit status is `find`'s own, so `set -e` aborts the script if it fails.
+  nested_list_file="$(mktemp)"
+
   # Find every nested .framework/.xpc/.app plus bare Mach-O executables
   # (e.g. Sparkle's Autoupdate helper, which isn't wrapped in a bundle),
   # then sign deepest-path-first so containers are signed after their
-  # contents.
+  # contents. `-mindepth 2` excludes the top-level frameworks themselves
+  # (e.g. Frameworks/Sparkle.framework) -- those are handled once, below,
+  # by the top-level framework loop, so including them here would sign
+  # them twice.
   nested_paths=()
+  find "$FRAMEWORKS_DIR" -mindepth 2 \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" \) -print0 > "$nested_list_file"
   while IFS= read -r -d '' path; do
     nested_paths+=("$path")
-  done < <(find "$FRAMEWORKS_DIR" \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" \) -print0)
+  done < "$nested_list_file"
 
   # Bare executables directly inside a framework's version directory
   # (not part of a .framework/.xpc/.app match above) also need their own
   # signature -- e.g. Sparkle.framework/Versions/B/Autoupdate.
+  find "$FRAMEWORKS_DIR" -type f -perm -u+x -print0 > "$nested_list_file"
   while IFS= read -r -d '' path; do
     if [[ -x "$path" && ! -d "$path" ]]; then
       nested_paths+=("$path")
     fi
-  done < <(find "$FRAMEWORKS_DIR" -type f -perm -u+x -print0)
+  done < "$nested_list_file"
+
+  rm -f "$nested_list_file"
 
   # Sort deepest-first by path segment count so nested bundles/executables
   # are signed before the frameworks/apps that contain them. Done as a plain
@@ -199,9 +214,12 @@ if [[ -d "$FRAMEWORKS_DIR" ]]; then
 
   # Finally sign each top-level framework itself (e.g. Sparkle.framework),
   # now that everything nested inside it already carries its own signature.
+  top_level_list_file="$(mktemp)"
+  find "$FRAMEWORKS_DIR" -maxdepth 1 -name "*.framework" -print0 > "$top_level_list_file"
   while IFS= read -r -d '' framework; do
     sign_one "$framework"
-  done < <(find "$FRAMEWORKS_DIR" -maxdepth 1 -name "*.framework" -print0)
+  done < "$top_level_list_file"
+  rm -f "$top_level_list_file"
 fi
 
 step "6/9 Signing Copy.app (top-level, last)"

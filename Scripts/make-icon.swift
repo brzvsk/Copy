@@ -45,6 +45,33 @@ func roundedRectPath(_ rect: CGRect, radius: CGFloat) -> CGPath {
     return CGPath(roundedRect: rect, cornerWidth: r, cornerHeight: r, transform: nil)
 }
 
+/// A true superellipse ("squircle") boundary approximating macOS's continuous-corner
+/// app-tile shape. Every sampled point satisfies |x/a|^n + |y/b|^n = 1, which is what
+/// gives the tile its smoother, continuous curvature -- unlike `roundedRectPath`'s
+/// circular-arc corners grafted onto straight edges, the whole outline here is one
+/// continuous curve. Sampled as a fine polyline rather than analytic bezier segments
+/// since this only ever needs to rasterize, not stay resolution-independent.
+func superellipsePath(_ rect: CGRect, exponent n: CGFloat = 5, segments: Int = 720) -> CGPath {
+    let cx = rect.midX, cy = rect.midY
+    let a = rect.width / 2
+    let b = rect.height / 2
+    let path = CGMutablePath()
+    for i in 0...segments {
+        let t = CGFloat(i) / CGFloat(segments) * 2 * .pi
+        let cosT = cos(t)
+        let sinT = sin(t)
+        let x = cx + a * copysign(pow(abs(cosT), 2 / n), cosT)
+        let y = cy + b * copysign(pow(abs(sinT), 2 / n), sinT)
+        if i == 0 {
+            path.move(to: CGPoint(x: x, y: y))
+        } else {
+            path.addLine(to: CGPoint(x: x, y: y))
+        }
+    }
+    path.closeSubpath()
+    return path
+}
+
 func linearGradient(_ colors: [CGColor]) -> CGGradient {
     CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: nil)!
 }
@@ -53,9 +80,9 @@ func linearGradient(_ colors: [CGColor]) -> CGGradient {
 
 func drawIcon(in context: CGContext, size: CGFloat) {
     let tileRect = CGRect(x: 0, y: 0, width: size, height: size)
-    // Roughly the macOS "continuous corner" app-tile proportion.
-    let tileRadius = size * 0.225
-    let tilePath = roundedRectPath(tileRect, radius: tileRadius)
+    // A true superellipse, not a circular-arc rounded rect -- this is what gives a
+    // macOS app tile its continuous-corner "squircle" silhouette.
+    let tilePath = superellipsePath(tileRect, exponent: 5)
 
     context.saveGState()
     context.addPath(tilePath)
@@ -137,10 +164,13 @@ func drawIcon(in context: CGContext, size: CGFloat) {
         }
     }
 
-    // MARK: Lifting card -- echoes the shelf: a single card peeling off the stack
-    let cardWidth = size * 0.34
-    let cardHeight = size * 0.22
-    let cardCenter = CGPoint(x: size * 0.635, y: size * 0.795)
+    // MARK: Lifting card -- echoes the shelf: a single card peeling off the stack.
+    // Positioned right of and below the clip's bounding band (x > 0.57, y in
+    // [0.724, 0.814]) with margin, so the card clearly clears the clip tab instead of
+    // crossing through it.
+    let cardWidth = size * 0.30
+    let cardHeight = size * 0.19
+    let cardCenter = CGPoint(x: size * 0.76, y: size * 0.70)
     let cardAngle = -12.0 * CGFloat.pi / 180
 
     context.saveGState()

@@ -50,13 +50,14 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     /// building a standalone AppKit+SwiftUI repro and measuring instead of reasoning
     /// about SwiftUI's diffing:
     /// - Plainly reassigning the SAME hosting controller's `rootView` to a "fresh"
-    ///   `OnboardingView` turned out to correctly cancel the old step's `Timer.publish`
-    ///   subscription (confirmed: a generation-tagged timer stopped firing right after
-    ///   a real `windowWillClose`), BUT it does NOT reset `@State` — a repro proved a
-    ///   `@State` counter held its old value across the reassignment instead of
-    ///   reinitializing, because SwiftUI treats same-concrete-type-same-position
-    ///   `rootView` updates as an in-place update of the existing identity, not a
-    ///   fresh mount. So the flow would silently resume wherever the user left it.
+    ///   `OnboardingView` (no `.id(_:)`) was measured to NOT reliably tear down the old
+    ///   step's `Timer.publish` subscription: SwiftUI treats a same-concrete-type,
+    ///   same-position `rootView` update as an in-place update of the existing view
+    ///   identity rather than a fresh mount, and a repro showed the old generation's
+    ///   timer could keep firing after a real `windowWillClose`. The same in-place
+    ///   update also left `@State` untouched — a repro `@State` counter held its old
+    ///   value across the reassignment instead of reinitializing — so the flow would
+    ///   silently resume wherever the user left it.
     /// - Replacing `window.contentViewController` with a brand-new
     ///   `NSHostingController` (to force a real new identity) is worse, not better: a
     ///   repro proved the OLD hosting controller is never released even after nothing
