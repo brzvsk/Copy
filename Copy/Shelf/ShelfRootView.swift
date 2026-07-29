@@ -27,7 +27,7 @@ struct ShelfRootView: View {
             ShelfItemsRow(viewModel: viewModel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ShelfBackground())
+        .glassSurface(corners: .top(12))
         .sheet(item: $viewModel.editingItem) { item in
             EditItemSheet(
                 item: item,
@@ -442,20 +442,4 @@ private struct ShelfEmptyState: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-}
-
-private struct ShelfBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .hudWindow
-        view.blendingMode = .behindWindow
-        view.state = .active
-        view.wantsLayer = true
-        view.layer?.cornerRadius = 12
-        view.layer?.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
-        view.layer?.masksToBounds = true
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
