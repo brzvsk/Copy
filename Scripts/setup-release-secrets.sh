@@ -21,6 +21,7 @@ set -euo pipefail
 
 REPO="tarikbc/Copy"
 SIGN_IDENTITY="Developer ID Application"
+TEAM_HINT="P7V47BUA2B"
 LOGIN_KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 # A keychain "service" under which we save the generated passwords/ids for you.
 KC_SERVICE="com.tarikbc.Copy.release"
@@ -65,12 +66,38 @@ setup_cert() {
   local pw
   pw="$(openssl rand -base64 24)"
 
-  info "exporting your Developer ID identity (approve the keychain prompt if it appears)"
-  # Exports the code-signing identities from the login keychain. The CI import
-  # step selects "$SIGN_IDENTITY" by name, so any extra identities are harmless.
-  security export -k "$LOGIN_KEYCHAIN" -t identities -f pkcs12 -P "$pw" -o "$p12" \
-    || die "certificate export failed or was cancelled at the keychain prompt."
-  [[ -s "$p12" ]] || die "exported .p12 is empty."
+  # Unlocking the login keychain first avoids the misleading
+  # "SecKeychainItemExport: passphrase not correct" error that `security export`
+  # throws when the keychain is locked. This prompts once for your Mac login
+  # (keychain) password.
+  info "unlocking your login keychain (enter your Mac login password if asked)"
+  security unlock-keychain "$LOGIN_KEYCHAIN" || true
+
+  info "exporting your Developer ID identity"
+  # Try the automated export. It exports the code-signing identities from the
+  # login keychain; the CI import step selects "$SIGN_IDENTITY" by name, so any
+  # extra identities are harmless. If macOS refuses (a long-standing
+  # SecKeychainItemExport quirk with identities), fall back to a manual Keychain
+  # Access export, which is reliable.
+  if security export -k "$LOGIN_KEYCHAIN" -t identities -f pkcs12 -P "$pw" -o "$p12" 2>/dev/null \
+     && [[ -s "$p12" ]]; then
+    info "exported automatically"
+  else
+    info "automatic export did not work (a known macOS limitation). Export it once by hand:"
+    info "  1. Open Keychain Access, pick the 'login' keychain, category 'My Certificates'."
+    info "  2. Right-click '$SIGN_IDENTITY: ...($TEAM_HINT)' and choose Export."
+    info "  3. Save it as a .p12 and set any password you like when prompted."
+    echo
+    local manual_p12 manual_pw
+    read -r -p "    Path to the exported .p12: " manual_p12
+    manual_p12="${manual_p12/#\~/$HOME}"
+    [[ -f "$manual_p12" ]] || die "no file at: $manual_p12"
+    read -r -s -p "    The .p12 password you set: " manual_pw
+    echo
+    [[ -n "$manual_pw" ]] || die "the .p12 password cannot be empty."
+    p12="$manual_p12"
+    pw="$manual_pw"
+  fi
 
   base64 -i "$p12" | gh secret set DEVELOPER_ID_CERT_P12_BASE64 --repo "$REPO"
   printf '%s' "$pw" | gh secret set DEVELOPER_ID_CERT_PASSWORD --repo "$REPO"
