@@ -9,10 +9,22 @@ final class AppCoordinator {
     private let monitor: ClipboardMonitor
     private let pasteService: PasteService
     private(set) var isPaused = false
-    private lazy var shelfController = ShelfPanelController { [weak self] in
-        _ = self
-        return NSHostingView(rootView: ShelfPlaceholderView())
-    }
+    private(set) lazy var shelfViewModel = ShelfViewModel(store: store)
+
+    private lazy var shelfController: ShelfPanelController = {
+        let controller = ShelfPanelController { [weak self] in
+            guard let self else { return NSView() }
+            return NSHostingView(rootView: ShelfRootView(viewModel: self.shelfViewModel))
+        }
+        controller.onDidHide = { [weak self] in
+            self?.shelfViewModel.clearTransientState()
+        }
+        shelfViewModel.onPaste = { [weak self, weak controller] item, plain in
+            controller?.hide(restoreFocus: true)
+            self?.pasteFromShelf(item, plainTextOnly: plain)
+        }
+        return controller
+    }()
 
     init() throws {
         let database = try DatabaseManager.makeDefault()
@@ -66,10 +78,14 @@ final class AppCoordinator {
     /// Puts the item on the clipboard and pastes it into the frontmost app.
     /// Without Accessibility, the item stays on the clipboard for a manual ⌘V.
     func paste(_ item: ClipItem) {
+        pasteFromShelf(item, plainTextOnly: false)
+    }
+
+    func pasteFromShelf(_ item: ClipItem, plainTextOnly: Bool) {
         guard let id = item.id,
               let reps = try? store.representations(forItemID: id),
               !reps.isEmpty else { return }
-        pasteService.place(reps, plainTextOnly: false)
+        pasteService.place(reps, plainTextOnly: plainTextOnly)
         try? store.touch(itemID: id)
 
         guard AXIsProcessTrusted() else {
