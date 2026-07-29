@@ -29,6 +29,13 @@ enum HUD {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.ignoresMouseEvents = true
 
+        // M7: deliberately NOT adopting `NSGlassEffectView` (AppKit, macOS 26+) here.
+        // This pill is a pure AppKit `NSPanel` outside the SwiftUI helper's reach, so
+        // adopting glass would mean a second, hand-rolled macOS-26-gated code path
+        // (own Reduce Transparency check, own `NSGlassEffectView.contentView`/
+        // `cornerRadius` wiring) for a toast that's on screen for `duration` (1.4s
+        // default) and already reads fine as a `.hudWindow` capsule. Restraint over
+        // coverage: the fallback material stays the only path, on every macOS version.
         let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
         effect.material = .hudWindow
         effect.state = .active

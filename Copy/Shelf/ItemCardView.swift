@@ -72,6 +72,15 @@ struct ItemCardView: View {
         }
         .padding(compact ? 8 : 10)
         .frame(width: Tokens.cardWidth(compact: compact), height: Tokens.cardHeight(compact: compact), alignment: .topLeading)
+        // M7: deliberately NOT routed through `glassSurface` even on macOS 26. Cards
+        // are dense, content-bearing surfaces (up to 11 lines of mono-spaced clipboard
+        // text) shown many-at-a-time in a scrolling row — exactly the case Apple's
+        // Liquid Glass guidance calls out as the wrong fit ("glass is for the controls
+        // and navigation that float above content, not for the content itself"). The
+        // shelf panel behind the row is already glass on 26 (`ShelfRootView`); stacking
+        // another translucent layer under small text-heavy cards would fight the mono
+        // body text's legibility and read as busy rather than intentional. Cards keep
+        // `controlBackgroundColor` on every macOS version.
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous)

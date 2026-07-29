@@ -36,6 +36,11 @@ struct CreateItemSheet: View {
         }
         .padding(16)
         .frame(width: 480, height: 320)
+        // M7: outer sheet container only — the text editor below keeps its own opaque
+        // `.textBackgroundColor` fill for contrast, so glassing this container doesn't
+        // touch legibility of the text being composed. Mirrors `EditItemSheet`.
+        .glassSurface(cornerRadius: 12)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var header: some View {

@@ -30,6 +30,11 @@ struct EditItemSheet: View {
         }
         .padding(16)
         .frame(width: 480, height: 320)
+        // M7: outer sheet container only — the text editor below keeps its own opaque
+        // `.textBackgroundColor` fill (set in `textEditor` above) for contrast, so
+        // glassing this container doesn't touch legibility of the text being edited.
+        .glassSurface(cornerRadius: 12)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     /// `.writingToolsBehavior(.complete)` requires macOS 15.0+ (verified against the

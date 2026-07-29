@@ -33,7 +33,7 @@ struct PasteStackView: View {
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(PasteStackBackground())
+        .glassSurface(cornerRadius: 12)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onChange(of: model.queue.itemUUIDs) { _, _ in onContentChange() }
     }
@@ -44,16 +44,33 @@ struct PasteStackView: View {
                 .font(Tokens.caption)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close Paste Stack")
+            closeButton
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    /// Branched rather than chained (`.buttonStyle(.plain).buttonStyle(.glass)`) to
+    /// avoid relying on SwiftUI's `buttonStyle` override-ordering for two different
+    /// styles on one button — each `#available` branch applies exactly one style, so
+    /// there's no ambiguity about which one is actually in effect. `.glass` gives this
+    /// dismiss control the small circular glass-pill treatment Apple's own floating
+    /// glass panels use for icon-only close buttons on macOS 26; pre-26 it's the
+    /// original quiet `.plain` icon, unchanged.
+    @ViewBuilder
+    private var closeButton: some View {
+        let button = Button(action: onClose) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityLabel("Close Paste Stack")
+
+        if #available(macOS 26, *) {
+            button.buttonStyle(.glass)
+        } else {
+            button.buttonStyle(.plain)
+        }
     }
 
     // Mirrors ShelfRootView's empty state exactly (spacing, icon size/weight, text
@@ -112,12 +129,24 @@ struct PasteStackView: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: .infinity)
 
-            Button("Clear") {
-                model.queue.clear()
-            }
-            .frame(maxWidth: .infinity)
+            clearButton
         }
         .padding(12)
+    }
+
+    /// Same branch-not-chain reasoning as `closeButton` above.
+    @ViewBuilder
+    private var clearButton: some View {
+        let button = Button("Clear") {
+            model.queue.clear()
+        }
+        .frame(maxWidth: .infinity)
+
+        if #available(macOS 26, *) {
+            button.buttonStyle(.glass)
+        } else {
+            button
+        }
     }
 }
 
@@ -146,16 +175,4 @@ private struct PasteStackRow: View {
         case .color: return "paintpalette"
         }
     }
-}
-
-private struct PasteStackBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .hudWindow
-        view.blendingMode = .behindWindow
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
