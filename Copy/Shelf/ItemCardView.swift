@@ -10,6 +10,7 @@ struct ItemCardView: View {
     /// Compact shelf mode (`SettingsStore.compactShelf`, threaded from `ShelfRootView`):
     /// smaller card frame + tighter line limits so more cards fit on screen at once.
     var compact: Bool = false
+    let doubleClickToPaste: Bool
     let onClick: (NSEvent.ModifierFlags) -> Void
     let onDoubleClick: () -> Void
     let onPaste: () -> Void
@@ -147,13 +148,8 @@ struct ItemCardView: View {
             Button("Delete", role: .destructive, action: onDelete)
         }
         .onDrag(dragProvider)
-        // Double-tap must be registered before the single-tap recognizer, or SwiftUI
-        // never resolves the double-click and only the single-tap ever fires. SwiftUI's
-        // count:2 gesture doesn't carry modifier flags, but that's fine: double-click
-        // pastes is defined as a no-modifier gesture — modifier-click multi-select is
-        // inherently a single-click action (see `ShelfViewModel.handleCardClick`).
-        .onTapGesture(count: 2) { onDoubleClick() }
-        .onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
+        .modifier(CardClickGesture(doubleClickToPaste: doubleClickToPaste,
+                                   onClick: onClick, onDoubleClick: onDoubleClick))
     }
 
     private var header: some View {
@@ -320,6 +316,30 @@ struct LinkFaviconView: View {
                     FaviconCache.shared.favicon(for: item, store: store) { image = $0 }
                 }
             }
+        }
+    }
+}
+
+/// Card click handling. The double-tap recognizer must be registered before the
+/// single-tap one, or SwiftUI never resolves the double-click. We attach it ONLY in
+/// double-click-to-paste mode: in single-click-paste mode a lone single-tap recognizer
+/// pastes immediately, with none of the double-click-interval latency an always-present
+/// count:2 recognizer would impose on every click. The count:2 gesture carries no
+/// modifier flags, which is fine: pasting on double-click is a no-modifier gesture, and
+/// modifier multi-select stays a single-click action (see ShelfViewModel.handleCardClick).
+private struct CardClickGesture: ViewModifier {
+    let doubleClickToPaste: Bool
+    let onClick: (NSEvent.ModifierFlags) -> Void
+    let onDoubleClick: () -> Void
+
+    func body(content: Content) -> some View {
+        if doubleClickToPaste {
+            content
+                .onTapGesture(count: 2) { onDoubleClick() }
+                .onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
+        } else {
+            content
+                .onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
         }
     }
 }

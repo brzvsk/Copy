@@ -117,7 +117,13 @@ struct EditItemSheet: View {
     }
 
     private var statsText: String {
-        "\(editorController.characterCount) characters · \(editorController.wordCount) words · \(editorController.lineCount) lines"
+        let c = editorController.characterCount
+        let w = editorController.wordCount
+        let l = editorController.lineCount
+        let characters = "\(c) \(c == 1 ? "character" : "characters")"
+        let words = "\(w) \(w == 1 ? "word" : "words")"
+        let lines = "\(l) \(l == 1 ? "line" : "lines")"
+        return "\(characters) · \(words) · \(lines)"
     }
 }
 

@@ -398,6 +398,7 @@ private struct ShelfItemsRow: View {
                                 pinboards: viewModel.pinboards,
                                 currentPinboardID: currentPinboardID,
                                 compact: compact,
+                                doubleClickToPaste: viewModel.settings.doubleClickToPaste,
                                 onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
                                 onDoubleClick: { viewModel.handleCardDoubleClick(item) },
                                 onPaste: { viewModel.requestPaste(item, plain: false) },

@@ -180,6 +180,12 @@ final class ShelfViewModel {
     /// `settings.doubleClickToPaste` is on; with it off, a single click already pastes,
     /// so this just re-selects and re-pastes the same item, which is harmless.
     func handleCardDoubleClick(_ item: ClipItem) {
+        // A double-click pastes only as a plain (no-modifier) gesture. When a modifier
+        // is held the user is building a multi-selection with command/shift-clicks, so a
+        // fast second click on the same card must stay a selection toggle (handled by
+        // handleCardClick), never collapse the selection and paste.
+        let modifiers = NSEvent.modifierFlags
+        guard !modifiers.contains(.command), !modifiers.contains(.shift) else { return }
         selection.click(item.uuid)
         requestPaste(item, plain: false)
     }
