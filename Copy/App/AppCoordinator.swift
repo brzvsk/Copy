@@ -6,12 +6,13 @@ import SwiftUI
 @MainActor
 final class AppCoordinator {
     let store: ItemStore
+    let pinboardStore: PinboardStore
     private let monitor: ClipboardMonitor
     private let pasteService: PasteService
     private let persistQueue = DispatchQueue(label: "com.tarikbc.copy.persist", qos: .utility)
     private let saveErrors = SaveErrorReporter()
     private(set) var isPaused = false
-    private(set) lazy var shelfViewModel = ShelfViewModel(store: store)
+    private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore)
 
     private lazy var shelfController: ShelfPanelController = {
         let controller = ShelfPanelController { [weak self] in
@@ -24,6 +25,22 @@ final class AppCoordinator {
         controller.onKeyEvent = { [weak self, weak controller] event in
             guard let self, let controller else { return false }
             let viewModel = self.shelfViewModel
+            // ⌘1 → history tab, ⌘2...⌘9 → nth pinboard. Checked before keyCode routing
+            // so the digit keys never fall through to other handlers.
+            if event.modifierFlags.contains(.command),
+               let chars = event.charactersIgnoringModifiers, chars.count == 1,
+               let digit = chars.first, let digitValue = digit.wholeNumberValue,
+               (1...9).contains(digitValue) {
+                if digitValue == 1 {
+                    viewModel.tab = .history
+                } else {
+                    let index = digitValue - 2
+                    if viewModel.pinboards.indices.contains(index), let id = viewModel.pinboards[index].id {
+                        viewModel.tab = .pinboard(id)
+                    }
+                }
+                return true
+            }
             switch event.keyCode {
             case 123: // left arrow
                 viewModel.moveSelection(-1)
@@ -41,14 +58,12 @@ final class AppCoordinator {
                 }
                 return true
             case 36: // return
-                if let item = viewModel.selectedItem {
-                    viewModel.requestPaste(item, plain: event.modifierFlags.contains(.option))
-                }
+                viewModel.pasteSelection(plain: event.modifierFlags.contains(.option))
                 return true
             case 51 where event.modifierFlags.contains(.command): // cmd-delete
-                if let item = viewModel.selectedItem {
-                    viewModel.delete(item)
-                }
+                viewModel.deleteSelection()
+                return true
+            case 14 where event.modifierFlags.contains(.command): // cmd-E — edit primary (wired fully in Task 7)
                 return true
             case 49 where viewModel.query.isEmpty: // space previews in browse mode
                 viewModel.previewShown.toggle()
@@ -61,6 +76,20 @@ final class AppCoordinator {
             controller?.hide(restoreFocus: true)
             self?.pasteFromShelf(item, plainTextOnly: plain)
         }
+        shelfViewModel.onPasteMultiple = { [weak self, weak controller] joined in
+            controller?.hide(restoreFocus: true)
+            guard let self else { return }
+            self.pasteService.place(
+                [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(joined.utf8))],
+                plainTextOnly: false)
+            guard AXIsProcessTrusted() else {
+                HUD.show("Press ⌘V to paste")
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [pasteService = self.pasteService] in
+                pasteService.sendPasteKeystroke()
+            }
+        }
         return controller
     }()
 
@@ -69,6 +98,7 @@ final class AppCoordinator {
         let blobs = BlobStore(directory: database.blobsDirectory)
         let store = ItemStore(writer: database.writer, blobs: blobs)
         self.store = store
+        self.pinboardStore = PinboardStore(writer: database.writer)
         self.pasteService = PasteService(pasteboard: NSPasteboard.general,
                                          keyPoster: CGKeyEventPoster())
         let reporter = saveErrors

@@ -6,6 +6,7 @@ struct ItemCardView: View {
     let item: ClipItem
     let isSelected: Bool
     let store: ItemStore
+    let onClick: (NSEvent.ModifierFlags) -> Void
     let onPaste: () -> Void
     let onPastePlain: () -> Void
     let onToggleFavorite: () -> Void
@@ -51,6 +52,7 @@ struct ItemCardView: View {
             Button("Delete", role: .destructive, action: onDelete)
         }
         .onDrag(dragProvider)
+        .onTapGesture { onClick(NSEvent.modifierFlags) }
     }
 
     private var header: some View {

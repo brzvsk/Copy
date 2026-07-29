@@ -79,11 +79,12 @@ private struct ShelfItemsRow: View {
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: Tokens.cardGap) {
-                        ForEach(Array(viewModel.items.enumerated()), id: \.element.uuid) { index, item in
+                        ForEach(viewModel.items, id: \.uuid) { item in
                             ItemCardView(
                                 item: item,
-                                isSelected: index == viewModel.selectedIndex,
+                                isSelected: viewModel.isSelected(item),
                                 store: viewModel.store,
+                                onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
                                 onPaste: { viewModel.requestPaste(item, plain: false) },
                                 onPastePlain: { viewModel.requestPaste(item, plain: true) },
                                 onToggleFavorite: { viewModel.toggleFavorite(item) },
@@ -92,24 +93,20 @@ private struct ShelfItemsRow: View {
                             )
                             .id(item.uuid)
                             .popover(isPresented: Binding(
-                                get: { index == viewModel.selectedIndex && viewModel.previewShown },
+                                get: { viewModel.isSelected(item) && item.uuid == viewModel.selection.primary && viewModel.previewShown },
                                 set: { viewModel.previewShown = $0 }
                             )) {
                                 PreviewPane(item: item, store: viewModel.store)
-                            }
-                            .onTapGesture {
-                                viewModel.selectedIndex = index
-                                viewModel.requestPaste(item, plain: false)
                             }
                         }
                     }
                     .padding(.horizontal, Tokens.shelfPadding)
                     .padding(.vertical, 16)
                 }
-                .onChange(of: viewModel.selectedIndex) { _, newIndex in
-                    if viewModel.items.indices.contains(newIndex) {
+                .onChange(of: viewModel.selection.primary) { _, newPrimary in
+                    if let newPrimary {
                         withAnimation(.easeOut(duration: 0.15)) {
-                            proxy.scrollTo(viewModel.items[newIndex].uuid, anchor: .center)
+                            proxy.scrollTo(newPrimary, anchor: .center)
                         }
                     }
                 }
