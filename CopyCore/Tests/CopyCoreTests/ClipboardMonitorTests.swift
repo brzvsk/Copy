@@ -7,11 +7,13 @@ final class FakePasteboard: PasteboardReading {
     var dataByUTI: [String: Data] = [:]
     var stringValue: String?
     var urls: [URL] = []
+    var colorHexValue: String?
 
     func typeIdentifiers() -> [String] { typeIDs }
     func data(forUTI uti: String) -> Data? { dataByUTI[uti] }
     func string() -> String? { stringValue }
     func fileURLs() -> [URL] { urls }
+    func colorHex() -> String? { colorHexValue }
 
     func putText(_ s: String, extraTypes: [String] = []) {
         changeCount += 1
@@ -19,6 +21,7 @@ final class FakePasteboard: PasteboardReading {
         stringValue = s
         dataByUTI = [:]
         urls = []
+        colorHexValue = nil
     }
 
     func putImage(_ data: Data) {
@@ -27,6 +30,7 @@ final class FakePasteboard: PasteboardReading {
         stringValue = nil
         dataByUTI = ["public.png": data]
         urls = []
+        colorHexValue = nil
     }
 
     func putFiles(_ fileURLs: [URL]) {
@@ -35,6 +39,25 @@ final class FakePasteboard: PasteboardReading {
         stringValue = nil
         dataByUTI = [:]
         urls = fileURLs
+        colorHexValue = nil
+    }
+
+    func putColor(_ hex: String) {
+        changeCount += 1
+        typeIDs = [CopyPasteboard.colorType]
+        stringValue = nil
+        dataByUTI = [:]
+        urls = []
+        colorHexValue = hex
+    }
+
+    func putImageBoth(png: Data, tiff: Data) {
+        changeCount += 1
+        typeIDs = ["public.png", "public.tiff"]
+        stringValue = nil
+        dataByUTI = ["public.png": png, "public.tiff": tiff]
+        urls = []
+        colorHexValue = nil
     }
 }
 
@@ -125,5 +148,34 @@ final class ClipboardMonitorTests: XCTestCase {
         monitor.checkNow()
         XCTAssertEqual(captured[0].kind, .richText)
         XCTAssertEqual(Set(captured[0].representations.map(\.uti)), ["public.rtf", "public.utf8-plain-text"])
+    }
+
+    func testCapturesColor() {
+        pasteboard.putColor("#FF8800")
+        monitor.checkNow()
+        XCTAssertEqual(captured.count, 1)
+        XCTAssertEqual(captured[0].kind, .color)
+        XCTAssertEqual(captured[0].plainText, "#FF8800")
+        XCTAssertEqual(captured[0].representations.map(\.uti), [CopyPasteboard.colorType])
+        XCTAssertEqual(String(decoding: captured[0].representations[0].data, as: UTF8.self), "#FF8800")
+    }
+
+    func testCapturesBothImageRepresentations() {
+        let png = Data([0x89, 0x50])
+        let tiff = Data([0x4D, 0x4D])
+        pasteboard.putImageBoth(png: png, tiff: tiff)
+        monitor.checkNow()
+        XCTAssertEqual(captured[0].kind, .image)
+        XCTAssertEqual(captured[0].representations.map(\.uti), ["public.png", "public.tiff"])
+        XCTAssertEqual(captured[0].hashData, png)
+    }
+
+    func testOversizedItemIsSkipped() {
+        pasteboard.putImage(Data(count: ClipboardMonitor.maxRepresentationBytes + 1))
+        monitor.checkNow()
+        XCTAssertEqual(captured.count, 0)
+        pasteboard.putText("small after big")
+        monitor.checkNow()
+        XCTAssertEqual(captured.count, 1)
     }
 }

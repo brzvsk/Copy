@@ -4,6 +4,9 @@ public final class ClipboardMonitor {
     public var rules: RulesEngine
     public var isPaused = false
 
+    /// Representations larger than this are never captured (memory protection).
+    public static let maxRepresentationBytes = 100_000_000
+
     private let pasteboard: PasteboardReading
     private let pollInterval: TimeInterval
     private let frontmostApp: () -> (bundleID: String?, name: String?)
@@ -57,23 +60,35 @@ public final class ClipboardMonitor {
         let urls = pasteboard.fileURLs()
         if !urls.isEmpty {
             let fullPaths = urls.map(\.path).joined(separator: "\n")
-            return CapturedItem(
+            return capped(CapturedItem(
                 kind: .file,
                 plainText: urls.map(\.lastPathComponent).joined(separator: "\n"),
                 hashData: Data(fullPaths.utf8),
                 representations: urls.map {
                     CapturedRepresentation(uti: "public.file-url", data: $0.dataRepresentation)
                 },
-                sourceBundleID: source.bundleID, sourceAppName: source.name)
+                sourceBundleID: source.bundleID, sourceAppName: source.name))
         }
 
+        var imageReps: [CapturedRepresentation] = []
         for imageUTI in ["public.png", "public.tiff"] {
             if let data = pasteboard.data(forUTI: imageUTI) {
-                return CapturedItem(
-                    kind: .image, plainText: "Image", hashData: data,
-                    representations: [CapturedRepresentation(uti: imageUTI, data: data)],
-                    sourceBundleID: source.bundleID, sourceAppName: source.name)
+                imageReps.append(CapturedRepresentation(uti: imageUTI, data: data))
             }
+        }
+        if !imageReps.isEmpty {
+            return capped(CapturedItem(
+                kind: .image, plainText: "Image", hashData: imageReps[0].data,
+                representations: imageReps,
+                sourceBundleID: source.bundleID, sourceAppName: source.name))
+        }
+
+        if pasteboard.typeIdentifiers().contains(CopyPasteboard.colorType),
+           let hex = pasteboard.colorHex() {
+            return capped(CapturedItem(
+                kind: .color, plainText: hex, hashData: Data(hex.utf8),
+                representations: [CapturedRepresentation(uti: CopyPasteboard.colorType, data: Data(hex.utf8))],
+                sourceBundleID: source.bundleID, sourceAppName: source.name))
         }
 
         guard let text = pasteboard.string(), !text.isEmpty else { return nil }
@@ -88,9 +103,17 @@ public final class ClipboardMonitor {
             if kind == .text { kind = .richText }
         }
         representations.append(CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(text.utf8)))
-        return CapturedItem(
+        return capped(CapturedItem(
             kind: kind, plainText: text, hashData: Data(text.utf8),
             representations: representations,
-            sourceBundleID: source.bundleID, sourceAppName: source.name)
+            sourceBundleID: source.bundleID, sourceAppName: source.name))
+    }
+
+    static func capped(_ item: CapturedItem?) -> CapturedItem? {
+        guard let item else { return nil }
+        for rep in item.representations where rep.data.count > maxRepresentationBytes {
+            return nil
+        }
+        return item
     }
 }
