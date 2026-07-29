@@ -2,8 +2,28 @@
 
 Copy uses [Sparkle](https://sparkle-project.org) for auto-updates. Every release DMG/zip
 is signed with an EdDSA keypair so the app can verify update authenticity before installing.
-This keypair is generated **once** for the life of the project. This is a human-gated step,
-not something to automate away.
+This keypair is generated **once** for the life of the project.
+
+## Status: keypair generated
+
+Copy's keypair has been generated under a dedicated keychain account named `copy` (kept
+separate from any other Sparkle-using app on the same Mac). The public key is already wired
+into `project.yml` and Info.plist:
+
+```
+SUPublicEDKey = T/g8uQqB0Ki0cQTD43Mjk5KC4YRtBYMUfg5QduAnH2c=
+```
+
+The private key was exported to `~/copy-sparkle-private-key.txt` as a backup. **Move that
+file into a password manager or encrypted vault and delete the plaintext copy from your home
+directory.** It is also the value you paste into the `SPARKLE_PRIVATE_KEY` GitHub secret for
+the automated release workflow (see `.github/workflows/release.yml`).
+
+Local signing (`Scripts/release.sh`) reads this key from the `copy` keychain account
+automatically. CI signing reads it from `SPARKLE_ED_KEY_FILE` (written from the secret).
+
+The rest of this document is the original one-time procedure, kept for reference and for
+restoring the key on a new machine.
 
 ## Generating the keypair (one time)
 

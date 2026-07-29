@@ -35,11 +35,11 @@ targets:
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "© 2026 Tarik Caramanico - GPL-3.0"
-        # Sparkle auto-update feed. SUPublicEDKey is a placeholder until the
-        # human-gated keygen step runs `generate_keys` and pastes the real
-        # public key here (see Scripts/sparkle-keys-README.md).
+        # Sparkle auto-update feed. SUPublicEDKey is Copy's dedicated EdDSA
+        # public key (generated under the `copy` keychain account; the private
+        # key is backed up outside the repo, see Scripts/sparkle-keys-README.md).
         SUFeedURL: https://tarikbc.github.io/Copy/appcast.xml
-        SUPublicEDKey: "PLACEHOLDER_REPLACE_AT_KEYGEN"
+        SUPublicEDKey: "T/g8uQqB0Ki0cQTD43Mjk5KC4YRtBYMUfg5QduAnH2c="
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
     settings:

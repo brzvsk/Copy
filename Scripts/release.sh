@@ -304,8 +304,17 @@ if [[ -z "$SIGN_UPDATE_BIN" ]]; then
   exit 1
 fi
 
-echo "    Signing $SPARKLE_ZIP_PATH with $SIGN_UPDATE_BIN"
-SIGN_UPDATE_OUTPUT="$("$SIGN_UPDATE_BIN" "$SPARKLE_ZIP_PATH")"
+# Sign with Copy's dedicated EdDSA key. In CI, SPARKLE_ED_KEY_FILE points at the
+# private key written from the SPARKLE_PRIVATE_KEY secret; locally it is unset
+# and we read Copy's key from the `copy` keychain account (kept separate from
+# other apps' Sparkle keys on the same machine).
+if [[ -n "${SPARKLE_ED_KEY_FILE:-}" ]]; then
+  echo "    Signing $SPARKLE_ZIP_PATH with $SIGN_UPDATE_BIN (key file)"
+  SIGN_UPDATE_OUTPUT="$("$SIGN_UPDATE_BIN" --ed-key-file "$SPARKLE_ED_KEY_FILE" "$SPARKLE_ZIP_PATH")"
+else
+  echo "    Signing $SPARKLE_ZIP_PATH with $SIGN_UPDATE_BIN (keychain account: copy)"
+  SIGN_UPDATE_OUTPUT="$("$SIGN_UPDATE_BIN" --account copy "$SPARKLE_ZIP_PATH")"
+fi
 echo "    $SIGN_UPDATE_OUTPUT"
 
 ED_SIGNATURE="$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' <<<"$SIGN_UPDATE_OUTPUT")"
