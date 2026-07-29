@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import CopyCore
+import KeyboardShortcuts
 import SwiftUI
 
 @MainActor
@@ -17,14 +18,16 @@ final class AppCoordinator {
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore)
     private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
 
-    private lazy var pasteStackModel: PasteStackModel = {
-        let model = PasteStackModel(store: store)
-        model.onActiveChange = { [weak self] isActive in
-            self?.pasteStackController.syncVisibility(to: isActive)
-        }
-        return model
-    }()
+    /// Assigned eagerly in `init()` (from a local, not `self.pasteStackModel`) so the
+    /// monitor's `onCapture` closure can capture it directly for the auto-enqueue-while-
+    /// active behavior — `self` isn't fully initialized yet at that point in `init()`,
+    /// but a plain local reference to this same instance is fine to capture. Its
+    /// `onActiveChange` handler is wired afterward, once `self` is safe to capture.
+    private let pasteStackModel: PasteStackModel
     private lazy var pasteStackController = PasteStackController(model: pasteStackModel)
+    private lazy var pasteStackEngine = PasteStackEngine(onIntercept: { [weak self] in
+        self?.pasteNextViaEngine()
+    })
 
     /// How often the retention pruner re-runs while the app stays open.
     private static let retentionInterval: TimeInterval = 12 * 60 * 60
@@ -127,6 +130,8 @@ final class AppCoordinator {
         self.pinboardStore = PinboardStore(writer: database.writer)
         self.pasteService = PasteService(pasteboard: NSPasteboard.general,
                                          keyPoster: CGKeyEventPoster())
+        let pasteStackModel = PasteStackModel(store: store)
+        self.pasteStackModel = pasteStackModel
         let settings = SettingsStore()
         self.settings = settings
         let linkFetcher = LinkMetadataFetcher(store: store)
@@ -138,12 +143,17 @@ final class AppCoordinator {
                 let app = NSWorkspace.shared.frontmostApplication
                 return (app?.bundleIdentifier, app?.localizedName)
             },
-            onCapture: { [persistQueue, linkFetcher, settings] captured in
+            onCapture: { [persistQueue, linkFetcher, settings, pasteStackModel] captured in
                 persistQueue.async {
                     do {
                         let saved = try store.save(captured)
                         DispatchQueue.main.async {
                             linkFetcher.fetchIfNeeded(for: saved, enabled: settings.fetchLinkPreviews)
+                            // While the stack is active, new copies join the queue too —
+                            // "copying while the stack is active" enqueues automatically.
+                            if pasteStackModel.isActive {
+                                pasteStackModel.enqueue(saved)
+                            }
                         }
                     } catch {
                         reporter.report(error)
@@ -154,6 +164,25 @@ final class AppCoordinator {
         self.linkFetcher = linkFetcher
         settings.onRulesChange = { [weak self] excludedBundleIDs in
             self?.monitor.rules = RulesEngine(excludedBundleIDs: excludedBundleIDs)
+        }
+        // `self` is fully initialized past this point, so it's safe to capture weakly
+        // in `onActiveChange` — the single fan-out point for palette visibility AND
+        // engine activation, so the two can never drift out of lockstep (see the
+        // `pasteStackModel` doc comment above).
+        pasteStackModel.onActiveChange = { [weak self] isActive in
+            guard let self else { return }
+            self.pasteStackController.syncVisibility(to: isActive)
+            if isActive {
+                let tapCreated = self.pasteStackEngine.activate()
+                NSLog("Copy: Paste Stack tap \(tapCreated ? "activated" : "could not be created, falling back to hotkey")")
+                if !tapCreated {
+                    KeyboardShortcuts.enable(.pasteNextFromStack)
+                    HUD.show("Use Control Option Command N to paste the next item")
+                }
+            } else {
+                self.pasteStackEngine.deactivate()
+                KeyboardShortcuts.disable(.pasteNextFromStack)
+            }
         }
     }
 
@@ -214,6 +243,67 @@ final class AppCoordinator {
     func addToPasteStack(_ item: ClipItem) {
         pasteStackModel.enqueue(item)
         HUD.show("Added to Paste Stack")
+    }
+
+    /// Whether the Paste Stack palette/engine are currently active — read by
+    /// `AppDelegate` to reflect a checkmark on the "Paste Stack" menu item.
+    var isPasteStackActive: Bool { pasteStackModel.isActive }
+
+    /// Flips the Paste Stack on or off. All activation/deactivation — the palette, the
+    /// CGEvent tap, and the `.pasteNextFromStack` fallback hotkey — fans out from
+    /// `pasteStackModel.isActive`'s `didSet`, wired to `onActiveChange` in `init()`.
+    func togglePasteStack() {
+        pasteStackModel.isActive.toggle()
+    }
+
+    /// Advances the queue and places the next item's representations on the
+    /// pasteboard, shared by both the engine-intercepted path and the
+    /// `.pasteNextFromStack` fallback hotkey. Returns `false` once the queue is
+    /// exhausted, having already deactivated the stack and shown the "finished" HUD.
+    @discardableResult
+    private func placeNextStackItem() -> Bool {
+        guard let reps = pasteStackModel.advanceAndResolve() else {
+            deactivatePasteStack()
+            HUD.show("Paste Stack finished")
+            return false
+        }
+        pasteService.place(reps, plainTextOnly: false)
+        return true
+    }
+
+    /// Called by `PasteStackEngine`'s `onIntercept` when the CGEvent tap swallows a
+    /// plain ⌘V. This path only runs with Accessibility granted (the tap itself
+    /// requires it), so after placing the item it's safe to re-synthesize a marked ⌘V
+    /// and have the frontmost app receive it automatically.
+    private func pasteNextViaEngine() {
+        guard placeNextStackItem() else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            PasteStackEngine.postMarkedPasteKeystroke()
+        }
+    }
+
+    /// `.pasteNextFromStack` fallback hotkey handler — only reachable while the tap
+    /// couldn't be created (no Accessibility; see `pasteStackModel.onActiveChange`).
+    /// Without Accessibility we can't reliably synthesize a ⌘V ourselves (same reason
+    /// `pasteFromShelf`/`onPasteMultiple` gate `sendPasteKeystroke()` behind
+    /// `AXIsProcessTrusted()`), so this places the item and lets the user's own ⌘V —
+    /// which the OS delivers directly, no synthesis needed — do the actual pasting.
+    func pasteNextFromStack() {
+        guard placeNextStackItem() else { return }
+        HUD.show("Ready to paste. Press Command V.")
+    }
+
+    private func deactivatePasteStack() {
+        pasteStackModel.isActive = false
+    }
+
+    /// Called from `AppDelegate.applicationWillTerminate` so the event tap never
+    /// outlives the app process. `pasteStackEngine.deactivate()` is called directly
+    /// too, as a defensive no-op, in case the tap was ever active without
+    /// `pasteStackModel.isActive` reflecting it.
+    func applicationWillTerminate() {
+        deactivatePasteStack()
+        pasteStackEngine.deactivate()
     }
 
     func clearHistory() {

@@ -37,6 +37,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         KeyboardShortcuts.onKeyDown(for: .toggleShelf) { [weak self] in
             self?.coordinator.toggleShelf()
         }
+        KeyboardShortcuts.onKeyDown(for: .togglePasteStack) { [weak self] in
+            self?.coordinator.togglePasteStack()
+        }
+        // Fallback path only: `AppCoordinator` enables this while the Paste Stack is
+        // active and the CGEvent tap couldn't be created (no Accessibility), and
+        // disables it again on deactivation — see `pasteStackModel.onActiveChange`.
+        KeyboardShortcuts.onKeyDown(for: .pasteNextFromStack) { [weak self] in
+            self?.coordinator.pasteNextFromStack()
+        }
+        KeyboardShortcuts.disable(.pasteNextFromStack)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        coordinator.applicationWillTerminate()
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -74,9 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        // Placeholder until the Paste Stack palette lands; visibly "coming soon" rather than absent.
-        let pasteStack = NSMenuItem(title: "Paste Stack", action: nil, keyEquivalent: "")
-        pasteStack.isEnabled = false
+        let pasteStack = NSMenuItem(title: "Paste Stack", action: #selector(togglePasteStack), keyEquivalent: "v")
+        pasteStack.keyEquivalentModifierMask = [.control, .option, .command]
+        pasteStack.target = self
+        pasteStack.state = coordinator.isPasteStackActive ? .on : .off
         menu.addItem(pasteStack)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Copy",
@@ -99,6 +114,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openSettings() {
         coordinator.openSettings()
+    }
+
+    @objc private func togglePasteStack() {
+        coordinator.togglePasteStack()
     }
 
     @objc private func clearHistory() {
