@@ -22,8 +22,12 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     static let shelfHeight: CGFloat = 340
     /// Panel height while `SettingsStore.compactShelf` is on, sized to `Tokens.compactCardHeight`
     /// plus the same header/divider/padding chrome `shelfHeight` allows for above the
-    /// (shorter) card row.
-    static let compactShelfHeight: CGFloat = 232
+    /// (shorter) card row. `ShelfHeader` isn't shortened in compact mode, so the fixed
+    /// chrome above the card row (header + divider + `ShelfItemsRow`'s own vertical
+    /// padding) is ~229pt; 232 left only ~3pt of margin before cards could clip against
+    /// the panel's bottom edge, so this carries the same ~7% margin `shelfHeight` gives
+    /// the standard card row.
+    static let compactShelfHeight: CGFloat = 244
 
     var onKeyEvent: ((NSEvent) -> Bool)?
     var onDidHide: (() -> Void)?

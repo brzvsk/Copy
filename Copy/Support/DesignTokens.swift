@@ -1,5 +1,7 @@
 import SwiftUI
 import AppKit
+import CopyCore
+import UniformTypeIdentifiers
 
 enum Tokens {
     static let cardWidth: CGFloat = 184
@@ -25,6 +27,10 @@ enum Tokens {
     static let bodyMono = Font.system(size: 11, design: .monospaced)
     static let caption = Font.system(size: 10, weight: .medium)
     static let cardTitle = Font.system(size: 11, weight: .semibold)
+    /// Secondary-but-prominent label style: `ItemCardView`'s custom-title row and its
+    /// link-card host name. One step up from `cardTitle`, shared so both read at the
+    /// same size/weight instead of each carrying its own literal.
+    static let cardSubtitle = Font.system(size: 12, weight: .semibold)
 
     static func color(fromHex hex: String) -> Color {
         var value: UInt64 = 0
@@ -53,4 +59,13 @@ enum Tokens {
         formatter.unitsStyle = .abbreviated
         return formatter
     }()
+
+    /// Resolves the icon to show for a `.file` item from its first captured path's
+    /// extension. Multi-file drops store one path per line in `plainText`; only the
+    /// first matters here since the file glyph is otherwise identical across the
+    /// batch. Shared between `ItemCardView`'s card icon and `PreviewPane`'s larger one.
+    static func fileType(for item: ClipItem) -> UTType {
+        let ext = (item.plainText?.components(separatedBy: "\n").first as NSString?)?.pathExtension ?? ""
+        return UTType(filenameExtension: ext) ?? .data
+    }
 }

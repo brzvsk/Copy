@@ -32,12 +32,24 @@ final class OCRController {
         // write can both happen off-main without hopping back through `self`.
         let store = self.store
 
+        // This hop is for `store.representations(forItemID:)` below, a synchronous
+        // throwing DB read with no async variant — it has to run off the main actor
+        // itself, independent of `OCRService.recognizeText`'s own "always hops off the
+        // calling thread" contract. That means `recognizeText` re-dispatches onto a
+        // second background queue immediately below even though it's already called
+        // from one; that second hop is an unavoidable side effect of a DB-agnostic OCR
+        // service being handed data from a caller that also has its own off-main work
+        // to do, not a bug, and its cost is a single negligible queue enqueue.
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let cleanup: () -> Void = {
                 Task { @MainActor in self?.inFlight.remove(uuid) }
             }
 
-            guard let reps = try? store.representations(forItemID: itemID) else {
+            let reps: [CapturedRepresentation]
+            do {
+                reps = try store.representations(forItemID: itemID)
+            } catch {
+                NSLog("Copy: OCR representations read failed for \(uuid): \(error)")
                 cleanup()
                 return
             }

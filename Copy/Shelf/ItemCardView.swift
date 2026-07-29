@@ -1,6 +1,5 @@
 import SwiftUI
 import CopyCore
-import UniformTypeIdentifiers
 
 struct ItemCardView: View {
     let item: ClipItem
@@ -64,7 +63,7 @@ struct ItemCardView: View {
                 .frame(height: 1)
             if let title = item.title, !title.isEmpty {
                 Text(title)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Tokens.cardSubtitle)
                     .lineLimit(1)
             }
             body(for: item.kind)
@@ -173,7 +172,7 @@ struct ItemCardView: View {
                     HStack(spacing: 4) {
                         LinkFaviconView(item: item, store: store)
                         Text(URL(string: item.plainText ?? "")?.host ?? "Link")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(Tokens.cardSubtitle)
                             .lineLimit(1)
                     }
                     Text(linkTitle)
@@ -191,7 +190,7 @@ struct ItemCardView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(.secondary)
                     Text(URL(string: item.plainText ?? "")?.host ?? "Link")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Tokens.cardSubtitle)
                         .lineLimit(1)
                     Text(String((item.plainText ?? "").prefix(1_500)))
                         .font(Tokens.bodyMono)
@@ -203,7 +202,7 @@ struct ItemCardView: View {
             CardThumbnail(item: item, store: store)
         case .file:
             VStack(alignment: .leading, spacing: 6) {
-                Image(nsImage: NSWorkspace.shared.icon(for: fileType))
+                Image(nsImage: NSWorkspace.shared.icon(for: Tokens.fileType(for: item)))
                     .resizable()
                     .frame(width: compact ? 32 : 44, height: compact ? 32 : 44)
                 Text(item.plainText ?? "File")
@@ -219,11 +218,6 @@ struct ItemCardView: View {
                     .font(Tokens.bodyMono)
             }
         }
-    }
-
-    private var fileType: UTType {
-        let ext = (item.plainText?.components(separatedBy: "\n").first as NSString?)?.pathExtension ?? ""
-        return UTType(filenameExtension: ext) ?? .data
     }
 
     private var footer: some View {

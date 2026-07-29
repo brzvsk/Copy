@@ -1,6 +1,5 @@
 import SwiftUI
 import CopyCore
-import UniformTypeIdentifiers
 
 struct PreviewPane: View {
     let item: ClipItem
@@ -8,11 +7,6 @@ struct PreviewPane: View {
 
     private var quickLookURLs: [URL] {
         QuickLookController.fileURLs(for: item, store: store)
-    }
-
-    private var fileType: UTType {
-        let ext = (item.plainText?.components(separatedBy: "\n").first as NSString?)?.pathExtension ?? ""
-        return UTType(filenameExtension: ext) ?? .data
     }
 
     var body: some View {
@@ -31,7 +25,7 @@ struct PreviewPane: View {
                 .padding(16)
             case .file:
                 VStack(spacing: 10) {
-                    Image(nsImage: NSWorkspace.shared.icon(for: fileType))
+                    Image(nsImage: NSWorkspace.shared.icon(for: Tokens.fileType(for: item)))
                         .resizable()
                         .frame(width: 64, height: 64)
                     Text(item.plainText ?? "File")
