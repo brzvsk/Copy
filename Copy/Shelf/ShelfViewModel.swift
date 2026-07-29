@@ -34,6 +34,7 @@ final class ShelfViewModel {
     var pinboards: [Pinboard] = []
     var selection = ShelfSelection()
     var previewShown = false
+    var editingItem: ClipItem?
 
     @ObservationIgnored var onPaste: ((ClipItem, Bool) -> Void)?
     @ObservationIgnored var onPasteMultiple: ((String) -> Void)?
@@ -198,9 +199,30 @@ final class ShelfViewModel {
         HUD.show("Added to \(pinboard.name)")
     }
 
-    /// Called from a card's "Edit…" context menu item and the ⌘E shortcut.
+    /// Called from a card's "Edit…" context menu item and the ⌘E shortcut. No-ops for
+    /// kinds `EditItemSheet` can't meaningfully edit (mirrors `ItemCardView.isEditable`).
     func beginEdit() {
-        // Task 7 fills this
+        guard let item = primaryItem, isEditableKind(item.kind) else { return }
+        editingItem = item
+    }
+
+    /// Saves edited text from `EditItemSheet`, then dismisses it either way.
+    func commitEdit(_ text: String) {
+        defer { editingItem = nil }
+        guard let item = editingItem, let id = item.id else { return }
+        do {
+            try store.replaceContent(itemID: id, with: text)
+        } catch {
+            NSLog("Copy: failed to save edited item: \(error)")
+            HUD.show("Couldn't save changes")
+        }
+    }
+
+    private func isEditableKind(_ kind: ItemKind) -> Bool {
+        switch kind {
+        case .text, .richText, .link: return true
+        case .image, .file, .color: return false
+        }
     }
 
     private func apply(_ new: [ClipItem]) {

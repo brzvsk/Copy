@@ -25,6 +25,11 @@ final class AppCoordinator {
         controller.onKeyEvent = { [weak self, weak controller] event in
             guard let self, let controller else { return false }
             let viewModel = self.shelfViewModel
+            // While the edit sheet is up, let its own window handle every key (arrows,
+            // space, escape, return) instead of the shelf's global shortcuts — this
+            // monitor is app-wide and fires before the sheet's responder chain would see
+            // the event otherwise.
+            guard viewModel.editingItem == nil else { return false }
             // ⌘1 → history tab, ⌘2...⌘9 → nth pinboard. Checked before keyCode routing
             // so the digit keys never fall through to other handlers.
             if event.modifierFlags.contains(.command),
@@ -63,7 +68,7 @@ final class AppCoordinator {
             case 51 where event.modifierFlags.contains(.command): // cmd-delete
                 viewModel.deleteSelection()
                 return true
-            case 14 where event.modifierFlags.contains(.command): // cmd-E — edit primary (wired fully in Task 7)
+            case 14 where event.modifierFlags.contains(.command): // cmd-E — edit primary item
                 viewModel.beginEdit()
                 return true
             case 49 where viewModel.query.isEmpty: // space previews in browse mode

@@ -14,6 +14,13 @@ struct ShelfRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ShelfBackground())
+        .sheet(item: $viewModel.editingItem) { item in
+            EditItemSheet(
+                item: item,
+                onCancel: { viewModel.editingItem = nil },
+                onSave: { viewModel.commitEdit($0) }
+            )
+        }
     }
 }
 
