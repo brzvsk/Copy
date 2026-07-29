@@ -7,6 +7,9 @@ options:
 packages:
   CopyCore:
     path: CopyCore
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: 3.0.0
 targets:
   Copy:
     type: application
@@ -15,6 +18,7 @@ targets:
       - Copy
     dependencies:
       - package: CopyCore
+      - package: KeyboardShortcuts
     scheme:
       testTargets: []
     info:

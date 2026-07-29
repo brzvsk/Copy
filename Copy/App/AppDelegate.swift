@@ -1,5 +1,10 @@
 import AppKit
 import CopyCore
+import KeyboardShortcuts
+
+extension KeyboardShortcuts.Name {
+    static let toggleShelf = Self("toggleShelf", initial: .init(.v, modifiers: [.command, .shift]))
+}
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -26,10 +31,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
 
         coordinator.start()
+
+        KeyboardShortcuts.onKeyDown(for: .toggleShelf) { [weak self] in
+            self?.coordinator.toggleShelf()
+        }
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+
+        let open = NSMenuItem(title: "Open Copy", action: #selector(openShelf), keyEquivalent: "V")
+        open.keyEquivalentModifierMask = [.command, .shift]
+        open.target = self
+        menu.addItem(open)
+        menu.addItem(.separator())
 
         let items = coordinator.recentItems()
         if items.isEmpty {
@@ -58,6 +73,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: "Quit Copy",
                                 action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
+    }
+
+    @objc private func openShelf() {
+        coordinator.toggleShelf()
     }
 
     @objc private func pasteMenuItem(_ sender: NSMenuItem) {

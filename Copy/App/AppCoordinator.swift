@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import CopyCore
+import SwiftUI
 
 @MainActor
 final class AppCoordinator {
@@ -8,6 +9,10 @@ final class AppCoordinator {
     private let monitor: ClipboardMonitor
     private let pasteService: PasteService
     private(set) var isPaused = false
+    private lazy var shelfController = ShelfPanelController { [weak self] in
+        _ = self
+        return NSHostingView(rootView: ShelfPlaceholderView())
+    }
 
     init() throws {
         let database = try DatabaseManager.makeDefault()
@@ -35,6 +40,10 @@ final class AppCoordinator {
 
     func start() {
         monitor.start()
+    }
+
+    func toggleShelf() {
+        shelfController.toggle()
     }
 
     func togglePause() {
