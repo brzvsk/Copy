@@ -62,10 +62,12 @@ public enum CodeDetector {
     // MARK: - Shebang
 
     /// `#!/usr/bin/env python3`, `#!/bin/bash`, etc. The single most reliable signal
-    /// available, since a shebang line essentially never appears in prose.
+    /// available, since a shebang line essentially never appears in prose — but only
+    /// when it's a real interpreter path: `#!/` (bang immediately followed by a slash),
+    /// not just `#!` (which also matches things like a Markdown-ish "#! Note:" aside).
     private static func detectShebang(_ text: String) -> CodeLanguage? {
         guard let firstLine = text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).first,
-              firstLine.hasPrefix("#!")
+              firstLine.hasPrefix("#!/")
         else { return nil }
         let line = firstLine.lowercased()
         if line.contains("python") { return .python }
@@ -100,9 +102,18 @@ public enum CodeDetector {
 
     // MARK: - Swift / JavaScript / Python
 
-    /// Swift/JS require balanced braces plus at least two distinct strong signals
+    /// Swift/JS require balanced braces plus at least three distinct strong signals
     /// (keywords, arrows, etc.) from that language's own list; Python's indentation
     /// block shape is checked first since it's a strong, brace-free signal on its own.
+    ///
+    /// The bar is three, not two: a single inline code fragment quoted inside an
+    /// ordinary sentence (e.g. "I added a guard clause: `guard let x = y else {
+    /// return }` then removed the old check") can genuinely contain two real Swift
+    /// signals (`let ... =`, `guard let`) while still being overwhelmingly prose —
+    /// requiring a third makes that shape fail closed instead of coloring the whole
+    /// sentence. Real multi-line snippets clear three signals easily (a function
+    /// worth highlighting almost always has `func` + one more of `let`/`var`/`->`/a
+    /// modifier), so this doesn't meaningfully cost genuine code.
     private static func detectScriptLanguage(_ text: String) -> CodeLanguage? {
         let lines = text.components(separatedBy: .newlines)
         if hasPythonBlockShape(lines), countMatches(text, patterns: pythonSignals) >= 2 {
@@ -115,10 +126,10 @@ public enum CodeDetector {
 
         let swiftHits = countMatches(text, patterns: swiftSignals)
         let jsHits = countMatches(text, patterns: javascriptSignals)
-        if swiftHits >= 2, swiftHits >= jsHits {
+        if swiftHits >= 3, swiftHits >= jsHits {
             return .swift
         }
-        if jsHits >= 2 {
+        if jsHits >= 3 {
             return .javascript
         }
         return nil
@@ -151,6 +162,12 @@ public enum CodeDetector {
         return false
     }
 
+    // `guard`/`private`/`public`/`internal` are real English words on their own
+    // ("guard clause", "public data", "private info"), so — mirroring how `let`/`var`
+    // already require an immediate `:`/`=` rather than counting the bare word — these
+    // require the code-shaped context that makes them unambiguous: `guard let`/`guard
+    // var` (not bare "guard"), and an access modifier immediately followed by another
+    // declaration keyword (not bare "private"/"public"/"internal" used adjectivally).
     private static let swiftSignals = [
         #"\bfunc\s+\w+\s*\("#,
         #"\blet\s+\w+\s*[:=]"#,
@@ -158,10 +175,10 @@ public enum CodeDetector {
         #"\bstruct\s+\w+"#,
         #"\benum\s+\w+"#,
         #"\bprotocol\s+\w+"#,
-        #"\bguard\s"#,
+        #"\bguard\s+(let|var)\b"#,
         #"->\s*\w"#,
         #"\bimport\s+(Foundation|SwiftUI|AppKit|UIKit|CopyCore)\b"#,
-        #"\bprivate\b|\bpublic\b|\binternal\b"#,
+        #"\b(private|public|internal|fileprivate|open)\s+(func|let|var|struct|enum|class|static)\b"#,
     ]
 
     private static let javascriptSignals = [
@@ -209,9 +226,15 @@ public enum CodeDetector {
     /// `selector { prop: value; }` shape, gated on at least one recognizable CSS
     /// property name so a JS object literal (`{ color: "red" }`) doesn't false-positive
     /// — real JS with `const`/`function` is already caught by `detectScriptLanguage`
-    /// before this ever runs.
+    /// before this ever runs. The selector portion is anchored to the start of a line
+    /// (`(?m)^\s*`): without that anchor, an unrelated word right before an unrelated
+    /// `{...:...;...}` span anywhere in a sentence (e.g. "Color scheme { color: navy;
+    /// accent: crimson; }") can match as if the trailing word were a selector, since
+    /// the regex isn't required to consider what precedes it. Real CSS rules
+    /// overwhelmingly start at (or near) a line's beginning, so this costs nothing
+    /// against genuine stylesheets.
     private static func isLikelyCSS(_ text: String) -> Bool {
-        let shapePattern = #"[.#]?[A-Za-z][\w-]*(\s*[,>+~]\s*[.#]?[A-Za-z][\w-]*)*\s*\{[^{}]*:[^{}]*;[^{}]*\}"#
+        let shapePattern = #"(?m)^\s*[.#]?[A-Za-z][\w-]*(\s*[,>+~]\s*[.#]?[A-Za-z][\w-]*)*\s*\{[^{}]*:[^{}]*;[^{}]*\}"#
         guard text.range(of: shapePattern, options: .regularExpression) != nil else { return false }
         let lower = text.lowercased()
         return cssProperties.contains { lower.contains($0) }

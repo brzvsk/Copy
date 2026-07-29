@@ -41,6 +41,44 @@ final class SyntaxHighlightingTests: XCTestCase {
         XCTAssertEqual(CodeDetector.detect(code), .python)
     }
 
+    func testJavaScriptSnippetDetectsAsJavaScript() {
+        let code = [
+            "function greet(name) {",
+            "    const message = `Hello, ${name}!`;",
+            "    console.log(message);",
+            "    return message;",
+            "}",
+        ].joined(separator: "\n")
+        XCTAssertEqual(CodeDetector.detect(code), .javascript)
+    }
+
+    /// Fix round 1 regression: a single inline code fragment quoted inside an ordinary
+    /// sentence must not tip the whole sentence into "code" — the old ≥2-signal bar
+    /// let `let ... =` (from the quoted fragment) plus a bare-word `guard` match (from
+    /// "guard clause", plain English) add up to 2 even though this is overwhelmingly
+    /// prose. This was a live false positive filed during review.
+    func testInlineCodeFragmentQuotedInProseDoesNotDetectAsCode() {
+        let text = "I added a guard clause: `guard let user = self.currentUser else "
+            + "{ return } ` then removed the old check."
+        XCTAssertNil(CodeDetector.detect(text))
+    }
+
+    /// Fix round 1 regression: `#!` followed by a space (a Markdown-ish aside, not an
+    /// interpreter path) must not be mistaken for a shebang.
+    func testMarkdownAsideStartingWithHashBangDoesNotDetectAsShell() {
+        let text = "#! Important reminder\nDon't forget to renew the certificate before it expires."
+        XCTAssertNil(CodeDetector.detect(text))
+    }
+
+    /// Fix round 1 regression: an unrelated word immediately before an unrelated
+    /// `{ prop: value; }`-shaped clause, mid-sentence, must not be mistaken for a CSS
+    /// rule — the selector portion must anchor to a line start, not match any trailing
+    /// word wherever one happens to sit next to a brace.
+    func testProseSentenceResemblingCSSDoesNotDetectAsCSS() {
+        let text = "Color scheme { color: navy; accent: crimson; } was the designer's pick for the mockup."
+        XCTAssertNil(CodeDetector.detect(text))
+    }
+
     /// The most important test in this file: ordinary English prose must never be
     /// mistaken for code, however many curly braces of coincidence life throws at it.
     func testProseParagraphDoesNotDetectAsCode() {
