@@ -79,6 +79,16 @@ public struct ItemStore {
         }
     }
 
+    /// Looks up a single item by its stable uuid, regardless of how far back it sits
+    /// in `lastUsedAt` order — unlike `recentItems`, this isn't bounded by a `limit`,
+    /// so it's the right tool for resolving a uuid held elsewhere (e.g. a Paste Stack
+    /// queue entry) that may have aged out of any "recent" window.
+    public func item(uuid: String) throws -> ClipItem? {
+        try writer.read { db in
+            try ClipItem.filter(Column("uuid") == uuid).fetchOne(db)
+        }
+    }
+
     public func representations(forItemID id: Int64) throws -> [CapturedRepresentation] {
         let records = try writer.read { db in
             try Representation.filter(Column("itemId") == id).fetchAll(db)

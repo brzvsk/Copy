@@ -13,14 +13,19 @@ struct PasteStackView: View {
     var onContentChange: () -> Void = {}
 
     var body: some View {
+        // Resolved once per body evaluation and threaded through to `header(count:)`
+        // and `list(items:)` below — `model.items()` is a pure read (see its doc
+        // comment), but calling it multiple times per render would still mean
+        // resolving the same uuids against the store redundantly.
+        let items = model.items()
         VStack(spacing: 0) {
-            header
+            header(count: items.count)
             Divider()
             Group {
                 if items.isEmpty {
                     emptyState
                 } else {
-                    list
+                    list(items: items)
                 }
             }
             .frame(maxHeight: .infinity)
@@ -33,13 +38,9 @@ struct PasteStackView: View {
         .onChange(of: model.queue.itemUUIDs) { _, _ in onContentChange() }
     }
 
-    private var items: [ClipItem] {
-        model.items()
-    }
-
-    private var header: some View {
+    private func header(count: Int) -> some View {
         HStack {
-            Text("Paste Stack · \(items.count)")
+            Text("Paste Stack · \(count)")
                 .font(Tokens.caption)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -68,7 +69,7 @@ struct PasteStackView: View {
         .padding(.horizontal, 16)
     }
 
-    private var list: some View {
+    private func list(items: [ClipItem]) -> some View {
         List {
             ForEach(items, id: \.uuid) { item in
                 PasteStackRow(item: item)

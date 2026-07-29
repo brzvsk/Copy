@@ -37,6 +37,17 @@ final class ItemStoreTests: XCTestCase {
         XCTAssertEqual(recent.map(\.plainText), ["second", "first"])
     }
 
+    func testItemByUUIDRoundTripsAndNilsOnUnknown() throws {
+        let store = try makeTempStore()
+        let saved = try store.save(makeText("find me"))
+
+        let found = try store.item(uuid: saved.uuid)
+        XCTAssertEqual(found?.id, saved.id)
+        XCTAssertEqual(found?.plainText, "find me")
+
+        XCTAssertNil(try store.item(uuid: "not-a-real-uuid"))
+    }
+
     func testRepresentationsRoundTrip() throws {
         let store = try makeTempStore()
         let saved = try store.save(makeText("round trip"))

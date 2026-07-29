@@ -39,6 +39,12 @@ final class PasteStackController {
     /// just repositions/resizes in place, which is how the panel stays fit to content
     /// as items are added, removed, or cleared (see `PasteStackView.onContentChange`).
     func show() {
+        // Drop any queued uuid that's gone missing (deleted/pruned) since being
+        // queued. `PasteStackModel.items()` is a pure read used from SwiftUI bodies,
+        // so this explicit event point — the palette becoming visible — is where that
+        // bookkeeping actually happens.
+        model.reconcile()
+
         guard let screen = NSScreen.screens.first(where: {
             NSMouseInRect(NSEvent.mouseLocation, $0.frame, false)
         }) ?? NSScreen.main else { return }
