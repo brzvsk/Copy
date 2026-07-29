@@ -231,9 +231,9 @@ final class ShelfViewModel {
 
     // MARK: - Pinboard actions passthrough
 
-    func createPinboard(name: String, symbol: String) {
+    func createPinboard(name: String, symbol: String, emoji: String? = nil, tint: String = "") {
         do {
-            try pinboardStore.create(name: name, symbol: symbol)
+            try pinboardStore.create(name: name, symbol: symbol, emoji: emoji, tint: tint)
         } catch {
             NSLog("Copy: failed to create pinboard: \(error)")
             HUD.show("Couldn't complete that")
@@ -254,6 +254,24 @@ final class ShelfViewModel {
             try pinboardStore.setSymbol(id: id, symbol)
         } catch {
             NSLog("Copy: failed to set pinboard symbol: \(error)")
+            HUD.show("Couldn't complete that")
+        }
+    }
+
+    func setPinboardEmoji(id: Int64, _ emoji: String?) {
+        do {
+            try pinboardStore.setEmoji(id: id, emoji)
+        } catch {
+            NSLog("Copy: failed to set pinboard emoji: \(error)")
+            HUD.show("Couldn't complete that")
+        }
+    }
+
+    func setPinboardTint(id: Int64, _ tint: String) {
+        do {
+            try pinboardStore.setTint(id: id, tint)
+        } catch {
+            NSLog("Copy: failed to set pinboard tint: \(error)")
             HUD.show("Couldn't complete that")
         }
     }

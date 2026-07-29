@@ -45,6 +45,7 @@ public struct Pinboard: Codable, Equatable, FetchableRecord, MutablePersistableR
     public var name: String
     public var symbol: String
     public var tint: String
+    public var emoji: String?
     public var sortIndex: Int
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {

@@ -143,6 +143,8 @@ private struct ShelfTabs: View {
                 TabPill(
                     label: pinboard.name,
                     symbol: pinboard.symbol,
+                    emoji: pinboard.emoji,
+                    tint: pinboard.tint,
                     isSelected: pinboard.id.map { viewModel.tab == .pinboard($0) } ?? false,
                     isDropTargeted: pinboard.id != nil && dropTargetedPinboardID == pinboard.id,
                     action: {
@@ -151,8 +153,8 @@ private struct ShelfTabs: View {
                     }
                 )
                 .contextMenu {
-                    // "Rename…" opens PinboardEditPopover in rename mode, which edits both
-                    // name and symbol in one place — no separate "Change Symbol…" item.
+                    // "Rename…" opens PinboardEditPopover in rename mode, which edits
+                    // name, symbol, emoji, and color in one place.
                     Button("Rename…") { renamingPinboard = pinboard }
                     Button("Delete Pinboard", role: .destructive) { confirmDelete(pinboard) }
                 }
@@ -160,10 +162,12 @@ private struct ShelfTabs: View {
                     get: { pinboard.id != nil && renamingPinboard?.id == pinboard.id },
                     set: { if !$0 { renamingPinboard = nil } }
                 )) {
-                    PinboardEditPopover(mode: .rename(pinboard)) { name, symbol in
+                    PinboardEditPopover(mode: .rename(pinboard)) { name, symbol, emoji, tint in
                         if let id = pinboard.id {
                             viewModel.renamePinboard(id: id, to: name)
                             viewModel.setPinboardSymbol(id: id, symbol)
+                            viewModel.setPinboardEmoji(id: id, emoji)
+                            viewModel.setPinboardTint(id: id, tint)
                         }
                         renamingPinboard = nil
                     }
@@ -193,8 +197,8 @@ private struct ShelfTabs: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Add Pinboard")
             .popover(isPresented: $createPresented) {
-                PinboardEditPopover(mode: .create) { name, symbol in
-                    viewModel.createPinboard(name: name, symbol: symbol)
+                PinboardEditPopover(mode: .create) { name, symbol, emoji, tint in
+                    viewModel.createPinboard(name: name, symbol: symbol, emoji: emoji, tint: tint)
                 }
             }
         }
@@ -227,27 +231,48 @@ private struct ShelfTabs: View {
 private struct TabPill: View {
     let label: String
     let symbol: String
+    /// A user-chosen emoji shown in place of the SF Symbol, when set. `nil`/untinted
+    /// pinboards (and the History tab) render exactly as before this feature.
+    var emoji: String? = nil
+    /// A user-chosen hex color (e.g. "FF3B30"); empty means no color identity.
+    var tint: String = ""
     let isSelected: Bool
     var isDropTargeted: Bool = false
     let action: () -> Void
     @State private var isHovering = false
 
+    private var tintColor: Color? {
+        tint.isEmpty ? nil : Tokens.color(fromHex: tint)
+    }
+
     var body: some View {
         Button(action: action) {
-            Label(label, systemImage: symbol)
-                .font(Tokens.caption)
-                .labelStyle(.titleAndIcon)
-                .foregroundStyle(isSelected ? .primary : .secondary)
-                .padding(.horizontal, 8)
-                .frame(height: 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(backgroundFill)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 1.5)
-                )
+            HStack(spacing: 4) {
+                if let emoji, !emoji.isEmpty {
+                    Text(emoji)
+                } else {
+                    Image(systemName: symbol)
+                }
+                Text(label)
+                if let tintColor {
+                    Circle()
+                        .fill(tintColor)
+                        .frame(width: 6, height: 6)
+                        .accessibilityHidden(true)
+                }
+            }
+            .font(Tokens.caption)
+            .foregroundStyle(isSelected ? .primary : .secondary)
+            .padding(.horizontal, 8)
+            .frame(height: 24)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(backgroundFill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 1.5)
+            )
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
@@ -255,7 +280,10 @@ private struct TabPill: View {
 
     private var backgroundFill: Color {
         if isDropTargeted { return Color.accentColor.opacity(0.16) }
-        if isSelected { return Color.primary.opacity(0.08) }
+        if isSelected {
+            if let tintColor { return tintColor.opacity(0.18) }
+            return Color.primary.opacity(0.08)
+        }
         return isHovering ? Color.primary.opacity(0.05) : .clear
     }
 }

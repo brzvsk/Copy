@@ -9,10 +9,10 @@ public struct PinboardStore {
     }
 
     @discardableResult
-    public func create(name: String, symbol: String) throws -> Pinboard {
+    public func create(name: String, symbol: String, emoji: String? = nil, tint: String = "") throws -> Pinboard {
         try writer.write { db in
             let nextIndex = (try Int.fetchOne(db, sql: "SELECT MAX(sortIndex) FROM pinboard") ?? 0) + 1
-            var board = Pinboard(id: nil, name: name, symbol: symbol, tint: "", sortIndex: nextIndex)
+            var board = Pinboard(id: nil, name: name, symbol: symbol, tint: tint, emoji: emoji, sortIndex: nextIndex)
             try board.insert(db)
             return board
         }
@@ -27,6 +27,18 @@ public struct PinboardStore {
     public func setSymbol(id: Int64, _ symbol: String) throws {
         try writer.write { db in
             try db.execute(sql: "UPDATE pinboard SET symbol = ? WHERE id = ?", arguments: [symbol, id])
+        }
+    }
+
+    public func setEmoji(id: Int64, _ emoji: String?) throws {
+        try writer.write { db in
+            try db.execute(sql: "UPDATE pinboard SET emoji = ? WHERE id = ?", arguments: [emoji, id])
+        }
+    }
+
+    public func setTint(id: Int64, _ tint: String) throws {
+        try writer.write { db in
+            try db.execute(sql: "UPDATE pinboard SET tint = ? WHERE id = ?", arguments: [tint, id])
         }
     }
 

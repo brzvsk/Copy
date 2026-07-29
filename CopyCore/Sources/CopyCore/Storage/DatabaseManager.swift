@@ -88,6 +88,11 @@ public final class DatabaseManager {
                 t.column("recognizedText")
             }
         }
+        migrator.registerMigration("v3") { db in
+            try db.alter(table: "pinboard") { t in
+                t.add(column: "emoji", .text)
+            }
+        }
         return migrator
     }
 }
