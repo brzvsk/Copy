@@ -8,6 +8,8 @@ final class AppCoordinator {
     let store: ItemStore
     private let monitor: ClipboardMonitor
     private let pasteService: PasteService
+    private let persistQueue = DispatchQueue(label: "com.tarikbc.copy.persist", qos: .utility)
+    private let saveErrors = SaveErrorReporter()
     private(set) var isPaused = false
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store)
 
@@ -69,6 +71,7 @@ final class AppCoordinator {
         self.store = store
         self.pasteService = PasteService(pasteboard: NSPasteboard.general,
                                          keyPoster: CGKeyEventPoster())
+        let reporter = saveErrors
         self.monitor = ClipboardMonitor(
             pasteboard: NSPasteboard.general,
             rules: RulesEngine(),
@@ -76,11 +79,13 @@ final class AppCoordinator {
                 let app = NSWorkspace.shared.frontmostApplication
                 return (app?.bundleIdentifier, app?.localizedName)
             },
-            onCapture: { captured in
-                do {
-                    try store.save(captured)
-                } catch {
-                    NSLog("Copy: failed to save clipboard item: \(error)")
+            onCapture: { [persistQueue] captured in
+                persistQueue.async {
+                    do {
+                        try store.save(captured)
+                    } catch {
+                        reporter.report(error)
+                    }
                 }
             }
         )
@@ -120,11 +125,15 @@ final class AppCoordinator {
     func pasteFromShelf(_ item: ClipItem, plainTextOnly: Bool) {
         guard let id = item.id,
               let reps = try? store.representations(forItemID: id),
-              !reps.isEmpty else { return }
+              !reps.isEmpty else {
+            HUD.show("Item unavailable")
+            return
+        }
         pasteService.place(reps, plainTextOnly: plainTextOnly)
         try? store.touch(itemID: id)
 
         guard AXIsProcessTrusted() else {
+            HUD.show("Press ⌘V to paste")
             promptForAccessibility()
             return
         }
