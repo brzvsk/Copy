@@ -67,4 +67,64 @@ public struct ItemStore {
             return nil
         }
     }
+
+    public func search(_ query: String, limit: Int = 50) throws -> [ClipItem] {
+        guard let pattern = FTS5Pattern(matchingAllPrefixesIn: query) else { return [] }
+        return try writer.read { db in
+            try ClipItem.fetchAll(db, sql: """
+                SELECT item.* FROM item
+                JOIN item_fts ON item_fts.rowid = item.id
+                WHERE item_fts MATCH ?
+                ORDER BY item.lastUsedAt DESC
+                LIMIT ?
+                """, arguments: [pattern, limit])
+        }
+    }
+
+    public func touch(itemID: Int64, now: Date = Date()) throws {
+        try writer.write { db in
+            try db.execute(
+                sql: "UPDATE item SET lastUsedAt = ? WHERE id = ?",
+                arguments: [now, itemID])
+        }
+    }
+
+    public func setFavorite(itemID: Int64, _ favorite: Bool) throws {
+        try writer.write { db in
+            try db.execute(
+                sql: "UPDATE item SET isFavorite = ? WHERE id = ?",
+                arguments: [favorite, itemID])
+        }
+    }
+
+    public func delete(itemID: Int64) throws {
+        try writer.write { db in
+            try deleteItems(ClipItem.filter(Column("id") == itemID), in: db)
+        }
+    }
+
+    public func clearHistory(keepFavorites: Bool = true) throws {
+        try writer.write { db in
+            let doomed = keepFavorites
+                ? ClipItem.filter(Column("isFavorite") == false)
+                : ClipItem.all()
+            try deleteItems(doomed, in: db)
+        }
+    }
+
+    /// Deletes matching items and any blobs no longer referenced afterwards.
+    private func deleteItems(_ request: QueryInterfaceRequest<ClipItem>, in db: Database) throws {
+        let ids = try request.selectPrimaryKey(as: Int64.self).fetchAll(db)
+        guard !ids.isEmpty else { return }
+        let keys = try String.fetchAll(db, sql: """
+            SELECT DISTINCT blobKey FROM representation
+            WHERE itemId IN (\(ids.map { String($0) }.joined(separator: ","))) AND blobKey IS NOT NULL
+            """)
+        try request.deleteAll(db)
+        for key in keys {
+            let stillUsed = try Int.fetchOne(db, sql:
+                "SELECT COUNT(*) FROM representation WHERE blobKey = ?", arguments: [key]) ?? 0
+            if stillUsed == 0 { blobs.delete(key: key) }
+        }
+    }
 }
