@@ -49,12 +49,13 @@ final class AppCoordinator {
         controller.onKeyEvent = { [weak self, weak controller] event in
             guard let self, let controller else { return false }
             let viewModel = self.shelfViewModel
-            // While the edit/create/rename sheet is up, let its own window handle every
-            // key (arrows, space, escape, return) instead of the shelf's global
-            // shortcuts — this monitor is app-wide and fires before the sheet's
+            // While the edit/create/rename/adjust-color sheet is up, let its own window
+            // handle every key (arrows, space, escape, return) instead of the shelf's
+            // global shortcuts — this monitor is app-wide and fires before the sheet's
             // responder chain would see the event otherwise.
             guard viewModel.editingItem == nil, !viewModel.pinboardPopoverShown,
-                  !viewModel.creatingItem, viewModel.renamingItem == nil else { return false }
+                  !viewModel.creatingItem, viewModel.renamingItem == nil,
+                  viewModel.adjustingColorItem == nil else { return false }
             // ⌘1 → history tab, ⌘2...⌘9 → nth pinboard. Checked before keyCode routing
             // so the digit keys never fall through to other handlers.
             if event.modifierFlags.contains(.command),
