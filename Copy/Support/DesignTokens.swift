@@ -8,6 +8,20 @@ enum Tokens {
     static let cardRadius: CGFloat = 10
     static let shelfPadding: CGFloat = 20
 
+    /// Compact shelf mode (`SettingsStore.compactShelf`): narrower/shorter cards and a
+    /// tighter grid, so more items fit at a glance. `cardWidth(compact:)`/`cardHeight(compact:)`
+    /// etc. below are what call sites should read rather than branching on the raw
+    /// constants directly.
+    static let compactCardWidth: CGFloat = 132
+    static let compactCardHeight: CGFloat = 168
+    static let compactCardGap: CGFloat = 8
+    static let compactShelfPadding: CGFloat = 14
+
+    static func cardWidth(compact: Bool) -> CGFloat { compact ? compactCardWidth : cardWidth }
+    static func cardHeight(compact: Bool) -> CGFloat { compact ? compactCardHeight : cardHeight }
+    static func cardGap(compact: Bool) -> CGFloat { compact ? compactCardGap : cardGap }
+    static func shelfPadding(compact: Bool) -> CGFloat { compact ? compactShelfPadding : shelfPadding }
+
     static let bodyMono = Font.system(size: 11, design: .monospaced)
     static let caption = Font.system(size: 10, weight: .medium)
     static let cardTitle = Font.system(size: 11, weight: .semibold)

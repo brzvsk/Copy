@@ -8,6 +8,9 @@ struct ItemCardView: View {
     let store: ItemStore
     let pinboards: [Pinboard]
     let currentPinboardID: Int64?
+    /// Compact shelf mode (`SettingsStore.compactShelf`, threaded from `ShelfRootView`):
+    /// smaller card frame + tighter line limits so more cards fit on screen at once.
+    var compact: Bool = false
     let onClick: (NSEvent.ModifierFlags) -> Void
     let onPaste: () -> Void
     let onPastePlain: () -> Void
@@ -29,8 +32,25 @@ struct ItemCardView: View {
         }
     }
 
+    /// Whether the card shows the user-assigned `item.title` row above the body. When
+    /// true, `bodyLineLimit(standard:compact:)` trims one line off the body's limit in
+    /// both layout modes, since that row eats into the same fixed-height card without
+    /// shrinking anything else.
+    private var hasCustomTitle: Bool {
+        guard let title = item.title else { return false }
+        return !title.isEmpty
+    }
+
+    /// Resolves a kind's body line limit for the current layout mode, then trims it by
+    /// one when a custom title row is showing (see `hasCustomTitle`) so the body never
+    /// clips against the card's fixed height.
+    private func bodyLineLimit(standard: Int, compact compactValue: Int) -> Int {
+        let limit = compact ? compactValue : standard
+        return hasCustomTitle ? max(limit - 1, 1) : limit
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: compact ? 4 : 6) {
             header
             Rectangle()
                 .fill(Color(nsColor: .separatorColor).opacity(0.6))
@@ -44,8 +64,8 @@ struct ItemCardView: View {
             Spacer(minLength: 0)
             footer
         }
-        .padding(10)
-        .frame(width: Tokens.cardWidth, height: Tokens.cardHeight, alignment: .topLeading)
+        .padding(compact ? 8 : 10)
+        .frame(width: Tokens.cardWidth(compact: compact), height: Tokens.cardHeight(compact: compact), alignment: .topLeading)
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous)
@@ -134,7 +154,7 @@ struct ItemCardView: View {
         case .text, .richText:
             Text(String((item.plainText ?? "").prefix(1_500)))
                 .font(Tokens.bodyMono)
-                .lineLimit(11)
+                .lineLimit(bodyLineLimit(standard: 11, compact: 6))
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         case .link:
@@ -148,12 +168,12 @@ struct ItemCardView: View {
                     }
                     Text(linkTitle)
                         .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(2)
+                        .lineLimit(bodyLineLimit(standard: 2, compact: 1))
                         .multilineTextAlignment(.leading)
                     Text(String((item.plainText ?? "").prefix(1_500)))
                         .font(Tokens.bodyMono)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(bodyLineLimit(standard: 2, compact: 1))
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
@@ -166,7 +186,7 @@ struct ItemCardView: View {
                     Text(String((item.plainText ?? "").prefix(1_500)))
                         .font(Tokens.bodyMono)
                         .foregroundStyle(.secondary)
-                        .lineLimit(5)
+                        .lineLimit(bodyLineLimit(standard: 5, compact: 3))
                 }
             }
         case .image:
@@ -175,10 +195,10 @@ struct ItemCardView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Image(nsImage: NSWorkspace.shared.icon(for: fileType))
                     .resizable()
-                    .frame(width: 44, height: 44)
+                    .frame(width: compact ? 32 : 44, height: compact ? 32 : 44)
                 Text(item.plainText ?? "File")
                     .font(Tokens.bodyMono)
-                    .lineLimit(6)
+                    .lineLimit(bodyLineLimit(standard: 6, compact: 3))
             }
         case .color:
             VStack(alignment: .leading, spacing: 6) {

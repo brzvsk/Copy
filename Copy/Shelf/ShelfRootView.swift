@@ -331,13 +331,18 @@ private struct ShelfItemsRow: View {
         return nil
     }
 
+    /// Read straight from `SettingsStore` (both it and `ShelfViewModel` are
+    /// `@Observable`), so toggling "Shelf Size" in Settings re-renders this row
+    /// immediately — no separate change-hook plumbing needed on the SwiftUI side.
+    private var compact: Bool { viewModel.settings.compactShelf }
+
     var body: some View {
         if viewModel.items.isEmpty {
             ShelfEmptyState(viewModel: viewModel)
         } else {
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: Tokens.cardGap) {
+                    LazyHStack(spacing: Tokens.cardGap(compact: compact)) {
                         ForEach(viewModel.items, id: \.uuid) { item in
                             ItemCardView(
                                 item: item,
@@ -345,6 +350,7 @@ private struct ShelfItemsRow: View {
                                 store: viewModel.store,
                                 pinboards: viewModel.pinboards,
                                 currentPinboardID: currentPinboardID,
+                                compact: compact,
                                 onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
                                 onPaste: { viewModel.requestPaste(item, plain: false) },
                                 onPastePlain: { viewModel.requestPaste(item, plain: true) },
@@ -372,8 +378,8 @@ private struct ShelfItemsRow: View {
                             }
                         }
                     }
-                    .padding(.horizontal, Tokens.shelfPadding)
-                    .padding(.vertical, 16)
+                    .padding(.horizontal, Tokens.shelfPadding(compact: compact))
+                    .padding(.vertical, compact ? 10 : 16)
                 }
                 .onChange(of: viewModel.selection.primary) { _, newPrimary in
                     if let newPrimary {

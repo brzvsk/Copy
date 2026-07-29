@@ -20,6 +20,10 @@ final class KeyablePanel: NSPanel {
 @MainActor
 final class ShelfPanelController: NSObject, NSWindowDelegate {
     static let shelfHeight: CGFloat = 340
+    /// Panel height while `SettingsStore.compactShelf` is on, sized to `Tokens.compactCardHeight`
+    /// plus the same header/divider/padding chrome `shelfHeight` allows for above the
+    /// (shorter) card row.
+    static let compactShelfHeight: CGFloat = 232
 
     var onKeyEvent: ((NSEvent) -> Bool)?
     var onDidHide: (() -> Void)?
@@ -29,10 +33,16 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     private var previousApp: NSRunningApplication?
     private var keyMonitor: Any?
     private var hideDuringScreenSharing: Bool
+    private var compactShelf: Bool
 
-    init(hideDuringScreenSharing: Bool, makeContent: @escaping () -> NSView) {
+    init(hideDuringScreenSharing: Bool, compactShelf: Bool, makeContent: @escaping () -> NSView) {
         self.hideDuringScreenSharing = hideDuringScreenSharing
+        self.compactShelf = compactShelf
         self.makeContent = makeContent
+    }
+
+    private var currentShelfHeight: CGFloat {
+        compactShelf ? Self.compactShelfHeight : Self.shelfHeight
     }
 
     /// Applied at panel creation and pushed live here when the setting changes
@@ -43,6 +53,23 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         hideDuringScreenSharing = hide
         panel?.sharingType = hide ? .none : .readOnly
         panel?.childWindowSharingType = hide ? .none : .readOnly
+    }
+
+    /// Pushed live by `AppCoordinator` via `SettingsStore.onCompactShelfChange`. Updates
+    /// the height used on the next `show()` and, if the panel is already visible,
+    /// resizes it immediately so toggling the setting doesn't need a close/reopen —
+    /// mirrors `setHideDuringScreenSharing`'s live-update shape above.
+    func setCompactShelf(_ compact: Bool) {
+        compactShelf = compact
+        guard isVisible, let panel,
+              let screen = NSScreen.screens.first(where: {
+                  NSMouseInRect(NSEvent.mouseLocation, $0.frame, false)
+              }) ?? NSScreen.main else { return }
+        let frame = NSRect(x: screen.visibleFrame.minX,
+                           y: screen.visibleFrame.minY,
+                           width: screen.visibleFrame.width,
+                           height: currentShelfHeight)
+        panel.setFrame(frame, display: true)
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
@@ -60,7 +87,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         let frame = NSRect(x: screen.visibleFrame.minX,
                            y: screen.visibleFrame.minY,
                            width: screen.visibleFrame.width,
-                           height: Self.shelfHeight)
+                           height: currentShelfHeight)
         let panel = self.panel ?? makePanel()
         self.panel = panel
 

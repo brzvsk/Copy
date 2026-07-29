@@ -48,6 +48,7 @@ final class SettingsStore {
     static let recognizeImageTextKey = "recognizeImageText"
     static let excludedBundleIDsKey = "excludedBundleIDs"
     static let hideDuringScreenSharingKey = "hideDuringScreenSharing"
+    static let compactShelfKey = "compactShelf"
 
     var retention: RetentionPeriod {
         didSet {
@@ -91,8 +92,22 @@ final class SettingsStore {
         }
     }
 
+    /// Narrower/shorter cards and a shorter shelf panel, so more items fit at a glance.
+    /// `ShelfRootView`/`ItemCardView` read this live (via `ShelfViewModel.settings`,
+    /// since both are `@Observable`), and `onCompactShelfChange` pushes it to
+    /// `ShelfPanelController` so the panel's own frame height adapts, mirroring
+    /// `hideDuringScreenSharing`'s wiring above.
+    var compactShelf: Bool {
+        didSet {
+            guard compactShelf != oldValue else { return }
+            defaults.set(compactShelf, forKey: Self.compactShelfKey)
+            onCompactShelfChange?(compactShelf)
+        }
+    }
+
     @ObservationIgnored var onRulesChange: ((Set<String>) -> Void)?
     @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
+    @ObservationIgnored var onCompactShelfChange: ((Bool) -> Void)?
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -105,6 +120,7 @@ final class SettingsStore {
         fetchLinkPreviews = (defaults.object(forKey: Self.fetchLinkPreviewsKey) as? Bool) ?? true
         recognizeImageText = (defaults.object(forKey: Self.recognizeImageTextKey) as? Bool) ?? true
         hideDuringScreenSharing = (defaults.object(forKey: Self.hideDuringScreenSharingKey) as? Bool) ?? true
+        compactShelf = (defaults.object(forKey: Self.compactShelfKey) as? Bool) ?? false
         if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             excludedBundleIDs = decoded.sorted()

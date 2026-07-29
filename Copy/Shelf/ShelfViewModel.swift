@@ -22,6 +22,12 @@ final class ShelfViewModel {
 
     let store: ItemStore
     let pinboardStore: PinboardStore
+    /// Held so `ShelfRootView`/`ItemCardView` can read `settings.compactShelf` live —
+    /// both this view model and `SettingsStore` are `@Observable`, so a body that reads
+    /// `viewModel.settings.compactShelf` re-renders on toggle without any extra
+    /// change-hook plumbing (the pattern `AppCoordinator` uses for AppKit-side settings
+    /// like `hideDuringScreenSharing` doesn't apply here since this is pure SwiftUI).
+    let settings: SettingsStore
 
     var items: [ClipItem] = []
     var query = "" {
@@ -58,9 +64,10 @@ final class ShelfViewModel {
     @ObservationIgnored private var token: ObservationToken?
     @ObservationIgnored private var pinboardsToken: ObservationToken?
 
-    init(store: ItemStore, pinboardStore: PinboardStore) {
+    init(store: ItemStore, pinboardStore: PinboardStore, settings: SettingsStore) {
         self.store = store
         self.pinboardStore = pinboardStore
+        self.settings = settings
         pinboardsToken = pinboardStore.observeAll(
             onError: { NSLog("Copy: pinboard observation failed: \($0)") },
             onChange: { [weak self] in self?.pinboards = $0 })

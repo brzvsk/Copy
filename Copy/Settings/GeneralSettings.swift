@@ -7,6 +7,7 @@ import SwiftUI
 /// registration), so this view owns its own local state and re-reads the service's
 /// actual status after every attempted change rather than trusting the toggle's intent.
 struct GeneralSettings: View {
+    @Bindable var settings: SettingsStore
     @State private var launchAtLoginEnabled = false
     @State private var launchAtLoginNeedsApproval = false
     @State private var launchAtLoginError: String?
@@ -20,6 +21,18 @@ struct GeneralSettings: View {
                 KeyboardShortcuts.Recorder("Next Pinboard:", name: .nextPinboard)
             } footer: {
                 Text("Quick Paste Latest pastes your most recent item into the current app without opening Copy. While the shelf is open, press a number key to paste that card.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Picker("Shelf Size", selection: $settings.compactShelf) {
+                    Text("Standard").tag(false)
+                    Text("Compact").tag(true)
+                }
+                .pickerStyle(.segmented)
+            } footer: {
+                Text("Compact shows smaller cards so more fit in the shelf at once.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

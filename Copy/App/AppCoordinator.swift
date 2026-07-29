@@ -15,7 +15,7 @@ final class AppCoordinator {
     private let saveErrors = SaveErrorReporter()
     private var retentionTimer: DispatchSourceTimer?
     private(set) var isPaused = false
-    private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore)
+    private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore, settings: settings)
     private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
     private(set) lazy var ocrController = OCRController(store: store)
     private(set) lazy var archiveController = ArchiveController(store: store, pinboardStore: pinboardStore)
@@ -37,7 +37,9 @@ final class AppCoordinator {
     private static let retentionInterval: TimeInterval = 12 * 60 * 60
 
     private lazy var shelfController: ShelfPanelController = {
-        let controller = ShelfPanelController(hideDuringScreenSharing: settings.hideDuringScreenSharing) { [weak self] in
+        let controller = ShelfPanelController(
+            hideDuringScreenSharing: settings.hideDuringScreenSharing,
+            compactShelf: settings.compactShelf) { [weak self] in
             guard let self else { return NSView() }
             return NSHostingView(rootView: ShelfRootView(viewModel: self.shelfViewModel))
         }
@@ -225,6 +227,9 @@ final class AppCoordinator {
         settings.onHideDuringScreenSharingChange = { [weak self] hide in
             self?.shelfController.setHideDuringScreenSharing(hide)
             self?.pasteStackController.setHideDuringScreenSharing(hide)
+        }
+        settings.onCompactShelfChange = { [weak self] compact in
+            self?.shelfController.setCompactShelf(compact)
         }
         // `self` is fully initialized past this point, so it's safe to capture weakly
         // in `onActiveChange` — the single fan-out point for palette visibility AND
