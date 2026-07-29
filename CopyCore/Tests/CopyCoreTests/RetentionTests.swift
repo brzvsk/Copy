@@ -129,4 +129,31 @@ final class RetentionTests: XCTestCase {
         let faviconReps = reps.filter { $0.uti == "com.tarikbc.copy.favicon" }
         XCTAssertEqual(faviconReps.count, 1, "Should have exactly one favicon representation")
     }
+
+    func testSetFaviconCleansOrphanedBlobs() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CopyTests-\(UUID().uuidString)")
+        let dbm = try DatabaseManager(directory: dir)
+        let store = ItemStore(writer: dbm.writer, blobs: BlobStore(directory: dbm.blobsDirectory))
+
+        let item = try store.save(makeText("website"))
+
+        // Create two large PNG data sets (>65,536 bytes to force blob storage)
+        let largePng1 = Data(repeating: 0xFF, count: 100_000)
+        let largePng2 = Data(repeating: 0xEE, count: 100_000)
+
+        // Set favicon first time (creates blob)
+        try store.setFavicon(itemID: item.id!, pngData: largePng1)
+        var blobFiles = try FileManager.default.contentsOfDirectory(atPath: dbm.blobsDirectory.path)
+        XCTAssertEqual(blobFiles.count, 1, "Should have 1 blob file after first setFavicon")
+
+        // Set favicon second time (should replace and clean old blob)
+        try store.setFavicon(itemID: item.id!, pngData: largePng2)
+        blobFiles = try FileManager.default.contentsOfDirectory(atPath: dbm.blobsDirectory.path)
+        XCTAssertEqual(blobFiles.count, 1, "Should still have exactly 1 blob file after replacement")
+
+        // Verify the new data is returned
+        let favicon = try store.favicon(forItemID: item.id!)
+        XCTAssertEqual(favicon, largePng2, "Should return the second favicon data")
+    }
 }

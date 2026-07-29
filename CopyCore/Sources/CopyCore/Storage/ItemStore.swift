@@ -281,22 +281,24 @@ public struct ItemStore {
 
     public func setFavicon(itemID: Int64, pngData: Data) throws {
         try writer.write { db in
+            // Capture old favicon blobKey before deletion
+            let oldKeys = try String.fetchAll(db, sql: """
+                SELECT DISTINCT blobKey FROM representation
+                WHERE itemId = ? AND uti = ? AND blobKey IS NOT NULL
+                """, arguments: [itemID, CopyPasteboard.faviconUTI])
+
             // Delete any existing favicon representation for this item
             try Representation.filter(
                 Column("itemId") == itemID && Column("uti") == CopyPasteboard.faviconUTI
             ).deleteAll(db)
 
-            // Insert the new favicon representation
-            var favicon = Representation(id: nil, itemId: itemID, uti: CopyPasteboard.faviconUTI, inlineData: nil, blobKey: nil)
+            // Insert the new favicon representation via insertRepresentations
+            try insertRepresentations(
+                [CapturedRepresentation(uti: CopyPasteboard.faviconUTI, data: pngData)],
+                itemID: itemID, in: db)
 
-            if pngData.count > Self.inlineThreshold {
-                let key = try blobs.store(pngData)
-                favicon.blobKey = key
-            } else {
-                favicon.inlineData = pngData
-            }
-
-            try favicon.insert(db)
+            // Clean up any orphaned blobs
+            try cleanOrphanBlobs(oldKeys, in: db)
         }
     }
 
