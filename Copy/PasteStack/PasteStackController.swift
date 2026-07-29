@@ -30,6 +30,7 @@ final class PasteStackController {
     func setHideDuringScreenSharing(_ hide: Bool) {
         hideDuringScreenSharing = hide
         panel?.sharingType = hide ? .none : .readOnly
+        panel?.childWindowSharingType = hide ? .none : .readOnly
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
@@ -127,6 +128,7 @@ final class PasteStackController {
         panel.isFloatingPanel = true
         panel.isMovableByWindowBackground = true
         panel.sharingType = hideDuringScreenSharing ? .none : .readOnly
+        panel.childWindowSharingType = hideDuringScreenSharing ? .none : .readOnly
         panel.contentView = NSHostingView(rootView: PasteStackView(
             model: model,
             onClose: { [weak model] in model?.isActive = false },

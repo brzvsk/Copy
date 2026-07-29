@@ -2,6 +2,19 @@ import AppKit
 
 final class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
+
+    /// SwiftUI's `.popover()` presents its content in a separate `NSWindow` attached to
+    /// this one via `addChildWindow` — a different window than the panel itself, so
+    /// merely setting the panel's own `sharingType` doesn't exclude it from capture.
+    /// Whoever owns this panel (`ShelfPanelController`/`PasteStackController`) keeps this
+    /// in sync with its own `sharingType` policy; every child window attached from then
+    /// on inherits it here, before `super.addChildWindow` orders it on screen.
+    var childWindowSharingType: NSWindow.SharingType = .readOnly
+
+    override func addChildWindow(_ childWin: NSWindow, ordered place: NSWindow.OrderingMode) {
+        childWin.sharingType = childWindowSharingType
+        super.addChildWindow(childWin, ordered: place)
+    }
 }
 
 @MainActor
@@ -29,6 +42,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     func setHideDuringScreenSharing(_ hide: Bool) {
         hideDuringScreenSharing = hide
         panel?.sharingType = hide ? .none : .readOnly
+        panel?.childWindowSharingType = hide ? .none : .readOnly
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
@@ -90,6 +104,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         panel.delegate = self
         panel.contentView = makeContent()
         panel.sharingType = hideDuringScreenSharing ? .none : .readOnly
+        panel.childWindowSharingType = hideDuringScreenSharing ? .none : .readOnly
         return panel
     }
 
@@ -114,5 +129,15 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
             return
         }
         hide(restoreFocus: false)
+    }
+
+    /// SwiftUI's `.sheet()` (Edit/Create/Rename/Adjust Color) presents via AppKit's
+    /// sheet mechanism rather than `addChildWindow`, so `KeyablePanel.childWindowSharingType`
+    /// doesn't catch it — this documented `NSWindowDelegate` hook fires as the sheet is
+    /// attached to `window` (the panel), before it's positioned/shown, giving a
+    /// deterministic point to apply the same policy.
+    func window(_ window: NSWindow, willPositionSheet sheet: NSWindow, using rect: NSRect) -> NSRect {
+        sheet.sharingType = hideDuringScreenSharing ? .none : .readOnly
+        return rect
     }
 }

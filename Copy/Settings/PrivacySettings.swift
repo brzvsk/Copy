@@ -12,6 +12,8 @@ struct PrivacySettings: View {
         Form {
             Section {
                 Toggle("Hide Copy windows during screen sharing", isOn: $settings.hideDuringScreenSharing)
+            } header: {
+                Text("Screen Sharing")
             } footer: {
                 Text("Keeps your clipboard history out of screen recordings and shared screens.")
                     .font(.footnote)
