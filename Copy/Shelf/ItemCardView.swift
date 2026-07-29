@@ -166,11 +166,28 @@ struct ItemCardView: View {
         }
     }
 
+    /// Renders `text` (capped to `cap` characters, same as the plain-text path always
+    /// did) with syntax colors when `CodeDetector` recognizes it as code, otherwise as
+    /// plain `Text` exactly as before this feature existed. Detection + tokenization
+    /// are cached per item (`CodeHighlightCache`) so scrolling the shelf doesn't
+    /// re-run them every frame; "Copy"/paste are untouched — this only changes what's
+    /// drawn on screen.
+    @ViewBuilder
+    private func codeAwareBody(text: String, cap: Int) -> some View {
+        let capped = String(text.prefix(cap))
+        let highlight = CodeHighlightCache.shared.result(for: text, uuid: item.uuid, cap: cap)
+        if highlight.language != nil {
+            highlightedText(capped, tokens: highlight.tokens)
+        } else {
+            Text(capped)
+        }
+    }
+
     @ViewBuilder
     private func body(for kind: ItemKind) -> some View {
         switch kind {
         case .text, .richText:
-            Text(String((item.plainText ?? "").prefix(1_500)))
+            codeAwareBody(text: item.plainText ?? "", cap: 1_500)
                 .font(Tokens.bodyMono)
                 .lineLimit(bodyLineLimit(standard: 11, compact: 6))
                 .multilineTextAlignment(.leading)
