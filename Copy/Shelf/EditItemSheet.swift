@@ -77,16 +77,16 @@ struct EditItemSheet: View {
     /// Strikethrough has no system-standard one, so it's click-only.
     private var formattingToolbar: some View {
         HStack(spacing: 2) {
-            FormatButton(symbol: "bold", label: "Bold", shortcut: "b") {
+            FormatButton(symbol: "bold", label: "Bold", shortcut: "b", isActive: editorController.isBoldActive) {
                 editorController.toggleBold()
             }
-            FormatButton(symbol: "italic", label: "Italic", shortcut: "i") {
+            FormatButton(symbol: "italic", label: "Italic", shortcut: "i", isActive: editorController.isItalicActive) {
                 editorController.toggleItalic()
             }
-            FormatButton(symbol: "underline", label: "Underline", shortcut: "u") {
+            FormatButton(symbol: "underline", label: "Underline", shortcut: "u", isActive: editorController.isUnderlineActive) {
                 editorController.toggleUnderline()
             }
-            FormatButton(symbol: "strikethrough", label: "Strikethrough") {
+            FormatButton(symbol: "strikethrough", label: "Strikethrough", isActive: editorController.isStrikethroughActive) {
                 editorController.toggleStrikethrough()
             }
             Spacer()
@@ -121,19 +121,25 @@ struct EditItemSheet: View {
     }
 }
 
-/// A single quiet toolbar button: SF Symbol only, secondary tint, no background or
-/// border — matches the shelf's existing icon-button language (e.g. `DrawerMenu`'s
-/// ellipsis button) rather than introducing a new, louder toolbar style.
+/// A single quiet toolbar button: SF Symbol only, no border — matches the shelf's
+/// existing icon-button language (e.g. `DrawerMenu`'s ellipsis button) rather than
+/// introducing a new, louder toolbar style. When `isActive` (the current selection/
+/// typing attributes already carry this attribute), the icon tints to `accentColor`
+/// over a soft accent-opacity fill — the same quiet selection language `SymbolSwatch`/
+/// `EmojiSwatch` already use elsewhere, just at low opacity instead of a solid fill so
+/// the row stays a clean B/I/U/S strip rather than a row of filled buttons.
 private struct FormatButton: View {
     let symbol: String
     let label: String
     var shortcut: KeyEquivalent?
+    var isActive: Bool = false
     let action: () -> Void
 
-    init(symbol: String, label: String, shortcut: KeyEquivalent? = nil, action: @escaping () -> Void) {
+    init(symbol: String, label: String, shortcut: KeyEquivalent? = nil, isActive: Bool = false, action: @escaping () -> Void) {
         self.symbol = symbol
         self.label = label
         self.shortcut = shortcut
+        self.isActive = isActive
         self.action = action
     }
 
@@ -151,10 +157,15 @@ private struct FormatButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isActive ? Color.accentColor : .secondary)
                 .frame(width: 26, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(isActive ? Color.accentColor.opacity(0.15) : .clear)
+                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }

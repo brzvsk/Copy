@@ -13,6 +13,15 @@ final class RichTextEditorController: ObservableObject {
     @Published private(set) var wordCount = 0
     @Published private(set) var lineCount = 1
 
+    /// Whether the current selection (or, for an empty selection/caret, the typing
+    /// attributes the next character would inherit) is already bold/italic/underlined/
+    /// struck through — drives the toolbar's active-state highlight. Read-only: only
+    /// `refreshActiveState()` writes these, and it never mutates the text view.
+    @Published private(set) var isBoldActive = false
+    @Published private(set) var isItalicActive = false
+    @Published private(set) var isUnderlineActive = false
+    @Published private(set) var isStrikethroughActive = false
+
     fileprivate weak var textView: NSTextView?
 
     /// Bold/Italic are font *traits*, not standalone attributes — `NSTextView` has no
@@ -23,10 +32,12 @@ final class RichTextEditorController: ObservableObject {
     /// checkboxes do under the hood.
     func toggleBold() {
         toggleFontTrait(.boldFontMask)
+        refreshActiveState()
     }
 
     func toggleItalic() {
         toggleFontTrait(.italicFontMask)
+        refreshActiveState()
     }
 
     /// Underline and Strikethrough are plain character attributes (`.underlineStyle` /
@@ -35,10 +46,12 @@ final class RichTextEditorController: ObservableObject {
     /// it up.
     func toggleUnderline() {
         toggleStyleAttribute(.underlineStyle)
+        refreshActiveState()
     }
 
     func toggleStrikethrough() {
         toggleStyleAttribute(.strikethroughStyle)
+        refreshActiveState()
     }
 
     private func toggleFontTrait(_ trait: NSFontTraitMask) {
@@ -98,6 +111,31 @@ final class RichTextEditorController: ObservableObject {
         wordCount = plain.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
         lineCount = plain.components(separatedBy: .newlines).count
     }
+
+    /// Recomputes the toolbar's active-state flags from the attributes at the current
+    /// selection's start, or `typingAttributes` for an empty selection/caret (the same
+    /// source `toggleFontTrait`/`toggleStyleAttribute` read from). This is a
+    /// simplification for a mixed selection (part bold, part not) — it reflects the
+    /// attribute at the selection's start rather than computing a tri-state "mixed"
+    /// indicator, which matches what a click on the toolbar button would toggle from
+    /// (`toggleFontTrait` also only inspects/converts per-run, so this is consistent
+    /// with the toggle's own behavior, just not a full mixed-state UI).
+    func refreshActiveState() {
+        guard let textView else { return }
+        let range = textView.selectedRange()
+        let attrs: [NSAttributedString.Key: Any]
+        if range.length > 0, let storage = textView.textStorage, range.location < storage.length {
+            attrs = storage.attributes(at: range.location, effectiveRange: nil)
+        } else {
+            attrs = textView.typingAttributes
+        }
+        let font = (attrs[.font] as? NSFont) ?? textView.font ?? NSFont.systemFont(ofSize: 13)
+        let traits = NSFontManager.shared.traits(of: font)
+        isBoldActive = traits.contains(.boldFontMask)
+        isItalicActive = traits.contains(.italicFontMask)
+        isUnderlineActive = ((attrs[.underlineStyle] as? Int) ?? 0) != 0
+        isStrikethroughActive = ((attrs[.strikethroughStyle] as? Int) ?? 0) != 0
+    }
 }
 
 /// `NSViewRepresentable` wrapping a rich-editing `NSTextView` inside an `NSScrollView`.
@@ -149,6 +187,7 @@ struct RichTextEditor: NSViewRepresentable {
 
         controller.textView = textView
         controller.updateStats(from: textView.attributedString())
+        controller.refreshActiveState()
         return scrollView
     }
 
@@ -183,6 +222,14 @@ struct RichTextEditor: NSViewRepresentable {
             let updated = textView.attributedString()
             text.wrappedValue = updated
             controller.updateStats(from: updated)
+            controller.refreshActiveState()
+        }
+
+        /// Fires whenever the caret/selection moves (including as a side effect of
+        /// typing), so the toolbar's active-state highlight tracks the cursor even when
+        /// no toggle button was clicked.
+        func textViewDidChangeSelection(_ notification: Notification) {
+            controller.refreshActiveState()
         }
     }
 }

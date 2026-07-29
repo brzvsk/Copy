@@ -83,7 +83,7 @@ struct GeneralSettings: View {
                 // turning it OFF, so a user who's already stranded (hotkey cleared
                 // while this was on) can always self-rescue by flipping it back off.
                 // AppDelegate's guard is still the authoritative check either way.
-                Toggle("Hide the menu bar icon", isOn: $settings.hideMenuBarIcon)
+                Toggle("Hide the Menu Bar Icon", isOn: $settings.hideMenuBarIcon)
                     .disabled(!shelfHotkeySet && !settings.hideMenuBarIcon)
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {

@@ -223,6 +223,9 @@ struct PinboardEditPopover: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     if let currentEmoji = emoji {
+                        // Deliberately one point larger than the grid swatches (15):
+                        // this is the "show the current selection prominently" readout,
+                        // so a slight emphasis over the grid is intentional, not drift.
                         Text(currentEmoji)
                             .font(.system(size: 16))
                         Button("Clear") { emoji = nil }
@@ -332,35 +335,24 @@ private struct SymbolSwatch: View {
 }
 
 private struct EmojiSwatch: View {
-    let emoji: String?
+    let emoji: String
     let isSelected: Bool
     let action: () -> Void
     @State private var isHovering = false
 
-    private var accessibleName: String {
-        emoji ?? "No Emoji"
-    }
-
     var body: some View {
         Button(action: action) {
-            Group {
-                if let emoji {
-                    Text(emoji).font(.system(size: 15))
-                } else {
-                    Image(systemName: "circle.slash")
-                        .font(.system(size: 13))
-                        .foregroundStyle(isSelected ? Color.white : Color.primary.opacity(0.6))
-                }
-            }
-            .frame(width: 30, height: 30)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? Color.accentColor : (isHovering ? Color.primary.opacity(0.08) : .clear))
-            )
+            Text(emoji)
+                .font(.system(size: 15))
+                .frame(width: 30, height: 30)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isSelected ? Color.accentColor : (isHovering ? Color.primary.opacity(0.08) : .clear))
+                )
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
-        .accessibilityLabel(accessibleName)
+        .accessibilityLabel(emoji)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
