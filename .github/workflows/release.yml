@@ -15,25 +15,40 @@ permissions:
 jobs:
   release:
     runs-on: macos-26
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
       # Forks don't inherit these secrets, and a repo that hasn't been set up
-      # yet won't have them either -- checking one is enough to catch both
-      # cases with a clear message instead of a confusing failure deep inside
-      # release.sh.
+      # yet won't have them either -- checking all six up front catches both
+      # cases (and a partial configuration) with a clear message, instead of
+      # a confusing failure deep inside release.sh after a paid notarization
+      # round-trip.
       - name: Verify required secrets are configured
         env:
-          SENTINEL: ${{ secrets.DEVELOPER_ID_CERT_P12_BASE64 }}
+          SENTINEL_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12_BASE64 }}
+          SENTINEL_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          SENTINEL_SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SENTINEL_NOTARY_KEY: ${{ secrets.NOTARY_API_KEY_BASE64 }}
+          SENTINEL_NOTARY_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          SENTINEL_NOTARY_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
         run: |
-          if [[ -z "$SENTINEL" ]]; then
-            echo "::error::DEVELOPER_ID_CERT_P12_BASE64 secret is not set." >&2
+          missing=()
+          [[ -z "$SENTINEL_CERT_P12" ]] && missing+=("DEVELOPER_ID_CERT_P12_BASE64")
+          [[ -z "$SENTINEL_CERT_PASSWORD" ]] && missing+=("DEVELOPER_ID_CERT_PASSWORD")
+          [[ -z "$SENTINEL_SPARKLE_KEY" ]] && missing+=("SPARKLE_PRIVATE_KEY")
+          [[ -z "$SENTINEL_NOTARY_KEY" ]] && missing+=("NOTARY_API_KEY_BASE64")
+          [[ -z "$SENTINEL_NOTARY_KEY_ID" ]] && missing+=("NOTARY_API_KEY_ID")
+          [[ -z "$SENTINEL_NOTARY_ISSUER_ID" ]] && missing+=("NOTARY_API_ISSUER_ID")
+
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Missing required secret(s): ${missing[*]}" >&2
             echo "::error::This usually means the workflow is running on a fork, or the" >&2
-            echo "::error::repository secrets described in docs/RELEASING.md have not been" >&2
-            echo "::error::added yet. See docs/RELEASING.md for the full list and how to" >&2
-            echo "::error::produce each one." >&2
+            echo "::error::repository secrets described in docs/RELEASING.md have not all" >&2
+            echo "::error::been added yet. See docs/RELEASING.md for the full list and how" >&2
+            echo "::error::to produce each one." >&2
             exit 1
           fi
 
@@ -62,6 +77,7 @@ jobs:
           CERT_PATH="$RUNNER_TEMP/developer-id.p12"
 
           echo "$CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+          chmod 600 "$CERT_PATH"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
@@ -109,11 +125,14 @@ jobs:
       - name: Build, sign, and notarize release
         run: Scripts/release.sh "$VERSION"
 
+      # Idempotent: if a re-run follows a mid-job failure and the release
+      # already exists (created by an earlier attempt), skip re-creating it
+      # rather than failing on a duplicate.
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" \
             "build/Copy-${VERSION}.dmg" \
             "build/Copy-${VERSION}.zip" \
             --title "Copy $VERSION" \

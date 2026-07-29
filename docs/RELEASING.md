@@ -91,6 +91,11 @@ Watch the run under the repository's **Actions** tab. If a secret is missing
 or a fork triggers the workflow, the run fails immediately with a message
 pointing back to this document instead of failing deep inside the pipeline.
 
+`main` must remain pushable by `github-actions[bot]` (no branch protection
+rule blocking direct pushes or requiring status checks/reviews on it), or the
+workflow's appcast commit will fail at the last step and users won't see the
+update even though the DMG and GitHub release were published successfully.
+
 ## GitHub Pages for the appcast
 
 Sparkle's update feed is served from `docs/appcast.xml` via GitHub Pages.
