@@ -381,12 +381,23 @@ final class ShelfViewModel {
         editingItem = target
     }
 
-    /// Saves edited text from `EditItemSheet`, then dismisses it either way.
-    func commitEdit(_ text: String) {
+    /// Saves edited rich text from `EditItemSheet`, then dismisses it either way. RTF
+    /// encoding happens here (the app layer) rather than in CopyCore, which stays
+    /// Foundation-only and takes pre-encoded `Data` — see `ItemStore.replaceContent(itemID:rtfData:plainText:)`.
+    func commitEdit(attributed: NSAttributedString) {
         defer { editingItem = nil }
         guard let item = editingItem, let id = item.id else { return }
+        let plainText = attributed.string
+        guard let rtfData = attributed.rtf(
+            from: NSRange(location: 0, length: attributed.length),
+            documentAttributes: [:]
+        ) else {
+            NSLog("Copy: failed to RTF-encode edited item")
+            HUD.show("Couldn't save changes")
+            return
+        }
         do {
-            try store.replaceContent(itemID: id, with: text)
+            try store.replaceContent(itemID: id, rtfData: rtfData, plainText: plainText)
         } catch {
             NSLog("Copy: failed to save edited item: \(error)")
             HUD.show("Couldn't save changes")

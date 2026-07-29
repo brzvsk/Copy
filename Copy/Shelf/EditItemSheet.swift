@@ -1,68 +1,64 @@
 import SwiftUI
 import CopyCore
 
-/// Edit-in-place sheet for a card's "Edit…" menu item and ⌘E. Rich text and links are
-/// edited and saved as plain text — `ItemStore.replaceContent` always writes plain text,
-/// so this is the one place that behavior needs explaining to the user.
+/// Edit-in-place sheet for a card's "Edit…" menu item and ⌘E: a rich text editor
+/// (Bold/Italic/Underline/Strikethrough) with live character/word/line stats. Saving
+/// writes an updated `public.rtf` representation alongside plain text — plain stays
+/// canonical for "Paste as plain text" and search, rich is the alternate for a
+/// formatted paste.
 struct EditItemSheet: View {
     let item: ClipItem
+    let store: ItemStore
     let onCancel: () -> Void
-    let onSave: (String) -> Void
+    let onSave: (NSAttributedString) -> Void
 
-    @State private var text: String
+    @State private var attributedText: NSAttributedString
+    @State private var original: NSAttributedString
+    @StateObject private var editorController = RichTextEditorController()
 
-    init(item: ClipItem, onCancel: @escaping () -> Void, onSave: @escaping (String) -> Void) {
+    init(item: ClipItem, store: ItemStore, onCancel: @escaping () -> Void, onSave: @escaping (NSAttributedString) -> Void) {
         self.item = item
+        self.store = store
         self.onCancel = onCancel
         self.onSave = onSave
-        _text = State(initialValue: item.plainText ?? "")
+        let seeded = Self.seedAttributedText(item: item, store: store)
+        _attributedText = State(initialValue: seeded)
+        _original = State(initialValue: seeded)
+    }
+
+    /// Seeds from the item's existing `public.rtf` representation when there is one
+    /// (Copy captures RTF alongside plain text for rich-text copies), so re-editing a
+    /// previously-formatted item doesn't flatten it back to plain text. Falls back to
+    /// plain text for items that never had an RTF representation (or whose RTF fails to
+    /// decode).
+    private static func seedAttributedText(item: ClipItem, store: ItemStore) -> NSAttributedString {
+        if let id = item.id,
+           let reps = try? store.representations(forItemID: id),
+           let rtfRep = reps.first(where: { $0.uti == "public.rtf" }),
+           let decoded = NSAttributedString(rtf: rtfRep.data, documentAttributes: nil) {
+            return decoded
+        }
+        return NSAttributedString(string: item.plainText ?? "")
     }
 
     private var isUnchanged: Bool {
-        text == (item.plainText ?? "")
+        attributedText == original
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            textEditor
+            formattingToolbar
+            editor
             footer
         }
         .padding(16)
-        .frame(width: 480, height: 320)
-        // M7: outer sheet container only — the text editor below keeps its own opaque
-        // `.textBackgroundColor` fill (set in `textEditor` above) for contrast, so
-        // glassing this container doesn't touch legibility of the text being edited.
+        .frame(width: 480, height: 360)
+        // M7: outer sheet container only — the text view below keeps its own opaque
+        // `.textBackgroundColor` fill for contrast, so glassing this container doesn't
+        // touch legibility of the text being edited.
         .glassSurface(cornerRadius: 12)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-
-    /// `.writingToolsBehavior(.complete)` requires macOS 15.0+ (verified against the
-    /// macOS 26 SDK's SwiftUI.swiftinterface); on plain `TextEditor` the default
-    /// `.automatic` behavior already offers Writing Tools on 15.0+, but `.complete`
-    /// makes sure the full proofread/rewrite panel is offered rather than a limited
-    /// inline-only variant. Gated so macOS 14 keeps the exact prior `TextEditor`.
-    @ViewBuilder
-    private var textEditor: some View {
-        Group {
-            if #available(macOS 15.0, *) {
-                TextEditor(text: $text)
-                    .writingToolsBehavior(.complete)
-            } else {
-                TextEditor(text: $text)
-            }
-        }
-        .font(.system(size: 13, design: .monospaced))
-        .scrollContentBackground(.hidden)
-        .padding(6)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color(nsColor: .textBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-        )
     }
 
     private var header: some View {
@@ -76,21 +72,89 @@ struct EditItemSheet: View {
         }
     }
 
-    private var footer: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            if item.kind == .richText {
-                Text("Saving keeps plain text only")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+    /// Quiet, borderless SF Symbol buttons — a clean B/I/U/S row rather than a loud
+    /// ribbon toolbar. Bold/Italic/Underline get their conventional ⌘ shortcuts;
+    /// Strikethrough has no system-standard one, so it's click-only.
+    private var formattingToolbar: some View {
+        HStack(spacing: 2) {
+            FormatButton(symbol: "bold", label: "Bold", shortcut: "b") {
+                editorController.toggleBold()
             }
-            HStack {
-                Spacer()
-                Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.cancelAction)
-                Button("Save") { onSave(text) }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(isUnchanged)
+            FormatButton(symbol: "italic", label: "Italic", shortcut: "i") {
+                editorController.toggleItalic()
+            }
+            FormatButton(symbol: "underline", label: "Underline", shortcut: "u") {
+                editorController.toggleUnderline()
+            }
+            FormatButton(symbol: "strikethrough", label: "Strikethrough") {
+                editorController.toggleStrikethrough()
+            }
+            Spacer()
+        }
+    }
+
+    private var editor: some View {
+        RichTextEditor(attributedText: $attributedText, controller: editorController)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+            )
+    }
+
+    private var footer: some View {
+        HStack(alignment: .center) {
+            Text(statsText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Cancel", action: onCancel)
+                .keyboardShortcut(.cancelAction)
+            Button("Save") { onSave(attributedText) }
+                .keyboardShortcut(.defaultAction)
+                .disabled(isUnchanged)
+        }
+    }
+
+    private var statsText: String {
+        "\(editorController.characterCount) characters · \(editorController.wordCount) words · \(editorController.lineCount) lines"
+    }
+}
+
+/// A single quiet toolbar button: SF Symbol only, secondary tint, no background or
+/// border — matches the shelf's existing icon-button language (e.g. `DrawerMenu`'s
+/// ellipsis button) rather than introducing a new, louder toolbar style.
+private struct FormatButton: View {
+    let symbol: String
+    let label: String
+    var shortcut: KeyEquivalent?
+    let action: () -> Void
+
+    init(symbol: String, label: String, shortcut: KeyEquivalent? = nil, action: @escaping () -> Void) {
+        self.symbol = symbol
+        self.label = label
+        self.shortcut = shortcut
+        self.action = action
+    }
+
+    var body: some View {
+        Group {
+            if let shortcut {
+                button.keyboardShortcut(shortcut, modifiers: .command)
+            } else {
+                button
             }
         }
+    }
+
+    private var button: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 22)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }

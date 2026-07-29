@@ -31,8 +31,9 @@ struct ShelfRootView: View {
         .sheet(item: $viewModel.editingItem) { item in
             EditItemSheet(
                 item: item,
+                store: viewModel.store,
                 onCancel: { viewModel.editingItem = nil },
-                onSave: { viewModel.commitEdit($0) }
+                onSave: { viewModel.commitEdit(attributed: $0) }
             )
         }
         .sheet(isPresented: $viewModel.creatingItem) {

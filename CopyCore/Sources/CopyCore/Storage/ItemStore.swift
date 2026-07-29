@@ -244,6 +244,48 @@ public struct ItemStore {
         }
     }
 
+    /// Rich-text counterpart to `replaceContent(itemID:with:)`: stores an updated
+    /// `public.rtf` representation alongside the plain-text representation, instead of
+    /// plain text alone. Deliberately takes pre-encoded `rtfData` rather than an
+    /// `NSAttributedString` — CopyCore stays Foundation-only, so RTF encoding happens
+    /// in the app layer, not here. Dedup/FTS/hash all key on `plainText`, exactly like
+    /// the plain path, so a rich edit that happens to match an existing plain (or rich)
+    /// item's content still dedups against it.
+    @discardableResult
+    public func replaceContent(itemID: Int64, rtfData: Data, plainText: String, now: Date = Date()) throws -> ClipItem {
+        let hash = BlobStore.key(for: Data(plainText.utf8))
+        return try writer.write { db in
+            guard var item = try ClipItem.fetchOne(db, key: itemID) else {
+                throw DatabaseError(message: "item not found")
+            }
+            if var winner = try ClipItem
+                .filter(Column("contentHash") == hash && Column("id") != itemID)
+                .fetchOne(db) {
+                winner.lastUsedAt = now
+                try winner.update(db)
+                try deleteItems(ClipItem.filter(Column("id") == itemID), in: db)
+                return winner
+            }
+            let oldKeys = try String.fetchAll(db, sql:
+                "SELECT DISTINCT blobKey FROM representation WHERE itemId = ? AND blobKey IS NOT NULL",
+                arguments: [itemID])
+            try Representation.filter(Column("itemId") == itemID).deleteAll(db)
+            item.kind = ItemKind.forText(plainText)
+            item.plainText = plainText
+            item.linkTitle = nil
+            item.contentHash = hash
+            item.sizeBytes = plainText.utf8.count
+            item.lastUsedAt = now
+            try item.update(db)
+            try insertRepresentations(
+                [CapturedRepresentation(uti: "public.rtf", data: rtfData),
+                 CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(plainText.utf8))],
+                itemID: itemID, in: db)
+            try cleanOrphanBlobs(oldKeys, in: db)
+            return item
+        }
+    }
+
     @discardableResult
     public func prune(olderThan cutoff: Date?, maxItems: Int?) throws -> Int {
         guard cutoff != nil || maxItems != nil else { return 0 }
