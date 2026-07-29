@@ -21,6 +21,7 @@ public struct ItemStore {
                 existing.appBundleID = captured.sourceBundleID
                 existing.appName = captured.sourceAppName
                 existing.sizeBytes = captured.representations.reduce(0) { $0 + $1.data.count }
+                existing.kind = captured.kind
                 try existing.update(db)
 
                 let oldKeys = try String.fetchAll(db, sql:
@@ -136,9 +137,11 @@ public struct ItemStore {
 
     public func clearHistory(keepFavorites: Bool = true) throws {
         try writer.write { db in
-            let doomed = keepFavorites
-                ? ClipItem.filter(Column("isFavorite") == false)
-                : ClipItem.all()
+            let memberIDs = "SELECT DISTINCT itemId FROM pinboard_item"
+            var doomed = ClipItem.filter(sql: "id NOT IN (\(memberIDs))")
+            if keepFavorites {
+                doomed = doomed.filter(Column("isFavorite") == false)
+            }
             try deleteItems(doomed, in: db)
         }
     }
@@ -170,6 +173,39 @@ public struct ItemStore {
                                             onError: onError,
                                             onChange: onChange)
         return ObservationToken(cancellable)
+    }
+
+    @discardableResult
+    public func replaceContent(itemID: Int64, with text: String, now: Date = Date()) throws -> ClipItem {
+        let hash = BlobStore.key(for: Data(text.utf8))
+        return try writer.write { db in
+            guard var item = try ClipItem.fetchOne(db, key: itemID) else {
+                throw DatabaseError(message: "item not found")
+            }
+            if var winner = try ClipItem
+                .filter(Column("contentHash") == hash && Column("id") != itemID)
+                .fetchOne(db) {
+                winner.lastUsedAt = now
+                try winner.update(db)
+                try deleteItems(ClipItem.filter(Column("id") == itemID), in: db)
+                return winner
+            }
+            let oldKeys = try String.fetchAll(db, sql:
+                "SELECT DISTINCT blobKey FROM representation WHERE itemId = ? AND blobKey IS NOT NULL",
+                arguments: [itemID])
+            try Representation.filter(Column("itemId") == itemID).deleteAll(db)
+            item.kind = ItemKind.forText(text)
+            item.plainText = text
+            item.contentHash = hash
+            item.sizeBytes = text.utf8.count
+            item.lastUsedAt = now
+            try item.update(db)
+            try insertRepresentations(
+                [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(text.utf8))],
+                itemID: itemID, in: db)
+            try cleanOrphanBlobs(oldKeys, in: db)
+            return item
+        }
     }
 }
 
