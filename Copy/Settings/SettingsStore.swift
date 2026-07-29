@@ -82,8 +82,8 @@ final class SettingsStore {
     /// When true, the shelf panel and Paste Stack palette set `NSWindowSharingType.none`
     /// so they're excluded from screen recordings/captures/shares (see
     /// `ShelfPanelController.setHideDuringScreenSharing`/`PasteStackController`'s
-    /// equivalent). Defaults to true so clipboard history is hidden from screen shares
-    /// out of the box.
+    /// equivalent). Defaults to false: Copy is visible in screenshots and recordings
+    /// out of the box (so people can capture and share it), and hiding is opt-in.
     var hideDuringScreenSharing: Bool {
         didSet {
             guard hideDuringScreenSharing != oldValue else { return }
@@ -119,7 +119,7 @@ final class SettingsStore {
         }
         fetchLinkPreviews = (defaults.object(forKey: Self.fetchLinkPreviewsKey) as? Bool) ?? true
         recognizeImageText = (defaults.object(forKey: Self.recognizeImageTextKey) as? Bool) ?? true
-        hideDuringScreenSharing = (defaults.object(forKey: Self.hideDuringScreenSharingKey) as? Bool) ?? true
+        hideDuringScreenSharing = (defaults.object(forKey: Self.hideDuringScreenSharingKey) as? Bool) ?? false
         compactShelf = (defaults.object(forKey: Self.compactShelfKey) as? Bool) ?? false
         if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
