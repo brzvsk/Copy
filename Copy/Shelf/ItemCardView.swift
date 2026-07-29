@@ -13,18 +13,16 @@ struct ItemCardView: View {
     let dragProvider: () -> NSItemProvider
 
     var body: some View {
-        HStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 6) {
+            header
             Rectangle()
-                .fill(Tokens.spineColor(forBundleID: item.appBundleID))
-                .frame(width: Tokens.spineWidth)
-            VStack(alignment: .leading, spacing: 6) {
-                header
-                body(for: item.kind)
-                Spacer(minLength: 0)
-                footer
-            }
-            .padding(10)
+                .fill(Color(nsColor: .separatorColor))
+                .frame(height: 1)
+            body(for: item.kind)
+            Spacer(minLength: 0)
+            footer
         }
+        .padding(10)
         .frame(width: Tokens.cardWidth, height: Tokens.cardHeight, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous)
@@ -60,7 +58,7 @@ struct ItemCardView: View {
             if let icon = AppIconCache.icon(forBundleID: item.appBundleID) {
                 Image(nsImage: icon)
                     .resizable()
-                    .frame(width: 14, height: 14)
+                    .frame(width: 16, height: 16)
             }
             Text(item.appName ?? "Unknown")
                 .font(Tokens.cardTitle)
