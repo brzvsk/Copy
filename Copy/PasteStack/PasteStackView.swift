@@ -6,7 +6,7 @@ import SwiftUI
 /// Reorders via drag (`.onMove`), removes rows via swipe or context menu, flips
 /// FIFO/LIFO, and clears the queue. `onContentChange` fires whenever the queue's
 /// uuids change (enqueue, remove, clear, reorder) so the controller can re-fit the
-/// panel's height to the new row count — see `PasteStackController.show()`.
+/// panel's height to the new row count — see `PasteStackController.resizeToFit()`.
 struct PasteStackView: View {
     @Bindable var model: PasteStackModel
     var onClose: () -> Void = {}

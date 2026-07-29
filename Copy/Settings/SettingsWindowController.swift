@@ -37,7 +37,11 @@ final class SettingsWindowController: NSWindowController {
     }
 
     func show() {
-        window?.center()
+        // Only center on first appearance — recentering on every reopen would undo a
+        // user-moved window position.
+        if window?.isVisible != true {
+            window?.center()
+        }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

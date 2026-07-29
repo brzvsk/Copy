@@ -34,10 +34,11 @@ final class PasteStackController {
         }
     }
 
-    /// (Re)shows the palette at the top-right of the mouse's screen, sized to fit the
-    /// current queue (capped at `maxHeight`). Safe to call while already visible — it
-    /// just repositions/resizes in place, which is how the panel stays fit to content
-    /// as items are added, removed, or cleared (see `PasteStackView.onContentChange`).
+    /// Shows the palette at the top-right of the mouse's screen, sized to fit the
+    /// current queue (capped at `maxHeight`). Only positions fresh when the panel isn't
+    /// already visible — once the user has moved/is looking at the palette, content
+    /// changes must not teleport it back to the corner; that's what `resizeToFit()`
+    /// (wired to `PasteStackView.onContentChange`) is for.
     func show() {
         // Drop any queued uuid that's gone missing (deleted/pruned) since being
         // queued. `PasteStackModel.items()` is a pure read used from SwiftUI bodies,
@@ -45,12 +46,17 @@ final class PasteStackController {
         // bookkeeping actually happens.
         model.reconcile()
 
+        let panel = self.panel ?? makePanel()
+        self.panel = panel
+
+        guard !panel.isVisible else {
+            resizeToFit()
+            return
+        }
+
         guard let screen = NSScreen.screens.first(where: {
             NSMouseInRect(NSEvent.mouseLocation, $0.frame, false)
         }) ?? NSScreen.main else { return }
-
-        let panel = self.panel ?? makePanel()
-        self.panel = panel
 
         let height = computeHeight()
         let frame = NSRect(
@@ -65,6 +71,27 @@ final class PasteStackController {
 
     func hide() {
         panel?.orderOut(nil)
+    }
+
+    /// Re-fits the palette's height to the current queue while keeping its current
+    /// on-screen position, anchored at the current top edge. Called from
+    /// `PasteStackView.onContentChange` (items added/removed/reordered) so the palette
+    /// doesn't jump back to the top-right corner on every copy while the stack is
+    /// active — only `show()`'s fresh-activation path positions there. AppKit frames
+    /// are bottom-left-anchored, so holding the top edge fixed while the height changes
+    /// means recomputing the origin's y: `newOriginY = currentTopY - newHeight`.
+    private func resizeToFit() {
+        guard let panel, panel.isVisible else { return }
+        let current = panel.frame
+        let currentTopY = current.origin.y + current.height
+        let newHeight = computeHeight()
+        let newFrame = NSRect(
+            x: current.origin.x,
+            y: currentTopY - newHeight,
+            width: current.width,
+            height: newHeight
+        )
+        panel.setFrame(newFrame, display: true)
     }
 
     private func computeHeight() -> CGFloat {
@@ -91,7 +118,7 @@ final class PasteStackController {
         panel.contentView = NSHostingView(rootView: PasteStackView(
             model: model,
             onClose: { [weak model] in model?.isActive = false },
-            onContentChange: { [weak self] in self?.show() }
+            onContentChange: { [weak self] in self?.resizeToFit() }
         ))
         return panel
     }

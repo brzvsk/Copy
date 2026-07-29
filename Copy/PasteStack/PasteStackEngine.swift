@@ -1,4 +1,5 @@
 import AppKit
+import CopyCore
 
 /// CGEvent tap that intercepts a plain Command-V while the Paste Stack is active, so
 /// pressing Command-V in any frontmost app walks the queue instead of pasting whatever
@@ -14,8 +15,11 @@ import AppKit
 /// falls back to the `.pasteNextFromStack` hotkey.
 final class PasteStackEngine {
     /// Marks a synthesized Command-V event as our own so the tap passes it straight
-    /// through instead of re-intercepting it (which would loop forever).
-    static let selfEventUserData: Int64 = 0xC0_50_11
+    /// through instead of re-intercepting it (which would loop forever). Aliased to
+    /// `CopyPasteboard.selfEventUserData` so there is exactly one definition shared
+    /// with every other place Copy synthesizes a ⌘V (e.g. `CGKeyEventPoster`) — this
+    /// tap must recognize the shelf/menu's own marked pastes too, not just its own.
+    static let selfEventUserData = CopyPasteboard.selfEventUserData
 
     private let onIntercept: () -> Void
     private var eventTap: CFMachPort?
@@ -108,6 +112,12 @@ final class PasteStackEngine {
         guard type == .keyDown else { return Unmanaged.passUnretained(event) }
         guard event.getIntegerValueField(.eventSourceUserData) != Self.selfEventUserData else {
             return Unmanaged.passUnretained(event) // our own synthesized ⌘V: pass through
+        }
+        guard event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else {
+            // Holding ⌘V down auto-repeats keyDown events; intercepting each one would
+            // drain the queue far faster than the user intended. Only a fresh press
+            // advances the stack.
+            return Unmanaged.passUnretained(event)
         }
 
         let flags = event.flags

@@ -124,4 +124,41 @@ final class ItemStoreTests: XCTestCase {
         let blobFiles = try FileManager.default.contentsOfDirectory(atPath: dbm.blobsDirectory.path)
         XCTAssertEqual(blobFiles.count, 0, "old blob must be orphan-cleaned after refresh")
     }
+
+    func testDedupPreservesFavicon() throws {
+        let store = try makeTempStore()
+        let url = "https://example.com"
+        let link = CapturedItem(
+            kind: .link, plainText: url, hashData: Data(url.utf8),
+            representations: [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(url.utf8))],
+            sourceBundleID: nil, sourceAppName: nil)
+        let saved = try store.save(link)
+
+        let faviconData = Data([0x89, 0x50, 0x4E, 0x47])
+        try store.setFavicon(itemID: saved.id!, pngData: faviconData)
+
+        // Re-copying the identical link hits the dedup branch, which used to wipe and
+        // rebuild every representation for the item — including the favicon that
+        // `setFavicon` stores out-of-band. It must survive the re-save.
+        _ = try store.save(link)
+
+        XCTAssertEqual(try store.favicon(forItemID: saved.id!), faviconData)
+        let reps = try store.representations(forItemID: saved.id!)
+        XCTAssertTrue(reps.contains { $0.uti == CopyPasteboard.faviconUTI })
+    }
+
+    func testReplaceContentClearsLinkTitle() throws {
+        let store = try makeTempStore()
+        let url = "https://example.com"
+        let link = CapturedItem(
+            kind: .link, plainText: url, hashData: Data(url.utf8),
+            representations: [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(url.utf8))],
+            sourceBundleID: nil, sourceAppName: nil)
+        let saved = try store.save(link)
+        try store.setLinkTitle(itemID: saved.id!, "Example Site")
+
+        let replaced = try store.replaceContent(itemID: saved.id!, with: "https://other.example.com")
+
+        XCTAssertNil(replaced.linkTitle, "stale linkTitle from the old URL must not survive replaceContent")
+    }
 }

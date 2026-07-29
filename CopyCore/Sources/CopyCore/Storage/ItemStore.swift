@@ -25,10 +25,16 @@ public struct ItemStore {
                 existing.kind = captured.kind
                 try existing.update(db)
 
+                // Exclude the favicon representation from both the old-blob-key lookup
+                // and the wipe below: a favicon is set out-of-band (`setFavicon`) after
+                // the item is first saved, so re-copying the same content and hitting
+                // this dedup branch must not erase it.
                 let oldKeys = try String.fetchAll(db, sql:
-                    "SELECT DISTINCT blobKey FROM representation WHERE itemId = ? AND blobKey IS NOT NULL",
-                    arguments: [existing.id!])
-                try Representation.filter(Column("itemId") == existing.id!).deleteAll(db)
+                    "SELECT DISTINCT blobKey FROM representation WHERE itemId = ? AND blobKey IS NOT NULL AND uti != ?",
+                    arguments: [existing.id!, CopyPasteboard.faviconUTI])
+                try Representation.filter(
+                    Column("itemId") == existing.id! && Column("uti") != CopyPasteboard.faviconUTI
+                ).deleteAll(db)
                 try insertRepresentations(captured.representations, itemID: existing.id!, in: db)
                 try cleanOrphanBlobs(oldKeys, in: db)
                 return existing
@@ -223,6 +229,7 @@ public struct ItemStore {
             try Representation.filter(Column("itemId") == itemID).deleteAll(db)
             item.kind = ItemKind.forText(text)
             item.plainText = text
+            item.linkTitle = nil
             item.contentHash = hash
             item.sizeBytes = text.utf8.count
             item.lastUsedAt = now

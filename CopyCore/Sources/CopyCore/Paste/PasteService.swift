@@ -40,6 +40,11 @@ public struct CGKeyEventPoster: KeyEventPosting {
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: false)
         keyDown?.flags = .maskCommand
         keyUp?.flags = .maskCommand
+        // Mark as Copy's own synthesized keystroke so the Paste Stack's CGEvent tap
+        // (which watches for a *user-initiated* plain ⌘V) lets this one straight
+        // through instead of hijacking it as a "walk the queue" request.
+        keyDown?.setIntegerValueField(.eventSourceUserData, value: CopyPasteboard.selfEventUserData)
+        keyUp?.setIntegerValueField(.eventSourceUserData, value: CopyPasteboard.selfEventUserData)
         keyDown?.post(tap: .cghidEventTap)
         keyUp?.post(tap: .cghidEventTap)
     }
