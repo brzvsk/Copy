@@ -1,6 +1,7 @@
 import AppKit
 import CopyCore
 import KeyboardShortcuts
+import Quartz
 import Sparkle
 
 extension KeyboardShortcuts.Name {
@@ -180,5 +181,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if alert.runModal() == .alertFirstButtonReturn {
             coordinator.clearHistory()
         }
+    }
+}
+
+// MARK: - Quick Look panel control
+
+/// `AppDelegate` is always reachable via `NSApp.delegate`, so it's a reliable place to
+/// implement Quick Look's responder-chain "who controls the panel" trio — these three
+/// methods are an informal `NSObject` category (not a protocol Swift enforces), called
+/// by AppKit whenever `QLPreviewPanel` re-resolves its controller (e.g. as it becomes
+/// key). `QuickLookController.preview(_:)` already sets `dataSource`/`delegate`
+/// directly before showing the panel; this extension just keeps that assignment
+/// correct if AppKit re-runs its own controller search afterward.
+extension AppDelegate {
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        QuickLookController.shared.hasContent
+    }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        panel.dataSource = QuickLookController.shared
+        panel.delegate = QuickLookController.shared
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        panel.dataSource = nil
+        panel.delegate = nil
+        QuickLookController.shared.clear()
     }
 }

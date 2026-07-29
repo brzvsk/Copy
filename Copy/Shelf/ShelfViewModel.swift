@@ -217,6 +217,13 @@ final class ShelfViewModel {
         onCopyText?(text)
     }
 
+    /// Opens the system Quick Look panel for a `.file` item's underlying file(s), read
+    /// straight from its `public.file-url` representations. No-ops if none of those
+    /// files still exist on disk (e.g. the source was moved or deleted since copying).
+    func quickLook(_ item: ClipItem) {
+        QuickLookController.shared.preview(QuickLookController.fileURLs(for: item, store: store))
+    }
+
     func delete(_ item: ClipItem) {
         guard let id = item.id else { return }
         do {

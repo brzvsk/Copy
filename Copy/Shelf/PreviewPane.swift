@@ -1,9 +1,19 @@
 import SwiftUI
 import CopyCore
+import UniformTypeIdentifiers
 
 struct PreviewPane: View {
     let item: ClipItem
     let store: ItemStore
+
+    private var quickLookURLs: [URL] {
+        QuickLookController.fileURLs(for: item, store: store)
+    }
+
+    private var fileType: UTType {
+        let ext = (item.plainText?.components(separatedBy: "\n").first as NSString?)?.pathExtension ?? ""
+        return UTType(filenameExtension: ext) ?? .data
+    }
 
     var body: some View {
         Group {
@@ -17,6 +27,22 @@ struct PreviewPane: View {
                         .fill(Tokens.color(fromHex: item.plainText ?? ""))
                     Text(item.plainText ?? "")
                         .font(.system(size: 15, design: .monospaced))
+                }
+                .padding(16)
+            case .file:
+                VStack(spacing: 10) {
+                    Image(nsImage: NSWorkspace.shared.icon(for: fileType))
+                        .resizable()
+                        .frame(width: 64, height: 64)
+                    Text(item.plainText ?? "File")
+                        .font(.system(size: 13, design: .monospaced))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(4)
+                    if !quickLookURLs.isEmpty {
+                        Button("Quick Look") {
+                            QuickLookController.shared.preview(quickLookURLs)
+                        }
+                    }
                 }
                 .padding(16)
             default:

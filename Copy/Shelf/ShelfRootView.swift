@@ -366,6 +366,7 @@ private struct ShelfItemsRow: View {
                                 },
                                 onAddToPasteStack: { viewModel.addToPasteStack(item) },
                                 onCopyText: { viewModel.copyText(item) },
+                                onQuickLook: { viewModel.quickLook(item) },
                                 onDelete: { viewModel.delete(item) },
                                 dragProvider: { viewModel.dragProvider(for: item) }
                             )

@@ -22,6 +22,7 @@ struct ItemCardView: View {
     let onRemoveFromPinboard: () -> Void
     let onAddToPasteStack: () -> Void
     let onCopyText: () -> Void
+    let onQuickLook: () -> Void
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
 
@@ -30,6 +31,12 @@ struct ItemCardView: View {
         case .text, .richText, .link: return true
         case .image, .file, .color: return false
         }
+    }
+
+    /// File URL(s) still on disk for this item, used to gate the "Quick Look" menu
+    /// item — see `QuickLookController.fileURLs(for:store:)`.
+    private var quickLookURLs: [URL] {
+        QuickLookController.fileURLs(for: item, store: store)
     }
 
     /// Whether the card shows the user-assigned `item.title` row above the body. When
@@ -97,6 +104,9 @@ struct ItemCardView: View {
             Button("Paste as Plain Text", action: onPastePlain)
             if item.recognizedText?.isEmpty == false {
                 Button("Copy Text", action: onCopyText)
+            }
+            if item.kind == .file, !quickLookURLs.isEmpty {
+                Button("Quick Look", action: onQuickLook)
             }
             Divider()
             if isEditable {

@@ -25,22 +25,39 @@ struct EditItemSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            TextEditor(text: $text)
-                .font(.system(size: 13, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .padding(6)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color(nsColor: .textBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-                )
+            textEditor
             footer
         }
         .padding(16)
         .frame(width: 480, height: 320)
+    }
+
+    /// `.writingToolsBehavior(.complete)` requires macOS 15.0+ (verified against the
+    /// macOS 26 SDK's SwiftUI.swiftinterface); on plain `TextEditor` the default
+    /// `.automatic` behavior already offers Writing Tools on 15.0+, but `.complete`
+    /// makes sure the full proofread/rewrite panel is offered rather than a limited
+    /// inline-only variant. Gated so macOS 14 keeps the exact prior `TextEditor`.
+    @ViewBuilder
+    private var textEditor: some View {
+        Group {
+            if #available(macOS 15.0, *) {
+                TextEditor(text: $text)
+                    .writingToolsBehavior(.complete)
+            } else {
+                TextEditor(text: $text)
+            }
+        }
+        .font(.system(size: 13, design: .monospaced))
+        .scrollContentBackground(.hidden)
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color(nsColor: .textBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+        )
     }
 
     private var header: some View {
