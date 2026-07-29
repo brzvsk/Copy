@@ -379,6 +379,20 @@ public struct ItemStore {
 
         return nil
     }
+
+    public func setRecognizedText(itemID: Int64, _ text: String) throws {
+        try writer.write { db in
+            try db.execute(
+                sql: "UPDATE item SET recognizedText = ? WHERE id = ?",
+                arguments: [text, itemID])
+        }
+    }
+
+    public func recognizedText(forItemID id: Int64) throws -> String? {
+        try writer.read { db in
+            try ClipItem.filter(Column("id") == id).fetchOne(db)?.recognizedText
+        }
+    }
 }
 
 public final class ObservationToken {

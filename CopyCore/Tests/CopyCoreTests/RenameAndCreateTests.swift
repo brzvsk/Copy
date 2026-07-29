@@ -38,6 +38,11 @@ final class RenameAndCreateTests: XCTestCase {
         let saved = try store.save(makeText("fresh after migration"))
         XCTAssertEqual(try store.recentItems(limit: 10).count, 2)
         XCTAssertEqual(saved.plainText, "fresh after migration")
+
+        // Prove the v1 row with "old row" is still searchable via FTS after the v2 rebuild.
+        let oldRowSearchResults = try store.search("old")
+        XCTAssertFalse(oldRowSearchResults.isEmpty, "v1 row's plainText should be searchable after v2 migration rebuild")
+        XCTAssertTrue(oldRowSearchResults.contains { $0.uuid == "v1-uuid" })
     }
 
     func testSetTitleThenSearchByTitleFindsItem() throws {
