@@ -87,6 +87,17 @@ private struct SymbolSwatch: View {
     let action: () -> Void
     @State private var isHovering = false
 
+    /// Human-readable name for VoiceOver; most symbol identifiers already read fine as
+    /// a single word, a couple need a friendlier label.
+    private var accessibleName: String {
+        switch symbol {
+        case "chevron.left.forwardslash.chevron.right": return "Code"
+        case "doc.text": return "Document"
+        case "creditcard": return "Credit Card"
+        default: return symbol.capitalized
+        }
+    }
+
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
@@ -100,5 +111,7 @@ private struct SymbolSwatch: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+        .accessibilityLabel(accessibleName)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

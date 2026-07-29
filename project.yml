@@ -29,7 +29,7 @@ targets:
         CFBundleVersion: "1"
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
-        NSHumanReadableCopyright: "© 2026 Tarik Caramanico — GPL-3.0"
+        NSHumanReadableCopyright: "© 2026 Tarik Caramanico - GPL-3.0"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tarikbc.Copy

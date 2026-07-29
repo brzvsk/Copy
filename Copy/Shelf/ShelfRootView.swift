@@ -189,17 +189,27 @@ private struct ScopeChip: View {
     let title: String
     let isOn: Bool
     let action: () -> Void
+    @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
             Text(title)
                 .font(Tokens.caption)
+                .foregroundStyle(isOn ? .primary : .secondary)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(isOn ? Color.accentColor.opacity(0.18) : .clear))
-                .overlay(Capsule().stroke(isOn ? Color.accentColor : Color.secondary.opacity(0.25), lineWidth: 1))
+                .frame(height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(backgroundFill)
+                )
         }
         .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+    }
+
+    private var backgroundFill: Color {
+        if isOn { return Color.primary.opacity(0.08) }
+        return isHovering ? Color.primary.opacity(0.05) : .clear
     }
 }
 
@@ -298,15 +308,15 @@ private struct ShelfEmptyState: View {
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: symbolName)
-                .font(.system(size: 28))
+                .font(.system(size: 24, weight: .light))
                 .foregroundStyle(.tertiary)
             Text(headline)
-                .font(.system(size: 13))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
             if let caption {
                 Text(caption)
-                    .font(Tokens.caption)
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

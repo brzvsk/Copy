@@ -29,7 +29,7 @@ struct ItemCardView: View {
         VStack(alignment: .leading, spacing: 6) {
             header
             Rectangle()
-                .fill(Color(nsColor: .separatorColor))
+                .fill(Color(nsColor: .separatorColor).opacity(0.6))
                 .frame(height: 1)
             body(for: item.kind)
             Spacer(minLength: 0)
@@ -38,8 +38,14 @@ struct ItemCardView: View {
         .padding(10)
         .frame(width: Tokens.cardWidth, height: Tokens.cardHeight, alignment: .topLeading)
         .background(
-            RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
+            ZStack {
+                RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                if isSelected {
+                    RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.08))
+                }
+            }
         )
         .clipShape(RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous))
         .overlay(
@@ -53,9 +59,10 @@ struct ItemCardView: View {
                     .font(.system(size: 9))
                     .foregroundStyle(.yellow)
                     .padding(6)
+                    .accessibilityLabel("Favorite")
             }
         }
-        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+        .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
         .contextMenu {
             Button("Paste", action: onPaste)
             Button("Paste as Plain Text", action: onPastePlain)
