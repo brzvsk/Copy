@@ -45,4 +45,32 @@ final class ItemStoreTests: XCTestCase {
         XCTAssertEqual(reps[0].uti, "public.utf8-plain-text")
         XCTAssertEqual(String(decoding: reps[0].data, as: UTF8.self), "round trip")
     }
+
+    func testDedupBumpsExistingItem() throws {
+        let store = try makeTempStore()
+        let first = try store.save(makeText("hello"), now: Date(timeIntervalSince1970: 1000))
+        _ = try store.save(makeText("other"), now: Date(timeIntervalSince1970: 2000))
+        let again = try store.save(makeText("hello"), now: Date(timeIntervalSince1970: 3000))
+
+        XCTAssertEqual(first.id, again.id)
+        let recent = try store.recentItems(limit: 10)
+        XCTAssertEqual(recent.count, 2)
+        XCTAssertEqual(recent[0].plainText, "hello")
+        XCTAssertEqual(recent[0].lastUsedAt, Date(timeIntervalSince1970: 3000))
+        XCTAssertEqual(recent[0].createdAt, Date(timeIntervalSince1970: 1000))
+    }
+
+    func testDedupDoesNotDuplicateRepresentations() throws {
+        let store = try makeTempStore()
+        let a = try store.save(makeText("dup"))
+        _ = try store.save(makeText("dup"))
+        XCTAssertEqual(try store.representations(forItemID: a.id!).count, 1)
+    }
+
+    func testDifferentContentDifferentItems() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("a"))
+        _ = try store.save(makeText("b"))
+        XCTAssertEqual(try store.recentItems(limit: 10).count, 2)
+    }
 }
