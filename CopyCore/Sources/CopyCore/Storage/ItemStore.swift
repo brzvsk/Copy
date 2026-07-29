@@ -425,7 +425,7 @@ public struct ItemStore {
             var item = ClipItem(
                 id: nil, uuid: UUID().uuidString, kind: kind,
                 createdAt: archived.createdAt, lastUsedAt: archived.lastUsedAt,
-                plainText: archived.plainText, linkTitle: nil,
+                plainText: archived.plainText, linkTitle: archived.linkTitle,
                 appBundleID: archived.appBundleID, appName: archived.appName,
                 contentHash: archived.contentHash,
                 sizeBytes: reps.reduce(0) { $0 + $1.data.count },

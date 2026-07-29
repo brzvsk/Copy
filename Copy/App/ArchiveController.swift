@@ -58,7 +58,11 @@ final class ArchiveController {
                 let result = try ArchiveIO.importArchive(data, into: store, pinboards: pinboardStore)
                 DispatchQueue.main.async {
                     let noun = result.itemsAdded == 1 ? "item" : "items"
-                    HUD.show("Imported \(result.itemsAdded) \(noun)")
+                    var message = "Imported \(result.itemsAdded) \(noun)"
+                    if result.itemsSkipped > 0 {
+                        message += ", \(result.itemsSkipped) skipped"
+                    }
+                    HUD.show(message)
                 }
             } catch {
                 NSLog("Copy: import failed: \(error)")

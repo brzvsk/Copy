@@ -9,6 +9,14 @@ private func makeImage(_ bytes: Data) -> CapturedItem {
     )
 }
 
+private func makeLink(_ url: String) -> CapturedItem {
+    CapturedItem(
+        kind: .link, plainText: url, hashData: Data(url.utf8),
+        representations: [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(url.utf8))],
+        sourceBundleID: "com.test.app", sourceAppName: "TestApp"
+    )
+}
+
 final class ArchiveIOTests: XCTestCase {
     func testExportThenImportIntoFreshStoreRestoresContentAndIsIdempotentOnReimport() throws {
         let (items, pinboards) = try makeTempStores()
@@ -36,6 +44,7 @@ final class ArchiveIOTests: XCTestCase {
         let result = try ArchiveIO.importArchive(data, into: freshItems, pinboards: freshPinboards)
 
         XCTAssertEqual(result.itemsAdded, 4)
+        XCTAssertEqual(result.itemsSkipped, 0)
         XCTAssertEqual(result.pinboardsAdded, 2)
 
         let recent = try freshItems.recentItems(limit: 10)
@@ -70,6 +79,7 @@ final class ArchiveIOTests: XCTestCase {
         // Re-importing the same archive into the now-populated target must add nothing.
         let reimportResult = try ArchiveIO.importArchive(data, into: freshItems, pinboards: freshPinboards)
         XCTAssertEqual(reimportResult.itemsAdded, 0)
+        XCTAssertEqual(reimportResult.itemsSkipped, 0)
         XCTAssertEqual(reimportResult.pinboardsAdded, 0)
         XCTAssertEqual(try freshItems.recentItems(limit: 10).count, 4)
         XCTAssertEqual(try freshPinboards.all().count, 2)
@@ -100,5 +110,72 @@ final class ArchiveIOTests: XCTestCase {
         XCTAssertEqual(archive.version, ArchiveIO.currentVersion)
         XCTAssertEqual(archive.items.count, 1)
         XCTAssertEqual(archive.items[0].plainText, "hello archive")
+    }
+
+    func testLinkTitleSurvivesExportImportRoundTrip() throws {
+        let (items, pinboards) = try makeTempStores()
+        let link = try items.save(makeLink("https://example.com"))
+        try items.setLinkTitle(itemID: link.id!, "Example Domain")
+
+        let data = try ArchiveIO.export(items: items, pinboards: pinboards)
+        let (freshItems, freshPinboards) = try makeTempStores()
+        let result = try ArchiveIO.importArchive(data, into: freshItems, pinboards: freshPinboards)
+        XCTAssertEqual(result.itemsAdded, 1)
+
+        let restored = try freshItems.recentItems(limit: 10).first { $0.contentHash == link.contentHash }
+        XCTAssertEqual(restored?.linkTitle, "Example Domain")
+        XCTAssertEqual(try freshItems.search("Example").map(\.id), [restored?.id])
+    }
+
+    /// Regression for a crash: pinboard names have no uniqueness constraint, so a
+    /// target store can trivially already contain two pinboards sharing a name before
+    /// import ever runs. The by-name dedup dictionary must tolerate that instead of
+    /// trapping on a duplicate key.
+    func testImportDoesNotCrashWhenTargetHasDuplicatePinboardNamesAndMergesMembership() throws {
+        let (sourceItems, sourcePinboards) = try makeTempStores()
+        let member = try sourceItems.save(makeText("filed item"))
+        let sourceBoard = try sourcePinboards.create(name: "Work", symbol: "briefcase")
+        try sourcePinboards.add(itemID: member.id!, to: sourceBoard.id!)
+        let data = try ArchiveIO.export(items: sourceItems, pinboards: sourcePinboards)
+
+        let (targetItems, targetPinboards) = try makeTempStores()
+        let workA = try targetPinboards.create(name: "Work", symbol: "briefcase")
+        _ = try targetPinboards.create(name: "Work", symbol: "folder")
+
+        let result = try ArchiveIO.importArchive(data, into: targetItems, pinboards: targetPinboards)
+        XCTAssertEqual(result.pinboardsAdded, 0, "both \"Work\" boards already existed; nothing new should be created")
+
+        let restoredMember = try targetItems.recentItems(limit: 10).first { $0.contentHash == member.contentHash }
+        XCTAssertNotNil(restoredMember)
+        let workAMembers = try targetPinboards.items(in: workA.id!)
+        XCTAssertEqual(workAMembers.map(\.contentHash), [member.contentHash],
+                       "membership should merge into one matching \"Work\" board rather than crashing")
+    }
+
+    /// An archive item with an unrecognized `kind` (e.g. written by a future Copy
+    /// version that added a new item kind) must be skipped, not abort the whole import.
+    func testImportSkipsAnItemWithAnUnrecognizedKindAndReportsIt() throws {
+        let (items, pinboards) = try makeTempStores()
+        let good = try items.save(makeText("valid item"))
+        let data = try ArchiveIO.export(items: items, pinboards: pinboards)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let archive = try decoder.decode(ClipArchive.self, from: data)
+        let bogus = ArchivedItem(
+            kind: "holobeam", plainText: "mystery", title: nil, linkTitle: nil, recognizedText: nil,
+            appName: nil, appBundleID: nil, createdAt: Date(), lastUsedAt: Date(),
+            contentHash: "bogus-hash", isFavorite: false, representations: [])
+        let spliced = ClipArchive(version: archive.version, exportedAt: archive.exportedAt,
+                                  items: archive.items + [bogus], pinboards: archive.pinboards)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let splicedData = try encoder.encode(spliced)
+
+        let (target, targetPinboards) = try makeTempStores()
+        let result = try ArchiveIO.importArchive(splicedData, into: target, pinboards: targetPinboards)
+        XCTAssertEqual(result.itemsAdded, 1)
+        XCTAssertEqual(result.itemsSkipped, 1)
+        XCTAssertEqual(try target.recentItems(limit: 10).map(\.contentHash), [good.contentHash])
     }
 }

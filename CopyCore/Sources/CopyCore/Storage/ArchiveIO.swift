@@ -15,6 +15,7 @@ public struct ArchivedItem: Codable, Equatable {
     public let kind: String
     public let plainText: String?
     public let title: String?
+    public let linkTitle: String?
     public let recognizedText: String?
     public let appName: String?
     public let appBundleID: String?
@@ -74,6 +75,7 @@ public enum ArchiveIO {
                 kind: item.kind.rawValue,
                 plainText: item.plainText,
                 title: item.title,
+                linkTitle: item.linkTitle,
                 recognizedText: item.recognizedText,
                 appName: item.appName,
                 appBundleID: item.appBundleID,
@@ -104,7 +106,7 @@ public enum ArchiveIO {
 
     @discardableResult
     public static func importArchive(_ data: Data, into items: ItemStore, pinboards: PinboardStore) throws
-        -> (itemsAdded: Int, pinboardsAdded: Int) {
+        -> (itemsAdded: Int, itemsSkipped: Int, pinboardsAdded: Int) {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let archive = try decoder.decode(ClipArchive.self, from: data)
@@ -113,14 +115,27 @@ public enum ArchiveIO {
         }
 
         var itemsAdded = 0
+        var itemsSkipped = 0
         for archivedItem in archive.items {
-            if try items.importArchived(archivedItem) {
-                itemsAdded += 1
+            do {
+                if try items.importArchived(archivedItem) {
+                    itemsAdded += 1
+                }
+            } catch ArchiveError.unknownItemKind {
+                // An archive from a newer Copy version may carry an item kind this
+                // build doesn't know about — skip just that item rather than failing
+                // the whole import.
+                itemsSkipped += 1
             }
         }
 
         var pinboardsAdded = 0
-        var boardsByName = Dictionary(uniqueKeysWithValues: try pinboards.all().map { ($0.name, $0) })
+        // Pinboard names have no uniqueness constraint (a user can have two boards
+        // named "Work"), so this dedup dictionary must tolerate duplicate keys —
+        // `uniquingKeysWith` keeps the first match and merges archived membership
+        // into it rather than trapping.
+        var boardsByName = Dictionary(try pinboards.all().map { ($0.name, $0) },
+                                      uniquingKeysWith: { first, _ in first })
         for archivedBoard in archive.pinboards {
             let board: Pinboard
             if let existing = boardsByName[archivedBoard.name] {
@@ -139,6 +154,6 @@ public enum ArchiveIO {
             }
         }
 
-        return (itemsAdded, pinboardsAdded)
+        return (itemsAdded, itemsSkipped, pinboardsAdded)
     }
 }
