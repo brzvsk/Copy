@@ -68,6 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         open.keyEquivalentModifierMask = [.command, .shift]
         open.target = self
         menu.addItem(open)
+        let newItem = NSMenuItem(title: "New Item…", action: #selector(createItem), keyEquivalent: "n")
+        newItem.target = self
+        menu.addItem(newItem)
         menu.addItem(.separator())
 
         let items = coordinator.recentItems()
@@ -77,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(empty)
         }
         for item in items {
-            let menuItem = NSMenuItem(title: item.menuTitle,
+            let menuItem = NSMenuItem(title: item.displayTitle,
                                       action: #selector(pasteMenuItem(_:)),
                                       keyEquivalent: "")
             menuItem.target = self
@@ -114,6 +117,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openShelf() {
         coordinator.toggleShelf()
+    }
+
+    @objc private func createItem() {
+        coordinator.newItem()
     }
 
     @objc private func pasteMenuItem(_ sender: NSMenuItem) {

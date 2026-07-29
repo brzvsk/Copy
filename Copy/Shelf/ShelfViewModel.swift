@@ -37,6 +37,8 @@ final class ShelfViewModel {
     var previewShown = false
     var editingItem: ClipItem?
     var pinboardPopoverShown = false
+    var creatingItem = false
+    var renamingItem: ClipItem?
 
     /// Backs `ShelfRootView`'s permission banner. The shelf panel + its SwiftUI content
     /// are created once and reused for the app's lifetime (see
@@ -104,6 +106,8 @@ final class ShelfViewModel {
         previewShown = false
         if let first = items.first { selection.click(first.uuid) } else { selection.reset() }
         editingItem = nil
+        creatingItem = false
+        renamingItem = nil
         if !query.isEmpty { query = "" }
     }
 
@@ -321,6 +325,43 @@ final class ShelfViewModel {
             NSLog("Copy: failed to save edited item: \(error)")
             HUD.show("Couldn't save changes")
         }
+    }
+
+    /// Opens `CreateItemSheet` from ⌘N or the status menu's "New Item…" action.
+    func beginCreate() {
+        creatingItem = true
+    }
+
+    /// Creates a user-authored text item from `CreateItemSheet`, then dismisses it
+    /// either way.
+    func commitCreate(text: String, title: String?) {
+        defer { creatingItem = false }
+        do {
+            try store.createTextItem(text, title: title?.isEmpty == true ? nil : title)
+        } catch {
+            NSLog("Copy: failed to create item: \(error)")
+            HUD.show("Couldn't create item")
+        }
+    }
+
+    /// Opens `RenameItemSheet` from a card's "Rename…" context menu item, seeded
+    /// with `item.title`.
+    func beginRename(_ item: ClipItem) {
+        renamingItem = item
+    }
+
+    /// Saves a new title from `RenameItemSheet`, then dismisses it either way. An
+    /// empty title clears the custom title, reverting display to the auto title.
+    func commitRename(_ item: ClipItem, to title: String) {
+        defer { renamingItem = nil }
+        guard let id = item.id else { return }
+        do {
+            try store.setTitle(itemID: id, title.isEmpty ? nil : title)
+        } catch {
+            NSLog("Copy: failed to rename item: \(error)")
+            HUD.show("Couldn't rename item")
+        }
+        if !query.isEmpty { refresh() }
     }
 
     private func isEditableKind(_ kind: ItemKind) -> Bool {

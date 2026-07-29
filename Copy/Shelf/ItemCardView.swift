@@ -12,6 +12,7 @@ struct ItemCardView: View {
     let onPaste: () -> Void
     let onPastePlain: () -> Void
     let onEdit: () -> Void
+    let onRename: () -> Void
     let onToggleFavorite: () -> Void
     let onAddToPinboard: (Int64) -> Void
     let onRemoveFromPinboard: () -> Void
@@ -33,6 +34,11 @@ struct ItemCardView: View {
             Rectangle()
                 .fill(Color(nsColor: .separatorColor).opacity(0.6))
                 .frame(height: 1)
+            if let title = item.title, !title.isEmpty {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+            }
             body(for: item.kind)
             Spacer(minLength: 0)
             footer
@@ -76,6 +82,7 @@ struct ItemCardView: View {
                 Button("Edit…", action: onEdit)
                     .keyboardShortcut("e", modifiers: .command)
             }
+            Button("Rename…", action: onRename)
             Button(item.isFavorite ? "Unfavorite" : "Favorite", action: onToggleFavorite)
             Menu("Add to Pinboard") {
                 if pinboards.isEmpty {

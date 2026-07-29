@@ -35,6 +35,19 @@ struct ShelfRootView: View {
                 onSave: { viewModel.commitEdit($0) }
             )
         }
+        .sheet(isPresented: $viewModel.creatingItem) {
+            CreateItemSheet(
+                onCancel: { viewModel.creatingItem = false },
+                onCreate: { text, title in viewModel.commitCreate(text: text, title: title) }
+            )
+        }
+        .sheet(item: $viewModel.renamingItem) { item in
+            RenameItemSheet(
+                item: item,
+                onCancel: { viewModel.renamingItem = nil },
+                onRename: { viewModel.commitRename(item, to: $0) }
+            )
+        }
     }
 }
 
@@ -301,6 +314,7 @@ private struct ShelfItemsRow: View {
                                 onPaste: { viewModel.requestPaste(item, plain: false) },
                                 onPastePlain: { viewModel.requestPaste(item, plain: true) },
                                 onEdit: { viewModel.beginEdit(item) },
+                                onRename: { viewModel.beginRename(item) },
                                 onToggleFavorite: { viewModel.toggleFavorite(item) },
                                 onAddToPinboard: { id in viewModel.addItem(item, toPinboard: id) },
                                 onRemoveFromPinboard: {

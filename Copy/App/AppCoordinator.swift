@@ -44,11 +44,12 @@ final class AppCoordinator {
         controller.onKeyEvent = { [weak self, weak controller] event in
             guard let self, let controller else { return false }
             let viewModel = self.shelfViewModel
-            // While the edit sheet is up, let its own window handle every key (arrows,
-            // space, escape, return) instead of the shelf's global shortcuts — this
-            // monitor is app-wide and fires before the sheet's responder chain would see
-            // the event otherwise.
-            guard viewModel.editingItem == nil, !viewModel.pinboardPopoverShown else { return false }
+            // While the edit/create/rename sheet is up, let its own window handle every
+            // key (arrows, space, escape, return) instead of the shelf's global
+            // shortcuts — this monitor is app-wide and fires before the sheet's
+            // responder chain would see the event otherwise.
+            guard viewModel.editingItem == nil, !viewModel.pinboardPopoverShown,
+                  !viewModel.creatingItem, viewModel.renamingItem == nil else { return false }
             // ⌘1 → history tab, ⌘2...⌘9 → nth pinboard. Checked before keyCode routing
             // so the digit keys never fall through to other handlers.
             if event.modifierFlags.contains(.command),
@@ -89,6 +90,11 @@ final class AppCoordinator {
                 return true
             case 14 where event.modifierFlags.contains(.command): // cmd-E — edit primary item
                 viewModel.beginEdit()
+                return true
+            case 45 where event.modifierFlags.contains(.command)
+                && !event.modifierFlags.contains(.shift)
+                && !event.modifierFlags.contains(.option): // cmd-N — new item
+                viewModel.beginCreate()
                 return true
             case 49 where viewModel.query.isEmpty: // space previews in browse mode
                 viewModel.previewShown.toggle()
@@ -247,6 +253,16 @@ final class AppCoordinator {
             shelfViewModel.refreshPermissionState()
         }
         shelfController.toggle()
+    }
+
+    /// Opens the shelf (if not already open) and immediately shows `CreateItemSheet`,
+    /// for the status menu's "New Item…" action.
+    func newItem() {
+        if !shelfController.isVisible {
+            shelfViewModel.refreshPermissionState()
+            shelfController.show()
+        }
+        shelfViewModel.beginCreate()
     }
 
     func togglePause() {

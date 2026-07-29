@@ -130,7 +130,7 @@ private struct PasteStackRow: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
-            Text(item.menuTitle)
+            Text(item.displayTitle)
                 .font(Tokens.bodyMono)
                 .lineLimit(1)
         }
