@@ -6,8 +6,9 @@ import UniformTypeIdentifiers
 
 extension UTType {
     /// Internal drag payload identifying a `ClipItem` by uuid, used for card → tab
-    /// filing drags within the shelf. `exportedAs` avoids needing an Info.plist
-    /// declaration since only this app produces and consumes the type.
+    /// filing drags within the shelf. Declared in project.yml's Info.plist properties
+    /// (`UTExportedTypeDeclarations`) so the system recognizes it during real
+    /// drag-and-drop sessions, not just as an in-process string constant.
     static let copyItem = UTType(exportedAs: "com.tarikbc.copy.item")
 }
 
