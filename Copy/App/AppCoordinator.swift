@@ -380,15 +380,22 @@ final class AppCoordinator {
     }
 
     /// Places a tweaked color from `ColorAdjustSheet`'s "Copy" button on the clipboard
-    /// (marked self-paste). Mirrors `ClipboardMonitor`'s color capture representation
-    /// (hex-as-utf8 under `colorType`, matching `PasteboardReading.colorHex()`'s
-    /// decode path) plus a plain-text hex rep, so the placed color round-trips the same
-    /// way a captured color would. Does not mutate the source item's stored hex.
+    /// (marked self-paste). Writes a real `NSKeyedArchiver`-archived `NSColor` under
+    /// `colorType` — the shape real color wells (Pages/Keynote/Sketch/`NSColorPanel`)
+    /// expect, and what `PasteboardReading.colorHex()` actually decodes via
+    /// `readObjects(forClasses: [NSColor.self])` — plus a plain-text hex rep for apps
+    /// that only read text. Does not mutate the source item's stored hex.
     func adjustColorCopy(_ hex: String) {
-        pasteService.place(
-            [CapturedRepresentation(uti: CopyPasteboard.colorType, data: Data(hex.utf8)),
-             CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(hex.utf8))],
-            plainTextOnly: false)
+        var reps = [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(hex.utf8))]
+        let picked = NSColor(Tokens.color(fromHex: hex))
+        let srgb = picked.usingColorSpace(.sRGB) ?? picked
+        do {
+            let colorData = try NSKeyedArchiver.archivedData(withRootObject: srgb, requiringSecureCoding: true)
+            reps.insert(CapturedRepresentation(uti: CopyPasteboard.colorType, data: colorData), at: 0)
+        } catch {
+            NSLog("Copy: failed to archive adjusted color, placing hex text only: \(error)")
+        }
+        pasteService.place(reps, plainTextOnly: false)
         HUD.show("Color copied")
     }
 
