@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(empty)
         }
         for item in items {
-            let menuItem = NSMenuItem(title: Self.menuTitle(for: item),
+            let menuItem = NSMenuItem(title: item.menuTitle,
                                       action: #selector(pasteMenuItem(_:)),
                                       keyEquivalent: "")
             menuItem.target = self
@@ -58,21 +58,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: "Quit Copy",
                                 action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
-    }
-
-    static func menuTitle(for item: ClipItem) -> String {
-        switch item.kind {
-        case .image:
-            return "Image"
-        case .file:
-            let first = item.plainText?.components(separatedBy: "\n").first ?? "File"
-            return first
-        default:
-            let text = (item.plainText ?? "")
-                .replacingOccurrences(of: "\n", with: " ")
-                .trimmingCharacters(in: .whitespaces)
-            return text.count > 50 ? String(text.prefix(50)) + "…" : text
-        }
     }
 
     @objc private func pasteMenuItem(_ sender: NSMenuItem) {
