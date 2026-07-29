@@ -12,7 +12,7 @@ struct PrivacySettings: View {
         Form {
             Section {
                 if settings.excludedBundleIDs.isEmpty {
-                    Text("No Excluded Apps")
+                    Text("No excluded apps")
                         .foregroundStyle(.secondary)
                 } else {
                     List(settings.excludedBundleIDs, id: \.self, selection: $selectedBundleID) { bundleID in

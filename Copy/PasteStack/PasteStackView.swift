@@ -46,6 +46,7 @@ struct PasteStackView: View {
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -55,13 +56,15 @@ struct PasteStackView: View {
         .padding(.vertical, 8)
     }
 
+    // Mirrors ShelfRootView's empty state exactly (spacing, icon size/weight, text
+    // size/weight) so the two surfaces read as the same design language.
     private var emptyState: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             Image(systemName: "square.stack")
-                .font(.system(size: 22, weight: .light))
+                .font(.system(size: 24, weight: .light))
                 .foregroundStyle(.tertiary)
             Text("Copy items or add them from the shelf")
-                .font(Tokens.caption)
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -107,6 +110,7 @@ struct PasteStackView: View {
             }
             .labelsHidden()
             .pickerStyle(.segmented)
+            .frame(maxWidth: .infinity)
 
             Button("Clear") {
                 model.queue.clear()

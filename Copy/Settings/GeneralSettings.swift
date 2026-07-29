@@ -7,7 +7,8 @@ import SwiftUI
 /// registration), so this view owns its own local state and re-reads the service's
 /// actual status after every attempted change rather than trusting the toggle's intent.
 struct GeneralSettings: View {
-    @State private var launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+    @State private var launchAtLoginEnabled = false
+    @State private var launchAtLoginNeedsApproval = false
     @State private var launchAtLoginError: String?
 
     var body: some View {
@@ -24,6 +25,10 @@ struct GeneralSettings: View {
                     Text(launchAtLoginError)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                } else if launchAtLoginNeedsApproval {
+                    Text("Waiting for approval in System Settings.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -38,8 +43,15 @@ struct GeneralSettings: View {
         )
     }
 
+    /// A toggle that reads back purely from `.status == .enabled` leaves the user with
+    /// no explanation when macOS accepts `register()` but parks the login item pending
+    /// approval in System Settings: the switch would just look off again with no clue
+    /// why. `.requiresApproval` counts as "on" here (registration did succeed) with a
+    /// footnote distinguishing that state from a plain, unregistered off.
     private func refreshLaunchAtLoginStatus() {
-        launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+        let status = SMAppService.mainApp.status
+        launchAtLoginEnabled = status == .enabled || status == .requiresApproval
+        launchAtLoginNeedsApproval = status == .requiresApproval
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {

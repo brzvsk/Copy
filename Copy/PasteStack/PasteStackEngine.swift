@@ -25,6 +25,14 @@ final class PasteStackEngine {
         self.onIntercept = onIntercept
     }
 
+    /// Belt-and-suspenders: the tap callback holds an *unretained* pointer to this
+    /// instance (see the trampoline below), so nothing keeps it alive on its own — this
+    /// localizes the invariant that the tap must never outlive its engine to the engine
+    /// itself, rather than relying solely on every call site remembering to `deactivate()`.
+    deinit {
+        deactivate()
+    }
+
     /// Creates and enables the event tap. Returns `false` when the tap couldn't be
     /// created — most commonly because Accessibility hasn't been granted — in which
     /// case the caller is expected to fall back to the `.pasteNextFromStack` hotkey.
