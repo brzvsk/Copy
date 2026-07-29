@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"
+          xcodebuild -version
+          swift --version
+
+      - name: Core tests
+        run: swift test --package-path CopyCore
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build unsigned Release app
+        run: |
+          xcodebuild -project Copy.xcodeproj -scheme Copy -configuration Release \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            -derivedDataPath build/DerivedData build
+
+      - name: Zip unsigned app
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          APP_PATH="build/DerivedData/Build/Products/Release/Copy.app"
+          ditto -c -k --keepParent "$APP_PATH" "Copy-unsigned-${REF_NAME}.zip"
+
+      - name: Upload unsigned app artifact
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Copy-unsigned-${{ env.REF_NAME }}
+          path: Copy-unsigned-${{ env.REF_NAME }}.zip
+
+      - name: Job summary
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          {
+            echo "## Copy ${REF_NAME} (CI build)"
+            echo ""
+            echo "This is an **unsigned, non-notarized** convenience build for testing only."
+            echo "CI does not hold the Developer ID Application certificate, so it cannot"
+            echo "produce the signed, notarized release DMG."
+            echo ""
+            echo "The signed and notarized release DMG (plus the Sparkle update zip and"
+            echo "appcast entry) is produced locally by running:"
+            echo ""
+            echo '```'
+            echo "Scripts/release.sh ${REF_NAME#v}"
+            echo '```'
+            echo ""
+            echo "on a machine holding the \`Developer ID Application\` signing identity for"
+            echo "team P7V47BUA2B and a \`notarytool\` keychain profile. See Scripts/release.sh"
+            echo "for the full pipeline."
+          } >> "$GITHUB_STEP_SUMMARY"
