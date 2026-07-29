@@ -37,7 +37,7 @@ targets:
         NSHumanReadableCopyright: "© 2026 Tarik Caramanico - GPL-3.0"
         # Sparkle auto-update feed. SUPublicEDKey is a placeholder until the
         # human-gated keygen step runs `generate_keys` and pastes the real
-        # public key here — see Scripts/sparkle-keys-README.md.
+        # public key here (see Scripts/sparkle-keys-README.md).
         SUFeedURL: https://tarikbc.github.io/Copy/appcast.xml
         SUPublicEDKey: "PLACEHOLDER_REPLACE_AT_KEYGEN"
         SUEnableAutomaticChecks: true
