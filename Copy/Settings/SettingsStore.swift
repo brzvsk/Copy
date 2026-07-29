@@ -45,6 +45,7 @@ enum RetentionPeriod: String, CaseIterable {
 final class SettingsStore {
     static let retentionKey = "retentionPeriod"
     static let fetchLinkPreviewsKey = "fetchLinkPreviews"
+    static let recognizeImageTextKey = "recognizeImageText"
     static let excludedBundleIDsKey = "excludedBundleIDs"
 
     var retention: RetentionPeriod {
@@ -58,6 +59,13 @@ final class SettingsStore {
         didSet {
             guard fetchLinkPreviews != oldValue else { return }
             defaults.set(fetchLinkPreviews, forKey: Self.fetchLinkPreviewsKey)
+        }
+    }
+
+    var recognizeImageText: Bool {
+        didSet {
+            guard recognizeImageText != oldValue else { return }
+            defaults.set(recognizeImageText, forKey: Self.recognizeImageTextKey)
         }
     }
 
@@ -80,6 +88,7 @@ final class SettingsStore {
             retention = .unlimited
         }
         fetchLinkPreviews = (defaults.object(forKey: Self.fetchLinkPreviewsKey) as? Bool) ?? true
+        recognizeImageText = (defaults.object(forKey: Self.recognizeImageTextKey) as? Bool) ?? true
         if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             excludedBundleIDs = decoded.sorted()

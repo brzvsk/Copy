@@ -49,6 +49,7 @@ final class ShelfViewModel {
     @ObservationIgnored var onPaste: ((ClipItem, Bool) -> Void)?
     @ObservationIgnored var onPasteMultiple: ((String) -> Void)?
     @ObservationIgnored var onAddToPasteStack: ((ClipItem) -> Void)?
+    @ObservationIgnored var onCopyText: ((String) -> Void)?
     @ObservationIgnored private var token: ObservationToken?
     @ObservationIgnored private var pinboardsToken: ObservationToken?
 
@@ -191,6 +192,14 @@ final class ShelfViewModel {
 
     func addToPasteStack(_ item: ClipItem) {
         onAddToPasteStack?(item)
+    }
+
+    /// Places `item`'s recognized OCR text on the clipboard, marked as a self-paste —
+    /// a plain copy, not a paste-in-place, since the user asked to copy the text, not
+    /// paste it. No-ops if the item has no recognized text.
+    func copyText(_ item: ClipItem) {
+        guard let text = item.recognizedText, !text.isEmpty else { return }
+        onCopyText?(text)
     }
 
     func delete(_ item: ClipItem) {

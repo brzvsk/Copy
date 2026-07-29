@@ -26,6 +26,14 @@ struct HistorySettings: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                Toggle("Recognize Text in Images", isOn: $settings.recognizeImageText)
+            } footer: {
+                Text("Copy reads text in copied images so you can search and copy it. This runs entirely on your Mac.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }

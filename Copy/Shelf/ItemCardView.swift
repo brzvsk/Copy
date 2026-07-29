@@ -16,6 +16,7 @@ struct ItemCardView: View {
     let onAddToPinboard: (Int64) -> Void
     let onRemoveFromPinboard: () -> Void
     let onAddToPasteStack: () -> Void
+    let onCopyText: () -> Void
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
 
@@ -67,6 +68,9 @@ struct ItemCardView: View {
         .contextMenu {
             Button("Paste", action: onPaste)
             Button("Paste as Plain Text", action: onPastePlain)
+            if item.recognizedText?.isEmpty == false {
+                Button("Copy Text", action: onCopyText)
+            }
             Divider()
             if isEditable {
                 Button("Edit…", action: onEdit)

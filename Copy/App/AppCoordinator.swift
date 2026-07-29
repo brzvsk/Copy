@@ -17,6 +17,7 @@ final class AppCoordinator {
     private(set) var isPaused = false
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore)
     private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
+    private(set) lazy var ocrController = OCRController(store: store)
 
     /// Assigned eagerly in `init()` (from a local, not `self.pasteStackModel`) so the
     /// monitor's `onCapture` closure can capture it directly for the auto-enqueue-while-
@@ -103,6 +104,9 @@ final class AppCoordinator {
         shelfViewModel.onAddToPasteStack = { [weak self] item in
             self?.addToPasteStack(item)
         }
+        shelfViewModel.onCopyText = { [weak self] text in
+            self?.copyText(text)
+        }
         shelfViewModel.onPasteMultiple = { [weak self, weak controller] joined in
             controller?.hide(restoreFocus: true)
             guard let self else { return }
@@ -136,6 +140,7 @@ final class AppCoordinator {
         let settings = SettingsStore()
         self.settings = settings
         let linkFetcher = LinkMetadataFetcher(store: store)
+        let ocrController = OCRController(store: store)
         let reporter = saveErrors
         self.monitor = ClipboardMonitor(
             pasteboard: NSPasteboard.general,
@@ -144,12 +149,13 @@ final class AppCoordinator {
                 let app = NSWorkspace.shared.frontmostApplication
                 return (app?.bundleIdentifier, app?.localizedName)
             },
-            onCapture: { [persistQueue, linkFetcher, settings, pasteStackModel] captured in
+            onCapture: { [persistQueue, linkFetcher, ocrController, settings, pasteStackModel] captured in
                 persistQueue.async {
                     do {
                         let saved = try store.save(captured)
                         DispatchQueue.main.async {
                             linkFetcher.fetchIfNeeded(for: saved, enabled: settings.fetchLinkPreviews)
+                            ocrController.recognizeIfNeeded(for: saved, enabled: settings.recognizeImageText)
                             // While the stack is active, new copies join the queue too —
                             // "copying while the stack is active" enqueues automatically.
                             if pasteStackModel.isActive {
@@ -163,6 +169,7 @@ final class AppCoordinator {
             }
         )
         self.linkFetcher = linkFetcher
+        self.ocrController = ocrController
         settings.onRulesChange = { [weak self] excludedBundleIDs in
             self?.monitor.rules = RulesEngine(excludedBundleIDs: excludedBundleIDs)
         }
@@ -258,6 +265,17 @@ final class AppCoordinator {
     func addToPasteStack(_ item: ClipItem) {
         pasteStackModel.enqueue(item)
         HUD.show("Added to Paste Stack")
+    }
+
+    /// Places OCR-recognized text from an image card's "Copy Text" action on the
+    /// clipboard (marked self-paste). This is a plain copy, not a paste-in-place — no
+    /// keystroke is synthesized, matching `onPasteMultiple`'s "place only" behavior,
+    /// since the user asked to copy the text, not paste it.
+    func copyText(_ text: String) {
+        pasteService.place(
+            [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(text.utf8))],
+            plainTextOnly: false)
+        HUD.show("Text copied")
     }
 
     /// Whether the Paste Stack palette/engine are currently active — read by
