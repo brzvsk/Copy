@@ -16,6 +16,8 @@ public struct ClipItem: Codable, Equatable, Identifiable, FetchableRecord, Mutab
     public var contentHash: String
     public var sizeBytes: Int
     public var isFavorite: Bool
+    public var title: String?
+    public var recognizedText: String?
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID

@@ -15,4 +15,9 @@ public extension ClipItem {
             return text.count > 50 ? String(text.prefix(50)) + "…" : text
         }
     }
+
+    /// The user-assigned `title` when set, otherwise `menuTitle`.
+    var displayTitle: String {
+        title?.isEmpty == false ? title! : menuTitle
+    }
 }

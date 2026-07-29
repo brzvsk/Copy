@@ -4,6 +4,8 @@ import GRDB
 public struct ItemStore {
     public static let inlineThreshold = 65_536
     public static let deleteChunkSize = 500
+    public static let userCreatedAppName = "Copy"
+    public static let userCreatedAppBundleID = "com.tarikbc.Copy"
 
     private let writer: any DatabaseWriter
     private let blobs: BlobStore
@@ -293,6 +295,46 @@ public struct ItemStore {
             try db.execute(
                 sql: "UPDATE item SET linkTitle = ? WHERE id = ?",
                 arguments: [title, itemID])
+        }
+    }
+
+    /// Sets the user-assigned label shown in place of the auto-generated title.
+    /// Passing `nil` (or an empty string) clears it, reverting display to the auto title.
+    public func setTitle(itemID: Int64, _ title: String?) throws {
+        try writer.write { db in
+            try db.execute(
+                sql: "UPDATE item SET title = ? WHERE id = ?",
+                arguments: [title, itemID])
+        }
+    }
+
+    /// Inserts a user-created plain-text item (e.g. from ⌘N), deduping by content hash
+    /// like `save`: if an identical-hash item already exists, its `lastUsedAt` is bumped
+    /// and it is returned unchanged (the existing title is left as-is).
+    @discardableResult
+    public func createTextItem(_ text: String, title: String? = nil, now: Date = Date()) throws -> ClipItem {
+        let hash = BlobStore.key(for: Data(text.utf8))
+        return try writer.write { db in
+            if var existing = try ClipItem.filter(Column("contentHash") == hash).fetchOne(db) {
+                existing.lastUsedAt = now
+                try existing.update(db)
+                return existing
+            }
+            var item = ClipItem(
+                id: nil, uuid: UUID().uuidString, kind: ItemKind.forText(text),
+                createdAt: now, lastUsedAt: now,
+                plainText: text, linkTitle: nil,
+                appBundleID: Self.userCreatedAppBundleID, appName: Self.userCreatedAppName,
+                contentHash: hash,
+                sizeBytes: text.utf8.count,
+                isFavorite: false,
+                title: title
+            )
+            try item.insert(db)
+            try insertRepresentations(
+                [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(text.utf8))],
+                itemID: item.id!, in: db)
+            return item
         }
     }
 

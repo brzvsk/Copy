@@ -65,6 +65,29 @@ public final class DatabaseManager {
                 t.column("linkTitle")
             }
         }
+        migrator.registerMigration("v2") { db in
+            try db.alter(table: "item") { t in
+                t.add(column: "title", .text)
+                t.add(column: "recognizedText", .text)
+            }
+
+            // Rebuild item_fts to also index title and recognizedText. FTS5 external-content
+            // tables can't gain columns via ALTER, so drop the synchronized table and its
+            // sync triggers, then recreate: `synchronize(withTable:)` re-registers the
+            // triggers and GRDB issues an FTS5 'rebuild', repopulating the index from the
+            // existing item rows.
+            try db.dropFTS5SynchronizationTriggers(forTable: "item_fts")
+            try db.drop(table: "item_fts")
+            try db.create(virtualTable: "item_fts", using: FTS5()) { t in
+                t.synchronize(withTable: "item")
+                t.tokenizer = .unicode61()
+                t.column("plainText")
+                t.column("appName")
+                t.column("linkTitle")
+                t.column("title")
+                t.column("recognizedText")
+            }
+        }
         return migrator
     }
 }
