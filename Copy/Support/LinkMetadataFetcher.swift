@@ -10,6 +10,10 @@ import LinkPresentation
 final class LinkMetadataFetcher {
     private let store: ItemStore
     private var inFlight: Set<String> = []
+    /// Keeps each in-flight `LPMetadataProvider` alive until its completion handler
+    /// fires. `LPMetadataProvider` does not retain itself, so a bare local would be
+    /// deallocated (silently cancelling the fetch) as soon as `fetchIfNeeded` returns.
+    private var activeProviders: [String: LPMetadataProvider] = [:]
 
     init(store: ItemStore) {
         self.store = store
@@ -37,35 +41,58 @@ final class LinkMetadataFetcher {
         let store = self.store
 
         let provider = LPMetadataProvider()
+        activeProviders[uuid] = provider
+
         provider.startFetchingMetadata(for: url) { [weak self] metadata, error in
-            defer {
-                Task { @MainActor in self?.inFlight.remove(uuid) }
+            let cleanup: () -> Void = {
+                Task { @MainActor in
+                    self?.inFlight.remove(uuid)
+                    self?.activeProviders.removeValue(forKey: uuid)
+                }
             }
+
             guard let metadata, error == nil else {
                 if let error {
                     NSLog("Copy: link metadata fetch failed for \(url.absoluteString): \(error)")
                 }
+                cleanup()
                 return
             }
 
-            if let title = metadata.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
-                do {
-                    try store.setLinkTitle(itemID: itemID, title)
-                } catch {
-                    NSLog("Copy: failed to persist link title: \(error)")
+            // The title's write triggers the shelf's live ValueObservation and mounts
+            // the favicon view, so the icon must land in the database first — otherwise
+            // the card's one-shot favicon lookup fires before the favicon exists and
+            // the icon doesn't show until the shelf is reopened. Icon failure or
+            // absence must never block the title, so this always runs last.
+            func persistTitle() {
+                if let title = metadata.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+                    do {
+                        try store.setLinkTitle(itemID: itemID, title)
+                    } catch {
+                        NSLog("Copy: failed to persist link title: \(error)")
+                    }
                 }
+                cleanup()
             }
 
-            guard let iconProvider = metadata.iconProvider else { return }
-            iconProvider.loadObject(ofClass: NSImage.self) { image, _ in
-                guard let image = image as? NSImage,
-                      let pngData = Self.downscaledPNG(from: image, maxDimension: 64)
-                else { return }
-                do {
-                    try store.setFavicon(itemID: itemID, pngData: pngData)
-                } catch {
-                    NSLog("Copy: failed to persist favicon: \(error)")
+            guard let iconProvider = metadata.iconProvider else {
+                persistTitle()
+                return
+            }
+
+            iconProvider.loadObject(ofClass: NSImage.self) { image, error in
+                if let image = image as? NSImage,
+                   let pngData = Self.downscaledPNG(from: image, maxDimension: 64) {
+                    do {
+                        try store.setFavicon(itemID: itemID, pngData: pngData)
+                    } catch {
+                        NSLog("Copy: failed to persist favicon: \(error)")
+                    }
+                } else {
+                    NSLog("Copy: favicon load failed for \(url.absoluteString): "
+                        + (error?.localizedDescription ?? "no image data"))
                 }
+                persistTitle()
             }
         }
     }
