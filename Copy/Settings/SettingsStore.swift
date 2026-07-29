@@ -49,6 +49,7 @@ final class SettingsStore {
     static let excludedBundleIDsKey = "excludedBundleIDs"
     static let hideDuringScreenSharingKey = "hideDuringScreenSharing"
     static let compactShelfKey = "compactShelf"
+    static let hideMenuBarIconKey = "hideMenuBarIcon"
 
     var retention: RetentionPeriod {
         didSet {
@@ -105,9 +106,24 @@ final class SettingsStore {
         }
     }
 
+    /// When true, `AppDelegate` removes the `NSStatusItem` so Copy runs with no menu
+    /// bar icon at all, relying on the shelf's own drawer menu (and the shelf summon
+    /// hotkey) instead. Defaults to false: the icon is shown out of the box, and
+    /// going menu-bar-free is opt-in. `AppDelegate` applies an anti-stranding guard on
+    /// top of this value — it refuses to actually hide the icon if the shelf summon
+    /// hotkey is unset — so this property alone doesn't guarantee the icon is hidden.
+    var hideMenuBarIcon: Bool {
+        didSet {
+            guard hideMenuBarIcon != oldValue else { return }
+            defaults.set(hideMenuBarIcon, forKey: Self.hideMenuBarIconKey)
+            onHideMenuBarIconChange?(hideMenuBarIcon)
+        }
+    }
+
     @ObservationIgnored var onRulesChange: ((Set<String>) -> Void)?
     @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
     @ObservationIgnored var onCompactShelfChange: ((Bool) -> Void)?
+    @ObservationIgnored var onHideMenuBarIconChange: ((Bool) -> Void)?
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -121,6 +137,7 @@ final class SettingsStore {
         recognizeImageText = (defaults.object(forKey: Self.recognizeImageTextKey) as? Bool) ?? true
         hideDuringScreenSharing = (defaults.object(forKey: Self.hideDuringScreenSharingKey) as? Bool) ?? false
         compactShelf = (defaults.object(forKey: Self.compactShelfKey) as? Bool) ?? false
+        hideMenuBarIcon = (defaults.object(forKey: Self.hideMenuBarIconKey) as? Bool) ?? false
         if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             excludedBundleIDs = decoded.sorted()

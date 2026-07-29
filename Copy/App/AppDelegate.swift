@@ -18,7 +18,9 @@ extension KeyboardShortcuts.Name {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private var statusItem: NSStatusItem!
+    /// Optional so `SettingsStore.hideMenuBarIcon` can remove it live — see
+    /// `applyHideMenuBarIconSetting`. `nil` means no status item exists right now.
+    private var statusItem: NSStatusItem?
     private var coordinator: AppCoordinator!
     private let updaterController = SPUStandardUpdaterController(startingUpdater: true,
                                                                    updaterDelegate: nil,
@@ -36,12 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
 
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "doc.on.clipboard",
-                                           accessibilityDescription: "Copy")
-        let menu = NSMenu()
-        menu.delegate = self
-        statusItem.menu = menu
+        applyHideMenuBarIconSetting(coordinator.settings.hideMenuBarIcon)
+        coordinator.settings.onHideMenuBarIconChange = { [weak self] hide in
+            self?.applyHideMenuBarIconSetting(hide)
+        }
 
         coordinator.start()
 
@@ -68,6 +68,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         KeyboardShortcuts.onKeyDown(for: .nextPinboard) { [weak self] in
             self?.coordinator.selectNextPinboard()
         }
+
+        // Bridged directly here rather than through `AppCoordinator`: the Sparkle
+        // updater controller and `NSApp` are both owned/reachable at this layer, not
+        // the coordinator's.
+        coordinator.shelfViewModel.onCheckForUpdates = { [weak self] in
+            self?.updaterController.checkForUpdates(nil)
+        }
+        coordinator.shelfViewModel.onQuit = {
+            NSApp.terminate(nil)
+        }
+    }
+
+    /// Creates or removes the status item to honor `SettingsStore.hideMenuBarIcon`,
+    /// called both at launch and live via `onHideMenuBarIconChange`.
+    ///
+    /// Anti-stranding guard: hiding the icon must never leave the user with no way to
+    /// reach Copy. The shelf's summon hotkey (`KeyboardShortcuts.Name.toggleShelf`,
+    /// ⇧⌘V by default) is drawer-first's other entry point, so this refuses to honor
+    /// `hide` — keeping the status item visible regardless — if that hotkey is unset.
+    /// `GeneralSettings` mirrors this by disabling its "Hide the menu bar icon" toggle
+    /// under the same condition, but this check is the actually-authoritative one.
+    private func applyHideMenuBarIconSetting(_ hide: Bool) {
+        let canHide = hide && KeyboardShortcuts.getShortcut(for: .toggleShelf) != nil
+        if canHide {
+            if let statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+                self.statusItem = nil
+            }
+        } else if statusItem == nil {
+            createStatusItem()
+        }
+    }
+
+    private func createStatusItem() {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        item.button?.image = NSImage(systemSymbolName: "doc.on.clipboard",
+                                     accessibilityDescription: "Copy")
+        let menu = NSMenu()
+        menu.delegate = self
+        item.menu = menu
+        statusItem = item
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -172,15 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func clearHistory() {
-        let alert = NSAlert()
-        alert.messageText = "Clear clipboard history?"
-        alert.informativeText = "Favorites are kept. This cannot be undone."
-        alert.addButton(withTitle: "Clear")
-        alert.addButton(withTitle: "Cancel")
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn {
-            coordinator.clearHistory()
-        }
+        coordinator.confirmAndClearHistory()
     }
 }
 

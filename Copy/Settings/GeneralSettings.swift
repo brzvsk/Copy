@@ -50,9 +50,34 @@ struct GeneralSettings: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            Section {
+                Toggle("Hide the menu bar icon", isOn: $settings.hideMenuBarIcon)
+                    .disabled(!shelfHotkeySet)
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    if !shelfHotkeySet {
+                        Text("Set the Open Copy shortcut above before hiding the menu bar icon.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("Copy stays available with the Shift Command V shortcut. You can reach Settings and everything else from the shelf.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
         .onAppear { refreshLaunchAtLoginStatus() }
+    }
+
+    /// The anti-stranding guard mirrored from `AppDelegate.applyHideMenuBarIconSetting`
+    /// (the authoritative check): hiding the icon is only safe while the shelf summon
+    /// hotkey is set, since it's the drawer-first model's other entry point once the
+    /// icon is gone. Re-evaluated on every render (not cached in `@State`) so editing
+    /// the "Open Copy" recorder above immediately un-disables this toggle.
+    private var shelfHotkeySet: Bool {
+        KeyboardShortcuts.getShortcut(for: .toggleShelf) != nil
     }
 
     private var launchAtLoginBinding: Binding<Bool> {

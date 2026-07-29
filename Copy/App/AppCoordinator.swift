@@ -159,6 +159,27 @@ final class AppCoordinator {
         shelfViewModel.onAdjustColorCopy = { [weak self] hex in
             self?.adjustColorCopy(hex)
         }
+        shelfViewModel.onNewItem = { [weak self] in
+            self?.newItem()
+        }
+        shelfViewModel.onTogglePasteStack = { [weak self] in
+            self?.togglePasteStack()
+        }
+        shelfViewModel.onTogglePrivacyMode = { [weak self] in
+            self?.togglePause()
+        }
+        shelfViewModel.onClearHistory = { [weak self] in
+            self?.confirmAndClearHistory()
+        }
+        shelfViewModel.onExportHistory = { [weak self] in
+            self?.exportHistory()
+        }
+        shelfViewModel.onImportHistory = { [weak self] in
+            self?.importHistory()
+        }
+        shelfViewModel.onOpenSettings = { [weak self] in
+            self?.openSettings()
+        }
         shelfViewModel.onPasteMultiple = { [weak self, weak controller] joined in
             controller?.hide(restoreFocus: true)
             guard let self else { return }
@@ -239,6 +260,7 @@ final class AppCoordinator {
         pasteStackModel.onActiveChange = { [weak self] isActive in
             guard let self else { return }
             self.pasteStackController.syncVisibility(to: isActive)
+            self.shelfViewModel.isPasteStackOn = isActive
             if isActive {
                 let tapCreated = self.pasteStackEngine.activate()
                 NSLog("Copy: Paste Stack tap \(tapCreated ? "activated" : "could not be created, falling back to hotkey")")
@@ -321,6 +343,7 @@ final class AppCoordinator {
     func togglePause() {
         isPaused.toggle()
         monitor.isPaused = isPaused
+        shelfViewModel.isPrivacyModeOn = isPaused
     }
 
     func recentItems() -> [ClipItem] {
@@ -471,6 +494,25 @@ final class AppCoordinator {
             try store.clearHistory(keepFavorites: true)
         } catch {
             NSLog("Copy: failed to clear history: \(error)")
+        }
+    }
+
+    /// Confirms before clearing, shared by the status menu's "Clear History…" item
+    /// (`AppDelegate.clearHistory`) and the in-drawer menu's equivalent action
+    /// (`ShelfViewModel.onClearHistory`) so both paths use the exact same confirmation
+    /// copy and semantics — one implementation instead of two. The alert's window level
+    /// is bumped to `.statusBar`, matching `ShelfRootView`'s pinboard-delete confirm, so
+    /// it renders above the always-on-top shelf panel when triggered from there.
+    func confirmAndClearHistory() {
+        let alert = NSAlert()
+        alert.messageText = "Clear clipboard history?"
+        alert.informativeText = "Favorites are kept. This cannot be undone."
+        alert.addButton(withTitle: "Clear")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.level = .statusBar
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            clearHistory()
         }
     }
 

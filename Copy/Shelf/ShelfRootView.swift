@@ -123,11 +123,53 @@ private struct ShelfHeader: View {
                     .focused($searchFocused)
             }
             .frame(maxWidth: 220)
+            DrawerMenu(viewModel: viewModel)
         }
         .padding(.horizontal, Tokens.shelfPadding)
         .padding(.vertical, 8)
         .animation(.easeOut(duration: 0.12), value: viewModel.query.isEmpty)
         .onAppear { searchFocused = true }
+    }
+}
+
+/// The shelf's own "more" control — a discreet ellipsis button mirroring every
+/// status-menu action, so the app is fully usable with the menu bar icon hidden
+/// (`SettingsStore.hideMenuBarIcon`). Deliberately quiet (borderless, no chevron,
+/// secondary tint) rather than a toolbar, to match the shelf's existing icon-button
+/// language (e.g. the "Add Pinboard" `+` in `ShelfTabs`).
+private struct DrawerMenu: View {
+    let viewModel: ShelfViewModel
+
+    var body: some View {
+        Menu {
+            Button("New Item…") { viewModel.onNewItem?() }
+            Toggle(isOn: Binding(
+                get: { viewModel.isPasteStackOn },
+                set: { _ in viewModel.onTogglePasteStack?() }
+            )) {
+                Text("Paste Stack")
+            }
+            Button(viewModel.isPrivacyModeOn ? "Resume Monitoring" : "Pause Monitoring") {
+                viewModel.onTogglePrivacyMode?()
+            }
+            Divider()
+            Button("Clear History…") { viewModel.onClearHistory?() }
+            Button("Export…") { viewModel.onExportHistory?() }
+            Button("Import…") { viewModel.onImportHistory?() }
+            Divider()
+            Button("Settings…") { viewModel.onOpenSettings?() }
+            Button("Check for Updates…") { viewModel.onCheckForUpdates?() }
+            Divider()
+            Button("Quit Copy") { viewModel.onQuit?() }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 24)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("More")
     }
 }
 

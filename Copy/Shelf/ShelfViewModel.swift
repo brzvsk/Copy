@@ -48,6 +48,15 @@ final class ShelfViewModel {
     var renamingItem: ClipItem?
     var adjustingColorItem: ClipItem?
 
+    /// Mirror `AppCoordinator.isPaused`/`isPasteStackActive` for the in-drawer menu
+    /// (`ShelfHeader`'s ellipsis menu), which needs to show "Pause"/"Resume Monitoring"
+    /// and a Paste Stack checkmark that reflect those AppKit-owned coordinator states.
+    /// `AppCoordinator` pushes these live whenever the underlying state changes
+    /// (`togglePause()`, `pasteStackModel.onActiveChange`), the same fan-out shape as
+    /// `onCompactShelfChange` etc. keep `SettingsStore` in sync with AppKit-side state.
+    var isPrivacyModeOn = false
+    var isPasteStackOn = false
+
     /// Backs `ShelfRootView`'s permission banner. The shelf panel + its SwiftUI content
     /// are created once and reused for the app's lifetime (see
     /// `AppCoordinator.shelfController`), so this can't just be read in `.onAppear` —
@@ -61,6 +70,27 @@ final class ShelfViewModel {
     @ObservationIgnored var onAddToPasteStack: ((ClipItem) -> Void)?
     @ObservationIgnored var onCopyText: ((String) -> Void)?
     @ObservationIgnored var onAdjustColorCopy: ((String) -> Void)?
+
+    // MARK: - Drawer-menu actions (ShelfHeader's ellipsis menu)
+    //
+    // Mirror the status menu's actions so the shelf is fully usable with the menu bar
+    // icon hidden. `AppCoordinator` wires these to its existing action methods — the
+    // same ones the status menu calls — so there's exactly one implementation of each.
+    @ObservationIgnored var onNewItem: (() -> Void)?
+    @ObservationIgnored var onTogglePasteStack: (() -> Void)?
+    @ObservationIgnored var onTogglePrivacyMode: (() -> Void)?
+    @ObservationIgnored var onClearHistory: (() -> Void)?
+    @ObservationIgnored var onExportHistory: (() -> Void)?
+    @ObservationIgnored var onImportHistory: (() -> Void)?
+    @ObservationIgnored var onOpenSettings: (() -> Void)?
+    /// Bridged directly from `AppDelegate` (not `AppCoordinator`) — the Sparkle
+    /// updater controller is owned by `AppDelegate`, not the coordinator.
+    @ObservationIgnored var onCheckForUpdates: (() -> Void)?
+    /// Also bridged directly from `AppDelegate`, for symmetry with `onCheckForUpdates`
+    /// — `NSApp.terminate` doesn't need coordinator state, but wiring it from the same
+    /// place keeps both AppDelegate-owned bridges together.
+    @ObservationIgnored var onQuit: (() -> Void)?
+
     @ObservationIgnored private var token: ObservationToken?
     @ObservationIgnored private var pinboardsToken: ObservationToken?
 
