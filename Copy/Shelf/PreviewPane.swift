@@ -21,7 +21,7 @@ struct PreviewPane: View {
                 .padding(16)
             default:
                 ScrollView {
-                    Text(item.plainText ?? "")
+                    Text(String((item.plainText ?? "").prefix(200_000)))
                         .font(.system(size: 13, design: .monospaced))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .topLeading)

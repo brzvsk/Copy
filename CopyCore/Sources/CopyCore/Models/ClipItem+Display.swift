@@ -9,7 +9,7 @@ public extension ClipItem {
         case .file:
             return plainText?.components(separatedBy: "\n").first ?? "File"
         default:
-            let text = (plainText ?? "")
+            let text = String((plainText ?? "").prefix(200))
                 .replacingOccurrences(of: "\n", with: " ")
                 .trimmingCharacters(in: .whitespaces)
             return text.count > 50 ? String(text.prefix(50)) + "…" : text

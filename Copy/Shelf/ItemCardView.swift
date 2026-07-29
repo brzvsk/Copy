@@ -76,7 +76,7 @@ struct ItemCardView: View {
     private func body(for kind: ItemKind) -> some View {
         switch kind {
         case .text, .richText:
-            Text(item.plainText ?? "")
+            Text(String((item.plainText ?? "").prefix(1_500)))
                 .font(Tokens.bodyMono)
                 .lineLimit(11)
                 .multilineTextAlignment(.leading)
@@ -89,7 +89,7 @@ struct ItemCardView: View {
                 Text(URL(string: item.plainText ?? "")?.host ?? "Link")
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
-                Text(item.plainText ?? "")
+                Text(String((item.plainText ?? "").prefix(1_500)))
                     .font(Tokens.bodyMono)
                     .foregroundStyle(.secondary)
                     .lineLimit(5)
@@ -145,6 +145,9 @@ struct ItemCardView: View {
     private var footerText: String {
         switch item.kind {
         case .text, .richText:
+            if item.sizeBytes > 100_000 {
+                return ByteCountFormatter.string(fromByteCount: Int64(item.sizeBytes), countStyle: .file)
+            }
             return "\(item.plainText?.count ?? 0) characters"
         case .link:
             return URL(string: item.plainText ?? "")?.host ?? "Link"

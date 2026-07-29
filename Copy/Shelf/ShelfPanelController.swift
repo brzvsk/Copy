@@ -54,6 +54,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     }
 
     func hide(restoreFocus: Bool) {
+        guard isVisible else { return }
         removeKeyMonitor()
         panel?.orderOut(nil)
         if restoreFocus {
@@ -96,6 +97,9 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        if let key = NSApp.keyWindow, let panel, panel.childWindows?.contains(key) == true {
+            return
+        }
         hide(restoreFocus: false)
     }
 }
