@@ -39,6 +39,7 @@ final class ShelfViewModel {
 
     @ObservationIgnored var onPaste: ((ClipItem, Bool) -> Void)?
     @ObservationIgnored var onPasteMultiple: ((String) -> Void)?
+    @ObservationIgnored var onAddToPasteStack: ((ClipItem) -> Void)?
     @ObservationIgnored private var token: ObservationToken?
     @ObservationIgnored private var pinboardsToken: ObservationToken?
 
@@ -171,6 +172,10 @@ final class ShelfViewModel {
     }
 
     // MARK: - Per-item actions (context menu)
+
+    func addToPasteStack(_ item: ClipItem) {
+        onAddToPasteStack?(item)
+    }
 
     func delete(_ item: ClipItem) {
         guard let id = item.id else { return }

@@ -252,6 +252,7 @@ private struct ShelfItemsRow: View {
                                         viewModel.removeItem(item, fromPinboard: currentPinboardID)
                                     }
                                 },
+                                onAddToPasteStack: { viewModel.addToPasteStack(item) },
                                 onDelete: { viewModel.delete(item) },
                                 dragProvider: { viewModel.dragProvider(for: item) }
                             )

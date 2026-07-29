@@ -15,6 +15,7 @@ struct ItemCardView: View {
     let onToggleFavorite: () -> Void
     let onAddToPinboard: (Int64) -> Void
     let onRemoveFromPinboard: () -> Void
+    let onAddToPasteStack: () -> Void
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
 
@@ -85,6 +86,7 @@ struct ItemCardView: View {
                     }
                 }
             }
+            Button("Add to Paste Stack", action: onAddToPasteStack)
             if currentPinboardID != nil {
                 Button("Remove from Pinboard", action: onRemoveFromPinboard)
             }

@@ -17,6 +17,15 @@ final class AppCoordinator {
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore)
     private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
 
+    private lazy var pasteStackModel: PasteStackModel = {
+        let model = PasteStackModel(store: store)
+        model.onActiveChange = { [weak self] isActive in
+            self?.pasteStackController.syncVisibility(to: isActive)
+        }
+        return model
+    }()
+    private lazy var pasteStackController = PasteStackController(model: pasteStackModel)
+
     /// How often the retention pruner re-runs while the app stays open.
     private static let retentionInterval: TimeInterval = 12 * 60 * 60
 
@@ -87,6 +96,9 @@ final class AppCoordinator {
         shelfViewModel.onPaste = { [weak self, weak controller] item, plain in
             controller?.hide(restoreFocus: true)
             self?.pasteFromShelf(item, plainTextOnly: plain)
+        }
+        shelfViewModel.onAddToPasteStack = { [weak self] item in
+            self?.addToPasteStack(item)
         }
         shelfViewModel.onPasteMultiple = { [weak self, weak controller] joined in
             controller?.hide(restoreFocus: true)
@@ -193,6 +205,15 @@ final class AppCoordinator {
 
     func recentItems() -> [ClipItem] {
         (try? store.recentItems(limit: 10)) ?? []
+    }
+
+    /// Enqueues `item` into the Paste Stack (activating the palette if it wasn't
+    /// already) from the card context menu's "Add to Paste Stack" action. The palette
+    /// re-fits its own size to the new row via `PasteStackView.onContentChange`, so
+    /// there's no need to poke the controller directly here.
+    func addToPasteStack(_ item: ClipItem) {
+        pasteStackModel.enqueue(item)
+        HUD.show("Added to Paste Stack")
     }
 
     func clearHistory() {
