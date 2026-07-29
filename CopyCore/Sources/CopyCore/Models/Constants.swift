@@ -4,4 +4,7 @@ public enum CopyPasteboard {
 
     /// NSPasteboard.PasteboardType.color's raw value.
     public static let colorType = "com.apple.cocoa.pasteboard.color"
+
+    /// Favicon representation UTI for link metadata.
+    public static let faviconUTI = "com.tarikbc.copy.favicon"
 }

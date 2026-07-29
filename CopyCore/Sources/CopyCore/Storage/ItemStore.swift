@@ -3,6 +3,7 @@ import GRDB
 
 public struct ItemStore {
     public static let inlineThreshold = 65_536
+    public static let deleteChunkSize = 500
 
     private let writer: any DatabaseWriter
     private let blobs: BlobStore
@@ -150,12 +151,28 @@ public struct ItemStore {
     private func deleteItems(_ request: QueryInterfaceRequest<ClipItem>, in db: Database) throws {
         let ids = try request.selectPrimaryKey(as: Int64.self).fetchAll(db)
         guard !ids.isEmpty else { return }
-        let keys = try String.fetchAll(db, sql: """
-            SELECT DISTINCT blobKey FROM representation
-            WHERE itemId IN (\(ids.map { String($0) }.joined(separator: ","))) AND blobKey IS NOT NULL
-            """)
-        try request.deleteAll(db)
-        try cleanOrphanBlobs(keys, in: db)
+
+        var allKeys: [String] = []
+        for chunk in chunked(ids, into: Self.deleteChunkSize) {
+            let placeholders = chunk.map { _ in "?" }.joined(separator: ",")
+            let keys = try String.fetchAll(db, sql: """
+                SELECT DISTINCT blobKey FROM representation
+                WHERE itemId IN (\(placeholders)) AND blobKey IS NOT NULL
+                """, arguments: StatementArguments(chunk))
+            allKeys.append(contentsOf: keys)
+        }
+
+        for chunk in chunked(ids, into: Self.deleteChunkSize) {
+            try ClipItem.filter(chunk.contains(Column("id"))).deleteAll(db)
+        }
+
+        try cleanOrphanBlobs(allKeys, in: db)
+    }
+
+    private func chunked<T>(_ array: [T], into size: Int) -> [[T]] {
+        stride(from: 0, to: array.count, by: size).map {
+            Array(array[$0..<Swift.min($0 + size, array.count)])
+        }
     }
 
     public func observeRecent(kinds: Set<ItemKind>? = nil, limit: Int = 100,
@@ -206,6 +223,100 @@ public struct ItemStore {
             try cleanOrphanBlobs(oldKeys, in: db)
             return item
         }
+    }
+
+    @discardableResult
+    public func prune(olderThan cutoff: Date?, maxItems: Int?) throws -> Int {
+        guard cutoff != nil || maxItems != nil else { return 0 }
+
+        return try writer.write { db in
+            var doomed: Set<Int64> = []
+
+            if let cutoff {
+                let oldIds = try Int64.fetchAll(db, sql: """
+                    SELECT id FROM item
+                    WHERE lastUsedAt < ? AND isFavorite = false
+                    AND id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
+                    """, arguments: [cutoff])
+                doomed.formUnion(oldIds)
+            }
+
+            if let maxItems {
+                let newestIds = try Int64.fetchAll(db, sql: """
+                    SELECT id FROM item
+                    WHERE isFavorite = false
+                    AND id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
+                    ORDER BY lastUsedAt DESC
+                    LIMIT ?
+                    """, arguments: [maxItems])
+                let newestSet = Set(newestIds)
+
+                let excessIds = try Int64.fetchAll(db, sql: """
+                    SELECT id FROM item
+                    WHERE isFavorite = false
+                    AND id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
+                    """)
+                for id in excessIds {
+                    if !newestSet.contains(id) {
+                        doomed.insert(id)
+                    }
+                }
+            }
+
+            guard !doomed.isEmpty else { return 0 }
+
+            let doomedArray = Array(doomed)
+            try deleteItems(ClipItem.filter(doomedArray.contains(Column("id"))), in: db)
+            return doomedArray.count
+        }
+    }
+
+    public func setLinkTitle(itemID: Int64, _ title: String?) throws {
+        try writer.write { db in
+            try db.execute(
+                sql: "UPDATE item SET linkTitle = ? WHERE id = ?",
+                arguments: [title, itemID])
+        }
+    }
+
+    public func setFavicon(itemID: Int64, pngData: Data) throws {
+        try writer.write { db in
+            // Delete any existing favicon representation for this item
+            try Representation.filter(
+                Column("itemId") == itemID && Column("uti") == CopyPasteboard.faviconUTI
+            ).deleteAll(db)
+
+            // Insert the new favicon representation
+            var favicon = Representation(id: nil, itemId: itemID, uti: CopyPasteboard.faviconUTI, inlineData: nil, blobKey: nil)
+
+            if pngData.count > Self.inlineThreshold {
+                let key = try blobs.store(pngData)
+                favicon.blobKey = key
+            } else {
+                favicon.inlineData = pngData
+            }
+
+            try favicon.insert(db)
+        }
+    }
+
+    public func favicon(forItemID id: Int64) throws -> Data? {
+        let record = try writer.read { db in
+            try Representation.filter(
+                Column("itemId") == id && Column("uti") == CopyPasteboard.faviconUTI
+            ).fetchOne(db)
+        }
+
+        if let record {
+            if let inlineData = record.inlineData {
+                return inlineData
+            }
+            if let key = record.blobKey {
+                return blobs.data(forKey: key)
+            }
+        }
+
+        return nil
     }
 }
 
