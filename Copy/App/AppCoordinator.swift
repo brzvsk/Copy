@@ -104,6 +104,8 @@ final class AppCoordinator {
         return controller
     }()
 
+    private lazy var settingsWindowController = SettingsWindowController(settings: settings)
+
     init() throws {
         let database = try DatabaseManager.makeDefault()
         let blobs = BlobStore(directory: database.blobsDirectory)
@@ -168,16 +170,10 @@ final class AppCoordinator {
         retentionTimer = timer
     }
 
-    /// Activates the app and opens the SwiftUI Settings scene. `showSettingsWindow:`
-    /// is the macOS 14+ selector for the `Settings` scene's default handler; if no
-    /// responder implements it (e.g. before the Settings scene exists), this is a
-    /// silent no-op and we just log it for diagnosis.
+    /// Shows the Settings window (see `SettingsWindowController` for why this is a
+    /// window we manage directly instead of going through SwiftUI's `Settings` scene).
     func openSettings() {
-        NSApp.activate(ignoringOtherApps: true)
-        let handled = NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        if !handled {
-            NSLog("Copy: showSettingsWindow: was not handled by the responder chain")
-        }
+        settingsWindowController.show()
     }
 
     func toggleShelf() {
