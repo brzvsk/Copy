@@ -100,11 +100,14 @@ Scripts/release.sh 0.1.0             # full pipeline, including notarization
 
 ## Privacy
 
-Copy is local-only. It has no analytics, no crash reporting, and no network
-calls beyond checking for app updates. Your clipboard history never leaves
-your Mac. Any app that marks its pasteboard content as concealed, such as a
-password manager, is skipped entirely and never recorded, and you can add
-per-app exclusions in Settings for anything else you'd rather Copy ignore.
+Copy is local-only, with one exception: link previews fetch the page title
+and favicon for copied links directly from the web. This is on by default
+and can be turned off in Settings under History. Aside from that and
+checking for app updates, Copy makes no network calls, has no analytics or
+crash reporting, and your clipboard history never leaves your Mac. Any app
+that marks its pasteboard content as concealed, such as a password manager,
+is skipped entirely, and you can add per-app exclusions in Settings for
+anything else you would rather Copy ignore.
 
 ## Auto-updates
 
