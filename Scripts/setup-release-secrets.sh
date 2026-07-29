@@ -83,17 +83,22 @@ setup_cert() {
      && [[ -s "$p12" ]]; then
     info "exported automatically"
   else
+    # Suggest a strong password so you do not have to invent one for the export.
+    local suggested
+    suggested="$(openssl rand -base64 18)"
     info "automatic export did not work (a known macOS limitation). Export it once by hand:"
     info "  1. Open Keychain Access, pick the 'login' keychain, category 'My Certificates'."
     info "  2. Right-click '$SIGN_IDENTITY: ...($TEAM_HINT)' and choose Export."
-    info "  3. Save it as a .p12 and set any password you like when prompted."
-    echo
+    info "  3. Save it as a .p12. When it asks for a password, you can use this one"
+    info "     (copy it now, then paste it into the dialog):"
+    printf '\n        %s\n\n' "$suggested"
     local manual_p12 manual_pw
     read -r -p "    Path to the exported .p12: " manual_p12
     manual_p12="${manual_p12/#\~/$HOME}"
     [[ -f "$manual_p12" ]] || die "no file at: $manual_p12"
-    read -r -s -p "    The .p12 password you set: " manual_pw
+    read -r -s -p "    The .p12 password (press Enter to use the suggested one above): " manual_pw
     echo
+    manual_pw="${manual_pw:-$suggested}"
     [[ -n "$manual_pw" ]] || die "the .p12 password cannot be empty."
     p12="$manual_p12"
     pw="$manual_pw"
