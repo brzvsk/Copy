@@ -64,6 +64,7 @@ final class AppCoordinator {
                 viewModel.deleteSelection()
                 return true
             case 14 where event.modifierFlags.contains(.command): // cmd-E — edit primary (wired fully in Task 7)
+                viewModel.beginEdit()
                 return true
             case 49 where viewModel.query.isEmpty: // space previews in browse mode
                 viewModel.previewShown.toggle()

@@ -1,6 +1,14 @@
 import AppKit
 import CopyCore
 import Observation
+import UniformTypeIdentifiers
+
+extension UTType {
+    /// Internal drag payload identifying a `ClipItem` by uuid, used for card → tab
+    /// filing drags within the shelf. `exportedAs` avoids needing an Info.plist
+    /// declaration since only this app produces and consumes the type.
+    static let copyItem = UTType(exportedAs: "com.tarikbc.copy.item")
+}
 
 @MainActor
 @Observable
@@ -162,6 +170,7 @@ final class ShelfViewModel {
 
     func deletePinboard(id: Int64) {
         try? pinboardStore.delete(id: id)
+        if tab == .pinboard(id) { tab = .history }
     }
 
     func addItem(_ item: ClipItem, toPinboard id: Int64) {
@@ -174,13 +183,46 @@ final class ShelfViewModel {
         try? pinboardStore.remove(itemID: itemID, from: id)
     }
 
+    /// Looks up an item by uuid for a card→tab drop. `items` only holds the current
+    /// tab/search's rows, which may exclude the dragged item (e.g. dropping a History
+    /// card onto a different pinboard tab), so this falls back to a broader store scan.
+    func item(forUUID uuid: String) -> ClipItem? {
+        if let match = items.first(where: { $0.uuid == uuid }) { return match }
+        return (try? store.recentItems(limit: 1_000))?.first(where: { $0.uuid == uuid })
+    }
+
+    /// Handles a card dropped onto a pinboard tab.
+    func dropItem(uuid: String, toPinboard pinboard: Pinboard) {
+        guard let id = pinboard.id, let item = item(forUUID: uuid), let itemID = item.id else { return }
+        try? pinboardStore.add(itemID: itemID, to: id)
+        HUD.show("Added to \(pinboard.name)")
+    }
+
+    /// Called from a card's "Edit…" context menu item and the ⌘E shortcut.
+    func beginEdit() {
+        // Task 7 fills this
+    }
+
     private func apply(_ new: [ClipItem]) {
         items = new
         let order = items.map(\.uuid)
         selection.prune(existing: Set(order), order: order)
     }
 
+    /// Builds the drag payload for a card: its native representations (so dragging out
+    /// to other apps still works) plus an internal uuid representation (so dropping on
+    /// a pinboard tab can resolve it back to a `ClipItem` via `item(forUUID:)`).
     func dragProvider(for item: ClipItem) -> NSItemProvider {
+        let provider = contentProvider(for: item)
+        let uuid = item.uuid
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.copyItem.identifier, visibility: .all) { completion in
+            completion(Data(uuid.utf8), nil)
+            return nil
+        }
+        return provider
+    }
+
+    private func contentProvider(for item: ClipItem) -> NSItemProvider {
         guard let id = item.id, let reps = try? store.representations(forItemID: id) else {
             return NSItemProvider()
         }

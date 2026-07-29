@@ -6,12 +6,24 @@ struct ItemCardView: View {
     let item: ClipItem
     let isSelected: Bool
     let store: ItemStore
+    let pinboards: [Pinboard]
+    let currentPinboardID: Int64?
     let onClick: (NSEvent.ModifierFlags) -> Void
     let onPaste: () -> Void
     let onPastePlain: () -> Void
+    let onEdit: () -> Void
     let onToggleFavorite: () -> Void
+    let onAddToPinboard: (Int64) -> Void
+    let onRemoveFromPinboard: () -> Void
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
+
+    private var isEditable: Bool {
+        switch item.kind {
+        case .text, .richText, .link: return true
+        case .image, .file, .color: return false
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -46,9 +58,30 @@ struct ItemCardView: View {
         .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
         .contextMenu {
             Button("Paste", action: onPaste)
-            Button("Paste as plain text", action: onPastePlain)
+            Button("Paste as Plain Text", action: onPastePlain)
             Divider()
-            Button(item.isFavorite ? "Remove favorite" : "Favorite", action: onToggleFavorite)
+            if isEditable {
+                Button("Edit…", action: onEdit)
+                    .keyboardShortcut("e", modifiers: .command)
+            }
+            Button(item.isFavorite ? "Unfavorite" : "Favorite", action: onToggleFavorite)
+            Menu("Add to Pinboard") {
+                if pinboards.isEmpty {
+                    Text("No Pinboards")
+                } else {
+                    ForEach(pinboards, id: \.id) { pinboard in
+                        Button {
+                            if let id = pinboard.id { onAddToPinboard(id) }
+                        } label: {
+                            Label(pinboard.name, systemImage: pinboard.symbol)
+                        }
+                    }
+                }
+            }
+            if currentPinboardID != nil {
+                Button("Remove from Pinboard", action: onRemoveFromPinboard)
+            }
+            Divider()
             Button("Delete", role: .destructive, action: onDelete)
         }
         .onDrag(dragProvider)

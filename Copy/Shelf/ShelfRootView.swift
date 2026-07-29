@@ -1,5 +1,7 @@
 import SwiftUI
 import CopyCore
+import AppKit
+import UniformTypeIdentifiers
 
 struct ShelfRootView: View {
     @Bindable var viewModel: ShelfViewModel
@@ -49,7 +51,9 @@ private struct ShelfHeader: View {
 /// Left-hand pill row: History, then pinboards, then Add Pinboard.
 private struct ShelfTabs: View {
     @Bindable var viewModel: ShelfViewModel
-    @State private var addPinboardPresented = false
+    @State private var createPresented = false
+    @State private var renamingPinboard: Pinboard?
+    @State private var dropTargetedPinboardID: Int64?
 
     var body: some View {
         HStack(spacing: 4) {
@@ -64,14 +68,46 @@ private struct ShelfTabs: View {
                     label: pinboard.name,
                     symbol: pinboard.symbol,
                     isSelected: pinboard.id.map { viewModel.tab == .pinboard($0) } ?? false,
+                    isDropTargeted: pinboard.id != nil && dropTargetedPinboardID == pinboard.id,
                     action: {
                         guard let id = pinboard.id else { return }
                         viewModel.tab = .pinboard(id)
                     }
                 )
+                .contextMenu {
+                    // "Rename…" opens PinboardEditPopover in rename mode, which edits both
+                    // name and symbol in one place — no separate "Change Symbol…" item.
+                    Button("Rename…") { renamingPinboard = pinboard }
+                    Button("Delete Pinboard", role: .destructive) { confirmDelete(pinboard) }
+                }
+                .popover(isPresented: Binding(
+                    get: { pinboard.id != nil && renamingPinboard?.id == pinboard.id },
+                    set: { if !$0 { renamingPinboard = nil } }
+                )) {
+                    PinboardEditPopover(mode: .rename(pinboard)) { name, symbol in
+                        if let id = pinboard.id {
+                            viewModel.renamePinboard(id: id, to: name)
+                            viewModel.setPinboardSymbol(id: id, symbol)
+                        }
+                        renamingPinboard = nil
+                    }
+                }
+                .onDrop(of: [UTType.copyItem], isTargeted: Binding(
+                    get: { pinboard.id != nil && dropTargetedPinboardID == pinboard.id },
+                    set: { dropTargetedPinboardID = $0 ? pinboard.id : nil }
+                )) { providers in
+                    guard let provider = providers.first else { return false }
+                    provider.loadDataRepresentation(forTypeIdentifier: UTType.copyItem.identifier) { data, _ in
+                        guard let data, let uuid = String(data: data, encoding: .utf8) else { return }
+                        DispatchQueue.main.async {
+                            viewModel.dropItem(uuid: uuid, toPinboard: pinboard)
+                        }
+                    }
+                    return true
+                }
             }
             Button {
-                addPinboardPresented = true
+                createPresented = true
             } label: {
                 Image(systemName: "plus")
                     .font(Tokens.caption)
@@ -80,12 +116,28 @@ private struct ShelfTabs: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Add Pinboard")
-            .popover(isPresented: $addPinboardPresented) {
-                Text("Pinboard creation is coming soon")
-                    .font(Tokens.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(12)
+            .popover(isPresented: $createPresented) {
+                PinboardEditPopover(mode: .create) { name, symbol in
+                    viewModel.createPinboard(name: name, symbol: symbol)
+                }
             }
+        }
+    }
+
+    /// Matches the existing `NSAlert` confirm pattern (`AppDelegate.clearHistory`), with
+    /// the alert's window bumped to the shelf panel's own `.statusBar` level — otherwise
+    /// the alert would render behind the always-on-top, non-activating shelf panel.
+    private func confirmDelete(_ pinboard: Pinboard) {
+        guard let id = pinboard.id else { return }
+        let alert = NSAlert()
+        alert.messageText = "Delete pinboard \(pinboard.name)?"
+        alert.informativeText = "Items stay in your history."
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.level = .statusBar
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            viewModel.deletePinboard(id: id)
         }
     }
 }
@@ -94,6 +146,7 @@ private struct TabPill: View {
     let label: String
     let symbol: String
     let isSelected: Bool
+    var isDropTargeted: Bool = false
     let action: () -> Void
     @State private var isHovering = false
 
@@ -107,12 +160,21 @@ private struct TabPill: View {
                 .frame(height: 24)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? Color.primary.opacity(0.08)
-                              : (isHovering ? Color.primary.opacity(0.05) : .clear))
+                        .fill(backgroundFill)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 1.5)
                 )
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+    }
+
+    private var backgroundFill: Color {
+        if isDropTargeted { return Color.accentColor.opacity(0.16) }
+        if isSelected { return Color.primary.opacity(0.08) }
+        return isHovering ? Color.primary.opacity(0.05) : .clear
     }
 }
 
@@ -137,6 +199,11 @@ private struct ScopeChip: View {
 private struct ShelfItemsRow: View {
     @Bindable var viewModel: ShelfViewModel
 
+    private var currentPinboardID: Int64? {
+        if case .pinboard(let id) = viewModel.tab { return id }
+        return nil
+    }
+
     var body: some View {
         if viewModel.items.isEmpty {
             ShelfEmptyState(viewModel: viewModel)
@@ -149,10 +216,19 @@ private struct ShelfItemsRow: View {
                                 item: item,
                                 isSelected: viewModel.isSelected(item),
                                 store: viewModel.store,
+                                pinboards: viewModel.pinboards,
+                                currentPinboardID: currentPinboardID,
                                 onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
                                 onPaste: { viewModel.requestPaste(item, plain: false) },
                                 onPastePlain: { viewModel.requestPaste(item, plain: true) },
+                                onEdit: { viewModel.beginEdit() },
                                 onToggleFavorite: { viewModel.toggleFavorite(item) },
+                                onAddToPinboard: { id in viewModel.addItem(item, toPinboard: id) },
+                                onRemoveFromPinboard: {
+                                    if let currentPinboardID {
+                                        viewModel.removeItem(item, fromPinboard: currentPinboardID)
+                                    }
+                                },
                                 onDelete: { viewModel.delete(item) },
                                 dragProvider: { viewModel.dragProvider(for: item) }
                             )
