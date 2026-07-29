@@ -34,6 +34,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         coordinator.start()
 
+        if !UserDefaults.standard.bool(forKey: "hasOnboarded") {
+            coordinator.showOnboarding()
+        }
+
         KeyboardShortcuts.onKeyDown(for: .toggleShelf) { [weak self] in
             self?.coordinator.toggleShelf()
         }

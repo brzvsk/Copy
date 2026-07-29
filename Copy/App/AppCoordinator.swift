@@ -121,6 +121,7 @@ final class AppCoordinator {
     }()
 
     private lazy var settingsWindowController = SettingsWindowController(settings: settings)
+    private lazy var onboardingWindowController = OnboardingWindowController()
 
     init() throws {
         let database = try DatabaseManager.makeDefault()
@@ -221,6 +222,13 @@ final class AppCoordinator {
     /// window we manage directly instead of going through SwiftUI's `Settings` scene).
     func openSettings() {
         settingsWindowController.show()
+    }
+
+    /// Shows the first-run welcome flow. `AppDelegate` calls this once at launch,
+    /// gated on the `"hasOnboarded"` UserDefaults flag that `OnboardingView.finish()`
+    /// sets on its last step.
+    func showOnboarding() {
+        onboardingWindowController.show()
     }
 
     func toggleShelf() {

@@ -1,13 +1,27 @@
 import SwiftUI
 import CopyCore
 import AppKit
+import ApplicationServices
 import UniformTypeIdentifiers
 
 struct ShelfRootView: View {
     @Bindable var viewModel: ShelfViewModel
+    @State private var accessibilityTrusted = true
+    @State private var permissionBannerDismissed = false
+
+    /// The shelf panel is created once and reused for the app's lifetime (see
+    /// `AppCoordinator.shelfController`), so `onAppear` below only fires on the
+    /// panel's first-ever show — matching the "read once" intent here rather than
+    /// re-checking on every toggle.
+    private var showsPermissionBanner: Bool {
+        !accessibilityTrusted && !permissionBannerDismissed
+    }
 
     var body: some View {
         VStack(spacing: 0) {
+            if showsPermissionBanner {
+                PermissionBanner(onDismiss: { permissionBannerDismissed = true })
+            }
             ShelfHeader(viewModel: viewModel)
             Divider()
             ShelfItemsRow(viewModel: viewModel)
@@ -20,6 +34,51 @@ struct ShelfRootView: View {
                 onCancel: { viewModel.editingItem = nil },
                 onSave: { viewModel.commitEdit($0) }
             )
+        }
+        .onAppear {
+            accessibilityTrusted = AXIsProcessTrusted()
+        }
+    }
+}
+
+/// Slim, quiet strip (no colored fill — just an SF Symbol and text on the shelf's
+/// existing material) shown while Accessibility isn't granted, since without it
+/// `AppCoordinator.pasteFromShelf` can only place the item on the clipboard rather
+/// than actually paste it into the frontmost app.
+private struct PermissionBanner: View {
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(.secondary)
+                Text("Copy needs Accessibility access to paste.")
+                    .font(Tokens.caption)
+                    .foregroundStyle(.secondary)
+                Button("Open Settings") { openAccessibilitySettings() }
+                    .buttonStyle(.link)
+                    .font(Tokens.caption)
+                Spacer(minLength: 8)
+                Button {
+                    onDismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(Tokens.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss")
+            }
+            .padding(.horizontal, Tokens.shelfPadding)
+            .padding(.vertical, 6)
+            Divider()
+        }
+    }
+
+    private func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
         }
     }
 }
