@@ -212,14 +212,14 @@ struct CardThumbnail: View {
             if let image {
                 Image(nsImage: image)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .aspectRatio(contentMode: .fit)
             } else {
-                Rectangle()
-                    .fill(Color(nsColor: .quaternaryLabelColor))
-                    .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
+                Image(systemName: "photo")
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onAppear {
             if image == nil {
