@@ -122,17 +122,36 @@ struct ItemCardView: View {
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         case .link:
-            VStack(alignment: .leading, spacing: 4) {
-                Image(systemName: "link")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                Text(URL(string: item.plainText ?? "")?.host ?? "Link")
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                Text(String((item.plainText ?? "").prefix(1_500)))
-                    .font(Tokens.bodyMono)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(5)
+            if let linkTitle = item.linkTitle {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        LinkFaviconView(item: item, store: store)
+                        Text(URL(string: item.plainText ?? "")?.host ?? "Link")
+                            .font(.system(size: 12, weight: .semibold))
+                            .lineLimit(1)
+                    }
+                    Text(linkTitle)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Text(String((item.plainText ?? "").prefix(1_500)))
+                        .font(Tokens.bodyMono)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Image(systemName: "link")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                    Text(URL(string: item.plainText ?? "")?.host ?? "Link")
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                    Text(String((item.plainText ?? "").prefix(1_500)))
+                        .font(Tokens.bodyMono)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(5)
+                }
             }
         case .image:
             CardThumbnail(item: item, store: store)
@@ -198,6 +217,36 @@ struct ItemCardView: View {
             return count == 1 ? "1 file" : "\(count) files"
         case .color:
             return "Color"
+        }
+    }
+}
+
+struct LinkFaviconView: View {
+    let item: ClipItem
+    let store: ItemStore
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "link")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 16, height: 16)
+        .onAppear {
+            if image == nil {
+                image = FaviconCache.shared.cached(for: item)
+                if image == nil {
+                    FaviconCache.shared.favicon(for: item, store: store) { image = $0 }
+                }
+            }
         }
     }
 }

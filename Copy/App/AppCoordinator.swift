@@ -15,6 +15,7 @@ final class AppCoordinator {
     private var retentionTimer: DispatchSourceTimer?
     private(set) var isPaused = false
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore)
+    private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
 
     /// How often the retention pruner re-runs while the app stays open.
     private static let retentionInterval: TimeInterval = 12 * 60 * 60
@@ -116,6 +117,7 @@ final class AppCoordinator {
                                          keyPoster: CGKeyEventPoster())
         let settings = SettingsStore()
         self.settings = settings
+        let linkFetcher = LinkMetadataFetcher(store: store)
         let reporter = saveErrors
         self.monitor = ClipboardMonitor(
             pasteboard: NSPasteboard.general,
@@ -124,16 +126,20 @@ final class AppCoordinator {
                 let app = NSWorkspace.shared.frontmostApplication
                 return (app?.bundleIdentifier, app?.localizedName)
             },
-            onCapture: { [persistQueue] captured in
+            onCapture: { [persistQueue, linkFetcher, settings] captured in
                 persistQueue.async {
                     do {
-                        try store.save(captured)
+                        let saved = try store.save(captured)
+                        DispatchQueue.main.async {
+                            linkFetcher.fetchIfNeeded(for: saved, enabled: settings.fetchLinkPreviews)
+                        }
                     } catch {
                         reporter.report(error)
                     }
                 }
             }
         )
+        self.linkFetcher = linkFetcher
         settings.onRulesChange = { [weak self] excludedBundleIDs in
             self?.monitor.rules = RulesEngine(excludedBundleIDs: excludedBundleIDs)
         }
