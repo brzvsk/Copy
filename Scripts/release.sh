@@ -132,6 +132,23 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
+step "4.5/9 Verifying the Sparkle public key is not the placeholder"
+SPARKLE_PUBLIC_KEY="$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)"
+if [[ -z "$SPARKLE_PUBLIC_KEY" || "$SPARKLE_PUBLIC_KEY" == "PLACEHOLDER_REPLACE_AT_KEYGEN" ]]; then
+  if [[ "$DRY_RUN" == true ]]; then
+    echo "WARNING: SUPublicEDKey is still the placeholder (or empty)." >&2
+    echo "         This dry-run DMG is fine for a pipeline check, but a real release built this" >&2
+    echo "         way would permanently break Sparkle auto-updates for every install." >&2
+  else
+    echo "error: SUPublicEDKey is still the placeholder (or empty) in $APP_PATH/Contents/Info.plist." >&2
+    echo "       Shipping this build would permanently break Sparkle auto-updates for every install:" >&2
+    echo "       once users are on a build with the real key, they could never trust an update signed" >&2
+    echo "       with a different key again." >&2
+    echo "       Generate real Sparkle EdDSA keys first -- see Scripts/sparkle-keys-README.md -- then re-run." >&2
+    exit 1
+  fi
+fi
+
 # Notarization gotcha (learned the hard way on CamLoop): every embedded
 # framework, XPC service, and helper .app must carry its own Developer ID
 # signature with a secure timestamp, or notarization rejects the submission
@@ -280,7 +297,7 @@ step "9/9 Building the Sparkle enclosure and appcast snippet"
 rm -f "$SPARKLE_ZIP_PATH"
 ditto -c -k --keepParent "$APP_PATH" "$SPARKLE_ZIP_PATH"
 
-SIGN_UPDATE_BIN="$(find "$HOME/Library/Developer/Xcode/DerivedData" -name sign_update -path '*sparkle*' 2>/dev/null | head -1)"
+SIGN_UPDATE_BIN="$(find "$HOME/Library/Developer/Xcode/DerivedData" -name sign_update -path '*sparkle*' -print -quit 2>/dev/null)"
 if [[ -z "$SIGN_UPDATE_BIN" ]]; then
   echo "error: could not find Sparkle's sign_update binary under DerivedData." >&2
   echo "       Build the app at least once via Xcode/xcodebuild so SPM resolves Sparkle, then re-run." >&2

@@ -79,7 +79,14 @@ func linearGradient(_ colors: [CGColor]) -> CGGradient {
 // MARK: - Drawing
 
 func drawIcon(in context: CGContext, size: CGFloat) {
-    let tileRect = CGRect(x: 0, y: 0, width: size, height: size)
+    // macOS Big Sur+ icons sit inside an ~824x824 squircle centered in the
+    // 1024 canvas (~9.8% transparent margin per side), or the icon renders
+    // visibly larger than every native neighbor. Inset the tile rect
+    // accordingly and use its side length, not the full canvas, as the local
+    // scale unit for everything drawn inside it.
+    let inset = size * 0.098
+    let tileRect = CGRect(x: inset, y: inset, width: size - inset * 2, height: size - inset * 2)
+    let s = tileRect.width
     // A true superellipse, not a circular-arc rounded rect -- this is what gives a
     // macOS app tile its continuous-corner "squircle" silhouette.
     let tilePath = superellipsePath(tileRect, exponent: 5)
@@ -91,38 +98,43 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     // Base gradient: light graphite top -> deep slate bottom.
     context.drawLinearGradient(
         linearGradient([Palette.tileTop, Palette.tileBottom]),
-        start: CGPoint(x: size / 2, y: size),
-        end: CGPoint(x: size / 2, y: 0),
+        start: CGPoint(x: tileRect.midX, y: tileRect.maxY),
+        end: CGPoint(x: tileRect.midX, y: tileRect.minY),
         options: []
     )
 
     // Soft top sheen for depth -- kept subtle, not a gloss slab.
     context.drawLinearGradient(
         linearGradient([Palette.tileHighlight, Palette.clear]),
-        start: CGPoint(x: size / 2, y: size),
-        end: CGPoint(x: size / 2, y: size * 0.55),
+        start: CGPoint(x: tileRect.midX, y: tileRect.maxY),
+        end: CGPoint(x: tileRect.midX, y: tileRect.minY + s * 0.55),
         options: []
     )
 
     // Soft bottom vignette to ground the tile.
     context.drawLinearGradient(
         linearGradient([Palette.vignetteClear, Palette.tileVignette]),
-        start: CGPoint(x: size / 2, y: size * 0.22),
-        end: CGPoint(x: size / 2, y: 0),
+        start: CGPoint(x: tileRect.midX, y: tileRect.minY + s * 0.22),
+        end: CGPoint(x: tileRect.midX, y: tileRect.minY),
         options: []
     )
 
+    // Release the squircle clip before drawing the glyph on top -- its drop
+    // shadows are allowed to bleed slightly past the tile edge into the
+    // transparent margin, which is how native macOS icons render.
+    context.restoreGState()
+
     // MARK: Clipboard body
-    let boardWidth = size * 0.46
-    let boardHeight = size * 0.56
-    let boardX = size * 0.24
-    let boardY = size * 0.20
+    let boardWidth = s * 0.46
+    let boardHeight = s * 0.56
+    let boardX = tileRect.minX + s * 0.24
+    let boardY = tileRect.minY + s * 0.20
     let boardRect = CGRect(x: boardX, y: boardY, width: boardWidth, height: boardHeight)
-    let boardRadius = size * 0.05
+    let boardRadius = s * 0.05
     let boardPath = roundedRectPath(boardRect, radius: boardRadius)
 
     context.saveGState()
-    context.setShadow(offset: CGSize(width: 0, height: -size * 0.012), blur: size * 0.02, color: Palette.boardShadow)
+    context.setShadow(offset: CGSize(width: 0, height: -s * 0.012), blur: s * 0.02, color: Palette.boardShadow)
     context.addPath(boardPath)
     context.setFillColor(Palette.boardFill)
     context.fillPath()
@@ -130,12 +142,12 @@ func drawIcon(in context: CGContext, size: CGFloat) {
 
     context.addPath(boardPath)
     context.setStrokeColor(Palette.boardStroke)
-    context.setLineWidth(max(1, size * 0.004))
+    context.setLineWidth(max(1, s * 0.004))
     context.strokePath()
 
     // MARK: Clip (metal tab at the top of the board)
-    let clipWidth = size * 0.20
-    let clipHeight = size * 0.09
+    let clipWidth = s * 0.20
+    let clipHeight = s * 0.09
     let clipX = boardX + boardWidth / 2 - clipWidth / 2
     let clipY = boardY + boardHeight - clipHeight * 0.4
     let clipRect = CGRect(x: clipX, y: clipY, width: clipWidth, height: clipHeight)
@@ -146,12 +158,12 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     context.fillPath()
     context.addPath(clipPath)
     context.setStrokeColor(Palette.clipStroke)
-    context.setLineWidth(max(1, size * 0.003))
+    context.setLineWidth(max(1, s * 0.003))
     context.strokePath()
 
     // MARK: Content lines -- large sizes only, to avoid muddying small renders
     if size >= 128 {
-        let lineHeight = size * 0.018
+        let lineHeight = s * 0.018
         let lineInsetX = boardX + boardWidth * 0.16
         let lineWidths: [CGFloat] = [boardWidth * 0.5, boardWidth * 0.62, boardWidth * 0.38]
         var lineY = boardY + boardHeight * 0.28
@@ -160,7 +172,7 @@ func drawIcon(in context: CGContext, size: CGFloat) {
             context.addPath(roundedRectPath(lineRect, radius: lineHeight / 2))
             context.setFillColor(Palette.lineColor)
             context.fillPath()
-            lineY += lineHeight + size * 0.03
+            lineY += lineHeight + s * 0.03
         }
     }
 
@@ -168,20 +180,20 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     // Positioned right of and below the clip's bounding band (x > 0.57, y in
     // [0.724, 0.814]) with margin, so the card clearly clears the clip tab instead of
     // crossing through it.
-    let cardWidth = size * 0.30
-    let cardHeight = size * 0.19
-    let cardCenter = CGPoint(x: size * 0.76, y: size * 0.70)
+    let cardWidth = s * 0.30
+    let cardHeight = s * 0.19
+    let cardCenter = CGPoint(x: tileRect.minX + s * 0.76, y: tileRect.minY + s * 0.70)
     let cardAngle = -12.0 * CGFloat.pi / 180
 
     context.saveGState()
     context.translateBy(x: cardCenter.x, y: cardCenter.y)
     context.rotate(by: cardAngle)
     let cardRect = CGRect(x: -cardWidth / 2, y: -cardHeight / 2, width: cardWidth, height: cardHeight)
-    let cardRadius = size * 0.035
+    let cardRadius = s * 0.035
     let cardPath = roundedRectPath(cardRect, radius: cardRadius)
 
     context.saveGState()
-    context.setShadow(offset: CGSize(width: size * 0.008, height: -size * 0.018), blur: size * 0.028, color: Palette.cardShadow)
+    context.setShadow(offset: CGSize(width: s * 0.008, height: -s * 0.018), blur: s * 0.028, color: Palette.cardShadow)
     context.addPath(cardPath)
     context.setFillColor(Palette.cardFill)
     context.fillPath()
@@ -189,10 +201,8 @@ func drawIcon(in context: CGContext, size: CGFloat) {
 
     context.addPath(cardPath)
     context.setStrokeColor(Palette.cardStroke)
-    context.setLineWidth(max(1, size * 0.004))
+    context.setLineWidth(max(1, s * 0.004))
     context.strokePath()
-    context.restoreGState()
-
     context.restoreGState()
 }
 
