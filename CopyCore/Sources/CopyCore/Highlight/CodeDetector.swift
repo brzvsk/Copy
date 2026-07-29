@@ -102,18 +102,21 @@ public enum CodeDetector {
 
     // MARK: - Swift / JavaScript / Python
 
-    /// Swift/JS require balanced braces plus at least three distinct strong signals
+    /// Swift/JS require balanced braces plus at least two distinct strong signals
     /// (keywords, arrows, etc.) from that language's own list; Python's indentation
     /// block shape is checked first since it's a strong, brace-free signal on its own.
     ///
-    /// The bar is three, not two: a single inline code fragment quoted inside an
-    /// ordinary sentence (e.g. "I added a guard clause: `guard let x = y else {
-    /// return }` then removed the old check") can genuinely contain two real Swift
-    /// signals (`let ... =`, `guard let`) while still being overwhelmingly prose —
-    /// requiring a third makes that shape fail closed instead of coloring the whole
-    /// sentence. Real multi-line snippets clear three signals easily (a function
-    /// worth highlighting almost always has `func` + one more of `let`/`var`/`->`/a
-    /// modifier), so this doesn't meaningfully cost genuine code.
+    /// The bar is two, counting signal *categories*, not raw pattern hits — which is
+    /// why `swiftSignals`' generic `let`/`var` patterns exclude anything immediately
+    /// preceded by `guard\s+` (see the comment there): a single real `guard let x = y`
+    /// construct is one Swift idiom, not two, and without that exclusion a lone inline
+    /// code fragment quoted inside an ordinary sentence (e.g. "I added a guard clause:
+    /// `guard let x = y else { return }` then removed the old check") could double-count
+    /// it as both the `guard` signal and the generic `let` signal and clear the bar on
+    /// its own. (An earlier version of this bar was raised to three to paper over that
+    /// same double-count, which incorrectly also taxed genuine two-signal snippets like
+    /// a bare `struct Point { let x: Double }` — fixing the double-count at the source
+    /// let the bar go back to two.)
     private static func detectScriptLanguage(_ text: String) -> CodeLanguage? {
         let lines = text.components(separatedBy: .newlines)
         if hasPythonBlockShape(lines), countMatches(text, patterns: pythonSignals) >= 2 {
@@ -126,10 +129,10 @@ public enum CodeDetector {
 
         let swiftHits = countMatches(text, patterns: swiftSignals)
         let jsHits = countMatches(text, patterns: javascriptSignals)
-        if swiftHits >= 3, swiftHits >= jsHits {
+        if swiftHits >= 2, swiftHits >= jsHits {
             return .swift
         }
-        if jsHits >= 3 {
+        if jsHits >= 2 {
             return .javascript
         }
         return nil
@@ -168,10 +171,17 @@ public enum CodeDetector {
     // require the code-shaped context that makes them unambiguous: `guard let`/`guard
     // var` (not bare "guard"), and an access modifier immediately followed by another
     // declaration keyword (not bare "private"/"public"/"internal" used adjectivally).
+    //
+    // The generic `let`/`var` patterns exclude a match immediately preceded by
+    // `guard\s+` (bounded to 20 whitespace characters — comfortably more than any
+    // realistic gap between the two words) so that a single `guard let x = y`
+    // construct contributes exactly one signal (the `guard let` one below), not two —
+    // see the threshold comment on `detectScriptLanguage` for why that double-count
+    // mattered.
     private static let swiftSignals = [
         #"\bfunc\s+\w+\s*\("#,
-        #"\blet\s+\w+\s*[:=]"#,
-        #"\bvar\s+\w+\s*[:=]"#,
+        #"(?<!guard\s{1,20})\blet\s+\w+\s*[:=]"#,
+        #"(?<!guard\s{1,20})\bvar\s+\w+\s*[:=]"#,
         #"\bstruct\s+\w+"#,
         #"\benum\s+\w+"#,
         #"\bprotocol\s+\w+"#,

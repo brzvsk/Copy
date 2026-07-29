@@ -52,11 +52,38 @@ final class SyntaxHighlightingTests: XCTestCase {
         XCTAssertEqual(CodeDetector.detect(code), .javascript)
     }
 
-    /// Fix round 1 regression: a single inline code fragment quoted inside an ordinary
-    /// sentence must not tip the whole sentence into "code" — the old ≥2-signal bar
-    /// let `let ... =` (from the quoted fragment) plus a bare-word `guard` match (from
-    /// "guard clause", plain English) add up to 2 even though this is overwhelmingly
-    /// prose. This was a live false positive filed during review.
+    /// Fix round 2 regression: a bare struct with two properties is one of the most
+    /// common things a dev copies, and must clear the bar at exactly 2 signals
+    /// (`struct`, `let`) without needing a third.
+    func testBareStructDetectsAsSwift() {
+        let code = [
+            "struct Point {",
+            "    let x: Double",
+            "    let y: Double",
+            "}",
+        ].joined(separator: "\n")
+        XCTAssertEqual(CodeDetector.detect(code), .swift)
+    }
+
+    /// Fix round 2 regression: a one-line function (`func` + `->`, no `let`/`var` at
+    /// all) must still detect at 2 signals.
+    func testOneLineFunctionDetectsAsSwift() {
+        XCTAssertEqual(CodeDetector.detect("func add(a: Int, b: Int) -> Int { a + b }"), .swift)
+    }
+
+    /// Fix round 2 regression: same shape as above, with a `return` inside the braces
+    /// (`return` itself isn't a tracked signal — `func` + `->` alone must be enough).
+    func testOneLineFunctionWithReturnDetectsAsSwift() {
+        XCTAssertEqual(CodeDetector.detect("func square(x: Int) -> Int { return x * x }"), .swift)
+    }
+
+    /// Fix round 1's false positive, still guarded against after round 2 lowered the
+    /// bar back to ≥2: a single inline code fragment quoted inside an ordinary sentence
+    /// must not tip the whole sentence into "code". The naive fix (raising the bar to
+    /// ≥3) overshot and broke the two tests above; the real fix was recognizing that
+    /// `guard let user = ...` is ONE Swift idiom, not two signals — `swiftSignals`'
+    /// generic `let`/`var` patterns now exclude a match immediately preceded by
+    /// `guard\s+`, so this text only ever scores the single `guard let` signal.
     func testInlineCodeFragmentQuotedInProseDoesNotDetectAsCode() {
         let text = "I added a guard clause: `guard let user = self.currentUser else "
             + "{ return } ` then removed the old check."
