@@ -375,15 +375,25 @@ final class ShelfViewModel {
         return (try? store.recentItems(limit: 1_000))?.first(where: { $0.uuid == uuid })
     }
 
-    /// Handles a card dropped onto a pinboard tab.
-    func dropItem(uuid: String, toPinboard pinboard: Pinboard) {
-        guard let id = pinboard.id, let item = item(forUUID: uuid), let itemID = item.id else { return }
-        do {
-            try pinboardStore.add(itemID: itemID, to: id)
-            HUD.show("Added to \(pinboard.name)")
-        } catch {
-            NSLog("Copy: failed to add item to pinboard: \(error)")
-            HUD.show("Couldn't complete that")
+    /// Handles a card (or a whole multi-selection) dropped onto a pinboard tab.
+    /// `uuids` is one uuid for a single-card drag, or the ordered selection's uuids
+    /// for a multi-selection drag (see `ShelfViewModel.multiDragProvider()`).
+    func dropItems(uuids: [String], toPinboard pinboard: Pinboard) {
+        guard let id = pinboard.id else { return }
+        var added = 0
+        for uuid in uuids {
+            guard let item = item(forUUID: uuid), let itemID = item.id else { continue }
+            do {
+                try pinboardStore.add(itemID: itemID, to: id)
+                added += 1
+            } catch {
+                NSLog("Copy: failed to add item to pinboard: \(error)")
+            }
+        }
+        switch added {
+        case 0: HUD.show("Couldn't complete that")
+        case 1: HUD.show("Added to \(pinboard.name)")
+        default: HUD.show("Added \(added) items to \(pinboard.name)")
         }
     }
 
@@ -487,11 +497,43 @@ final class ShelfViewModel {
     /// Builds the drag payload for a card: its native representations (so dragging out
     /// to other apps still works) plus an internal uuid representation (so dropping on
     /// a pinboard tab can resolve it back to a `ClipItem` via `item(forUUID:)`).
+    ///
+    /// When the dragged card is part of a multi-selection (more than one card
+    /// selected), the WHOLE ordered selection drags together instead of just this
+    /// card — see `multiDragProvider()`. Dragging a card that ISN'T in the current
+    /// selection (or when only one card is selected) keeps today's single-item
+    /// behavior unchanged.
     func dragProvider(for item: ClipItem) -> NSItemProvider {
+        if selection.selected.contains(item.uuid), selection.selected.count > 1 {
+            return multiDragProvider()
+        }
         let provider = contentProvider(for: item)
         let uuid = item.uuid
         provider.registerDataRepresentation(forTypeIdentifier: UTType.copyItem.identifier, visibility: .all) { completion in
             completion(Data(uuid.utf8), nil)
+            return nil
+        }
+        return provider
+    }
+
+    /// One `NSItemProvider` for the whole ordered selection. SwiftUI's `.onDrag(_:)`
+    /// returns exactly one `NSItemProvider` on macOS 14 — there's no multi-provider
+    /// drag session until later SDKs, and a true per-item multi-drag would mean
+    /// replacing this whole drag path (and the pinboard-filing drop it feeds) with an
+    /// AppKit `NSDraggingSession`/`NSDraggingSource` rework. The pragmatic,
+    /// macOS-14-safe answer: one provider whose text representation is every selected
+    /// item's plain text, newline-joined in visible order, so dropping it into any
+    /// text-accepting app (TextEdit, a browser field, Notes...) drops all selected
+    /// items together. It also carries every selected uuid (newline-joined) under the
+    /// internal `copyItem` type, so dropping the whole selection onto a pinboard tab
+    /// files all of them — see `ShelfRootView`'s pinboard `.onDrop` and `dropItems(uuids:toPinboard:)`.
+    private func multiDragProvider() -> NSItemProvider {
+        let selected = orderedSelectedItems
+        let joinedText = selected.map { $0.plainText ?? "" }.joined(separator: "\n")
+        let provider = NSItemProvider(object: joinedText as NSString)
+        let uuids = selected.map(\.uuid).joined(separator: "\n")
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.copyItem.identifier, visibility: .all) { completion in
+            completion(Data(uuids.utf8), nil)
             return nil
         }
         return provider

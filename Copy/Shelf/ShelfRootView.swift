@@ -228,9 +228,13 @@ private struct ShelfTabs: View {
                 )) { providers in
                     guard let provider = providers.first else { return false }
                     provider.loadDataRepresentation(forTypeIdentifier: UTType.copyItem.identifier) { data, _ in
-                        guard let data, let uuid = String(data: data, encoding: .utf8) else { return }
+                        guard let data, let payload = String(data: data, encoding: .utf8) else { return }
+                        // Single-card drags carry one uuid; multi-selection drags carry
+                        // every selected uuid newline-joined (see `ShelfViewModel.multiDragProvider()`).
+                        let uuids = payload.split(separator: "\n").map(String.init)
+                        guard !uuids.isEmpty else { return }
                         DispatchQueue.main.async {
-                            viewModel.dropItem(uuid: uuid, toPinboard: pinboard)
+                            viewModel.dropItems(uuids: uuids, toPinboard: pinboard)
                         }
                     }
                     return true
