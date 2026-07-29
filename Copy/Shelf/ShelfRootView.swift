@@ -91,6 +91,12 @@ private struct ShelfItemsRow: View {
                                 dragProvider: { viewModel.dragProvider(for: item) }
                             )
                             .id(item.uuid)
+                            .popover(isPresented: Binding(
+                                get: { index == viewModel.selectedIndex && viewModel.previewShown },
+                                set: { viewModel.previewShown = $0 }
+                            )) {
+                                PreviewPane(item: item, store: viewModel.store)
+                            }
                             .onTapGesture {
                                 viewModel.selectedIndex = index
                                 viewModel.requestPaste(item, plain: false)
