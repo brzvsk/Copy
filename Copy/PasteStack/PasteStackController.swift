@@ -16,9 +16,20 @@ final class PasteStackController {
 
     private let model: PasteStackModel
     private var panel: KeyablePanel?
+    private var hideDuringScreenSharing: Bool
 
-    init(model: PasteStackModel) {
+    init(model: PasteStackModel, hideDuringScreenSharing: Bool) {
         self.model = model
+        self.hideDuringScreenSharing = hideDuringScreenSharing
+    }
+
+    /// Applied at panel creation and pushed live here when the setting changes
+    /// (`AppCoordinator` wires `SettingsStore.onHideDuringScreenSharingChange`). `.none`
+    /// excludes the palette from screen recordings/captures/shares; `.readOnly` is
+    /// AppKit's normal default (content visible, not modifiable by other processes).
+    func setHideDuringScreenSharing(_ hide: Bool) {
+        hideDuringScreenSharing = hide
+        panel?.sharingType = hide ? .none : .readOnly
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
@@ -115,6 +126,7 @@ final class PasteStackController {
         panel.becomesKeyOnlyIfNeeded = true
         panel.isFloatingPanel = true
         panel.isMovableByWindowBackground = true
+        panel.sharingType = hideDuringScreenSharing ? .none : .readOnly
         panel.contentView = NSHostingView(rootView: PasteStackView(
             model: model,
             onClose: { [weak model] in model?.isActive = false },

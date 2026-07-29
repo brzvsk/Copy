@@ -47,6 +47,7 @@ final class SettingsStore {
     static let fetchLinkPreviewsKey = "fetchLinkPreviews"
     static let recognizeImageTextKey = "recognizeImageText"
     static let excludedBundleIDsKey = "excludedBundleIDs"
+    static let hideDuringScreenSharingKey = "hideDuringScreenSharing"
 
     var retention: RetentionPeriod {
         didSet {
@@ -77,7 +78,21 @@ final class SettingsStore {
         }
     }
 
+    /// When true, the shelf panel and Paste Stack palette set `NSWindowSharingType.none`
+    /// so they're excluded from screen recordings/captures/shares (see
+    /// `ShelfPanelController.setHideDuringScreenSharing`/`PasteStackController`'s
+    /// equivalent). Defaults to true so clipboard history is hidden from screen shares
+    /// out of the box.
+    var hideDuringScreenSharing: Bool {
+        didSet {
+            guard hideDuringScreenSharing != oldValue else { return }
+            defaults.set(hideDuringScreenSharing, forKey: Self.hideDuringScreenSharingKey)
+            onHideDuringScreenSharingChange?(hideDuringScreenSharing)
+        }
+    }
+
     @ObservationIgnored var onRulesChange: ((Set<String>) -> Void)?
+    @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -89,6 +104,7 @@ final class SettingsStore {
         }
         fetchLinkPreviews = (defaults.object(forKey: Self.fetchLinkPreviewsKey) as? Bool) ?? true
         recognizeImageText = (defaults.object(forKey: Self.recognizeImageTextKey) as? Bool) ?? true
+        hideDuringScreenSharing = (defaults.object(forKey: Self.hideDuringScreenSharingKey) as? Bool) ?? true
         if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             excludedBundleIDs = decoded.sorted()

@@ -26,7 +26,9 @@ final class AppCoordinator {
     /// but a plain local reference to this same instance is fine to capture. Its
     /// `onActiveChange` handler is wired afterward, once `self` is safe to capture.
     private let pasteStackModel: PasteStackModel
-    private lazy var pasteStackController = PasteStackController(model: pasteStackModel)
+    private lazy var pasteStackController = PasteStackController(
+        model: pasteStackModel,
+        hideDuringScreenSharing: settings.hideDuringScreenSharing)
     private lazy var pasteStackEngine = PasteStackEngine(onIntercept: { [weak self] in
         self?.pasteNextViaEngine()
     })
@@ -35,7 +37,7 @@ final class AppCoordinator {
     private static let retentionInterval: TimeInterval = 12 * 60 * 60
 
     private lazy var shelfController: ShelfPanelController = {
-        let controller = ShelfPanelController { [weak self] in
+        let controller = ShelfPanelController(hideDuringScreenSharing: settings.hideDuringScreenSharing) { [weak self] in
             guard let self else { return NSView() }
             return NSHostingView(rootView: ShelfRootView(viewModel: self.shelfViewModel))
         }
@@ -216,6 +218,10 @@ final class AppCoordinator {
         self.ocrController = ocrController
         settings.onRulesChange = { [weak self] excludedBundleIDs in
             self?.monitor.rules = RulesEngine(excludedBundleIDs: excludedBundleIDs)
+        }
+        settings.onHideDuringScreenSharingChange = { [weak self] hide in
+            self?.shelfController.setHideDuringScreenSharing(hide)
+            self?.pasteStackController.setHideDuringScreenSharing(hide)
         }
         // `self` is fully initialized past this point, so it's safe to capture weakly
         // in `onActiveChange` — the single fan-out point for palette visibility AND

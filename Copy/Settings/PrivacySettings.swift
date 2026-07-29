@@ -11,6 +11,14 @@ struct PrivacySettings: View {
     var body: some View {
         Form {
             Section {
+                Toggle("Hide Copy windows during screen sharing", isOn: $settings.hideDuringScreenSharing)
+            } footer: {
+                Text("Keeps your clipboard history out of screen recordings and shared screens.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 if settings.excludedBundleIDs.isEmpty {
                     Text("No excluded apps")
                         .foregroundStyle(.secondary)

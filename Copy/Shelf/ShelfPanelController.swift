@@ -15,9 +15,20 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     private var panel: KeyablePanel?
     private var previousApp: NSRunningApplication?
     private var keyMonitor: Any?
+    private var hideDuringScreenSharing: Bool
 
-    init(makeContent: @escaping () -> NSView) {
+    init(hideDuringScreenSharing: Bool, makeContent: @escaping () -> NSView) {
+        self.hideDuringScreenSharing = hideDuringScreenSharing
         self.makeContent = makeContent
+    }
+
+    /// Applied at panel creation and pushed live here when the setting changes
+    /// (`AppCoordinator` wires `SettingsStore.onHideDuringScreenSharingChange`). `.none`
+    /// excludes the panel from screen recordings/captures/shares; `.readOnly` is
+    /// AppKit's normal default (content visible, not modifiable by other processes).
+    func setHideDuringScreenSharing(_ hide: Bool) {
+        hideDuringScreenSharing = hide
+        panel?.sharingType = hide ? .none : .readOnly
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
@@ -78,6 +89,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         panel.isFloatingPanel = true
         panel.delegate = self
         panel.contentView = makeContent()
+        panel.sharingType = hideDuringScreenSharing ? .none : .readOnly
         return panel
     }
 
