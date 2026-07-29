@@ -25,7 +25,18 @@
 #   - Sparkle's sign_update binary, resolved automatically from DerivedData
 #
 # Env vars:
-#   COPY_NOTARY_PROFILE   notarytool keychain profile name (default: copy-notary)
+#   COPY_NOTARY_PROFILE     notarytool keychain profile name (default: copy-notary),
+#                           used when the API-key env vars below are not all set
+#   NOTARY_API_KEY_PATH     path to an App Store Connect API .p8 key
+#   NOTARY_API_KEY_ID       the API key's key ID
+#   NOTARY_API_ISSUER_ID    the API key's issuer ID
+#                           when all three of the above are set, notarization uses
+#                           the App Store Connect API key instead of a keychain
+#                           profile (this is how CI notarizes, since it has no
+#                           interactive keychain profile to draw on)
+#   SPARKLE_ED_KEY_FILE     path to the Sparkle EdDSA private key; when unset,
+#                           sign_update reads the key from the `copy` keychain
+#                           account instead
 set -euo pipefail
 
 usage() {
@@ -268,7 +279,11 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "==> --dry-run: stopping before notarization."
   echo "    Built and signed: $DMG_PATH"
   echo "    What would happen next (real run, no --dry-run):"
-  echo "      8/9 xcrun notarytool submit \"$DMG_PATH\" --keychain-profile \"$NOTARY_PROFILE\" --wait"
+  if [[ -n "${NOTARY_API_KEY_PATH:-}" && -n "${NOTARY_API_KEY_ID:-}" && -n "${NOTARY_API_ISSUER_ID:-}" ]]; then
+    echo "      8/9 xcrun notarytool submit \"$DMG_PATH\" --key \"\$NOTARY_API_KEY_PATH\" --key-id \"\$NOTARY_API_KEY_ID\" --issuer \"\$NOTARY_API_ISSUER_ID\" --wait"
+  else
+    echo "      8/9 xcrun notarytool submit \"$DMG_PATH\" --keychain-profile \"$NOTARY_PROFILE\" --wait"
+  fi
   echo "          then: xcrun stapler staple \"$DMG_PATH\" && xcrun stapler staple \"$APP_PATH\""
   echo "      9/9 ditto -c -k --keepParent \"$APP_PATH\" \"$SPARKLE_ZIP_PATH\""
   echo "          then: sign_update \"$SPARKLE_ZIP_PATH\" (Sparkle EdDSA signature)"
@@ -278,8 +293,20 @@ if [[ "$DRY_RUN" == true ]]; then
 fi
 
 step "8/9 Notarizing and stapling"
-echo "    Submitting $DMG_PATH to notarytool (profile: $NOTARY_PROFILE)..."
-xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+# CI has no interactive keychain profile to draw on, so it sets these three
+# App Store Connect API key env vars instead; locally they are unset and we
+# fall back to the keychain profile set up via `xcrun notarytool store-credentials`.
+if [[ -n "${NOTARY_API_KEY_PATH:-}" && -n "${NOTARY_API_KEY_ID:-}" && -n "${NOTARY_API_ISSUER_ID:-}" ]]; then
+  echo "    Submitting $DMG_PATH to notarytool (App Store Connect API key)..."
+  xcrun notarytool submit "$DMG_PATH" \
+    --key "$NOTARY_API_KEY_PATH" \
+    --key-id "$NOTARY_API_KEY_ID" \
+    --issuer "$NOTARY_API_ISSUER_ID" \
+    --wait
+else
+  echo "    Submitting $DMG_PATH to notarytool (profile: $NOTARY_PROFILE)..."
+  xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+fi
 
 echo ""
 echo "    Stapling the DMG..."

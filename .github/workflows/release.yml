@@ -5,11 +5,37 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
+# ci.yml already builds an unsigned Debug app on every push to main and every
+# PR, so this workflow only needs to cover the tag-triggered signed release --
+# there is no separate non-tag-push case here to add an unsigned smoke build
+# for.
 jobs:
-  build:
+  release:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Forks don't inherit these secrets, and a repo that hasn't been set up
+      # yet won't have them either -- checking one is enough to catch both
+      # cases with a clear message instead of a confusing failure deep inside
+      # release.sh.
+      - name: Verify required secrets are configured
+        env:
+          SENTINEL: ${{ secrets.DEVELOPER_ID_CERT_P12_BASE64 }}
+        run: |
+          if [[ -z "$SENTINEL" ]]; then
+            echo "::error::DEVELOPER_ID_CERT_P12_BASE64 secret is not set." >&2
+            echo "::error::This usually means the workflow is running on a fork, or the" >&2
+            echo "::error::repository secrets described in docs/RELEASING.md have not been" >&2
+            echo "::error::added yet. See docs/RELEASING.md for the full list and how to" >&2
+            echo "::error::produce each one." >&2
+            exit 1
+          fi
 
       - name: Select latest Xcode
         run: |
@@ -20,51 +46,105 @@ jobs:
       - name: Core tests
         run: swift test --package-path CopyCore
 
-      - name: Generate Xcode project
-        run: |
-          brew install xcodegen
-          xcodegen generate
+      - name: Install xcodegen
+        run: brew install xcodegen
 
-      - name: Build unsigned Release app
-        run: |
-          xcodebuild -project Copy.xcodeproj -scheme Copy -configuration Release \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
-            -derivedDataPath build/DerivedData build
-
-      - name: Zip unsigned app
+      # Import the Developer ID Application cert+key into a fresh, disposable
+      # keychain rather than the runner's login keychain, and clear it out in
+      # the "Clean up signing credentials" step below regardless of outcome.
+      - name: Import Developer ID certificate
         env:
-          REF_NAME: ${{ github.ref_name }}
+          CERT_P12_BASE64: ${{ secrets.DEVELOPER_ID_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
         run: |
-          APP_PATH="build/DerivedData/Build/Products/Release/Copy.app"
-          ditto -c -k --keepParent "$APP_PATH" "Copy-unsigned-${REF_NAME}.zip"
+          KEYCHAIN_PATH="$RUNNER_TEMP/copy-release-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+          CERT_PATH="$RUNNER_TEMP/developer-id.p12"
 
-      - name: Upload unsigned app artifact
-        env:
-          REF_NAME: ${{ github.ref_name }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: Copy-unsigned-${{ env.REF_NAME }}
-          path: Copy-unsigned-${{ env.REF_NAME }}.zip
+          echo "$CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
 
-      - name: Job summary
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+
+          EXISTING_KEYCHAINS="$(security list-keychains -d user | tr -d '"')"
+          # shellcheck disable=SC2086 -- word splitting is intentional: each
+          # existing keychain path becomes its own argument to -s.
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $EXISTING_KEYCHAINS
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          rm -f "$CERT_PATH"
+
+      - name: Write Sparkle private key
         env:
-          REF_NAME: ${{ github.ref_name }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
+          SPARKLE_KEY_PATH="$RUNNER_TEMP/sparkle-private-key.txt"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$SPARKLE_KEY_PATH"
+          chmod 600 "$SPARKLE_KEY_PATH"
+          echo "SPARKLE_ED_KEY_FILE=$SPARKLE_KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Write App Store Connect API key
+        env:
+          NOTARY_API_KEY_BASE64: ${{ secrets.NOTARY_API_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
+        run: |
+          NOTARY_KEY_PATH="$RUNNER_TEMP/notary-api-key.p8"
+          echo "$NOTARY_API_KEY_BASE64" | base64 --decode > "$NOTARY_KEY_PATH"
+          chmod 600 "$NOTARY_KEY_PATH"
           {
-            echo "## Copy ${REF_NAME} (CI build)"
-            echo ""
-            echo "This is an **unsigned, non-notarized** convenience build for testing only."
-            echo "CI does not hold the Developer ID Application certificate, so it cannot"
-            echo "produce the signed, notarized release DMG."
-            echo ""
-            echo "The signed and notarized release DMG (plus the Sparkle update zip and"
-            echo "appcast entry) is produced locally by running:"
-            echo ""
-            echo '```'
-            echo "Scripts/release.sh ${REF_NAME#v}"
-            echo '```'
-            echo ""
-            echo "on a machine holding the \`Developer ID Application\` signing identity for"
-            echo "team P7V47BUA2B and a \`notarytool\` keychain profile. See Scripts/release.sh"
-            echo "for the full pipeline."
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo "NOTARY_API_KEY_PATH=$NOTARY_KEY_PATH"
+            echo "NOTARY_API_KEY_ID=$NOTARY_KEY_ID"
+            echo "NOTARY_API_ISSUER_ID=$NOTARY_ISSUER_ID"
+          } >> "$GITHUB_ENV"
+
+      # GITHUB_REF_NAME is a default runner env var (not a `${{ }}` template
+      # expression), so expanding it in a shell script here is injection-safe.
+      - name: Derive version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Build, sign, and notarize release
+        run: Scripts/release.sh "$VERSION"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "build/Copy-${VERSION}.dmg" \
+            "build/Copy-${VERSION}.zip" \
+            --title "Copy $VERSION" \
+            --notes-file CHANGELOG.md
+
+      # release.sh refreshes docs/appcast.xml in the tag checkout's working
+      # tree, but that checkout is detached at the tag -- carry the updated
+      # file over to main and commit it there so GitHub Pages serves it.
+      - name: Commit updated appcast to main
+        run: |
+          cp docs/appcast.xml "$RUNNER_TEMP/appcast.xml"
+
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+
+          cp "$RUNNER_TEMP/appcast.xml" docs/appcast.xml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add docs/appcast.xml
+          if git diff --cached --quiet; then
+            echo "No appcast changes to commit."
+          else
+            git commit -m "chore: update appcast for $GITHUB_REF_NAME"
+            git push origin main
+          fi
+
+      - name: Clean up signing credentials
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/copy-release-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/sparkle-private-key.txt" "$RUNNER_TEMP/notary-api-key.p8" "$RUNNER_TEMP/developer-id.p12"

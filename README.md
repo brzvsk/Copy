@@ -86,12 +86,17 @@ swift test --package-path CopyCore
 
 ### Cutting a release
 
-Signed, notarized release DMGs are built locally (CI cannot hold the
-Developer ID signing identity). See `Scripts/release.sh` for the full
-archive, sign, notarize, staple, and Sparkle-enclosure pipeline, and
-`docs/appcast.xml` for the Sparkle update feed. A tag push (`v*`) also runs
-`.github/workflows/release.yml`, which builds and tests an unsigned
-convenience artifact for CI verification only.
+Pushing a version tag (`vX.Y.Z`) runs `.github/workflows/release.yml`, which
+builds, signs, notarizes, and publishes the full release: a Developer ID
+signed and notarized DMG, a signed Sparkle update zip, an updated
+`docs/appcast.xml` committed back to `main`, and a GitHub release with both
+artifacts attached. See `docs/RELEASING.md` for the repository secrets this
+requires and the exact release ritual, and `Scripts/release.sh` for the
+underlying archive, sign, notarize, staple, and Sparkle-enclosure pipeline
+(the same script CI runs).
+
+The same pipeline can also be run locally, provided your Mac holds the
+Developer ID signing identity and a notarytool keychain profile:
 
 ```
 Scripts/release.sh 0.1.0 --dry-run   # build + sign a DMG without publishing
