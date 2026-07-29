@@ -19,6 +19,42 @@ final class AppCoordinator {
         controller.onDidHide = { [weak self] in
             self?.shelfViewModel.clearTransientState()
         }
+        controller.onKeyEvent = { [weak self, weak controller] event in
+            guard let self, let controller else { return false }
+            let viewModel = self.shelfViewModel
+            switch event.keyCode {
+            case 123: // left arrow
+                viewModel.moveSelection(-1)
+                return true
+            case 124: // right arrow
+                viewModel.moveSelection(1)
+                return true
+            case 53: // escape
+                if viewModel.previewShown {
+                    viewModel.previewShown = false
+                } else if !viewModel.query.isEmpty {
+                    viewModel.query = ""
+                } else {
+                    controller.hide(restoreFocus: true)
+                }
+                return true
+            case 36: // return
+                if let item = viewModel.selectedItem {
+                    viewModel.requestPaste(item, plain: event.modifierFlags.contains(.option))
+                }
+                return true
+            case 51 where event.modifierFlags.contains(.command): // cmd-delete
+                if let item = viewModel.selectedItem {
+                    viewModel.delete(item)
+                }
+                return true
+            case 49 where viewModel.query.isEmpty: // space previews in browse mode
+                viewModel.previewShown.toggle()
+                return true
+            default:
+                return false
+            }
+        }
         shelfViewModel.onPaste = { [weak self, weak controller] item, plain in
             controller?.hide(restoreFocus: true)
             self?.pasteFromShelf(item, plainTextOnly: plain)
