@@ -7,6 +7,12 @@ extension KeyboardShortcuts.Name {
     static let toggleShelf = Self("toggleShelf", initial: .init(.v, modifiers: [.command, .shift]))
     static let togglePasteStack = Self("togglePasteStack", initial: .init(.v, modifiers: [.control, .option, .command]))
     static let pasteNextFromStack = Self("pasteNextFromStack", initial: .init(.n, modifiers: [.control, .option, .command]))
+    /// No default shortcut — the user opts in from Settings. Pastes the most recent
+    /// history item directly into the frontmost app without opening the shelf.
+    static let quickPasteLatest = Self("quickPasteLatest")
+    /// No default shortcut — the user opts in from Settings. Advances the shelf's
+    /// active tab to the next pinboard while the shelf is open.
+    static let nextPinboard = Self("nextPinboard")
 }
 
 @MainActor
@@ -55,6 +61,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.coordinator.pasteNextFromStack()
         }
         KeyboardShortcuts.disable(.pasteNextFromStack)
+        KeyboardShortcuts.onKeyDown(for: .quickPasteLatest) { [weak self] in
+            self?.coordinator.quickPasteLatest()
+        }
+        KeyboardShortcuts.onKeyDown(for: .nextPinboard) { [weak self] in
+            self?.coordinator.selectNextPinboard()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

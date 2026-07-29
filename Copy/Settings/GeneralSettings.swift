@@ -16,6 +16,12 @@ struct GeneralSettings: View {
             Section {
                 KeyboardShortcuts.Recorder("Open Copy:", name: .toggleShelf)
                 KeyboardShortcuts.Recorder("Paste Stack:", name: .togglePasteStack)
+                KeyboardShortcuts.Recorder("Quick Paste Latest:", name: .quickPasteLatest)
+                KeyboardShortcuts.Recorder("Next Pinboard:", name: .nextPinboard)
+            } footer: {
+                Text("Quick Paste Latest pastes your most recent item into the current app without opening Copy. While the shelf is open, press a number key to paste that card.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             Section {

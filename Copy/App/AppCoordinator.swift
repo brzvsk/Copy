@@ -66,6 +66,16 @@ final class AppCoordinator {
                 }
                 return true
             }
+            // Bare digit 1-9 (no modifiers) pastes the Nth visible card directly, but
+            // only while browsing (query empty) — mirrors the space-preview gate below
+            // so it never fights type-to-search. ⌘-digit tab switching is handled above
+            // and already returns before reaching this point, so it never collides.
+            let allowsDigitQuickPaste = viewModel.query.isEmpty
+                && event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
+            let pasteVisible: (Int) -> Void = { index in
+                guard viewModel.items.indices.contains(index) else { return }
+                viewModel.requestPaste(viewModel.items[index], plain: false)
+            }
             switch event.keyCode {
             case 123: // left arrow
                 viewModel.moveSelection(-1)
@@ -98,6 +108,33 @@ final class AppCoordinator {
                 return true
             case 49 where viewModel.query.isEmpty: // space previews in browse mode
                 viewModel.previewShown.toggle()
+                return true
+            case 18 where allowsDigitQuickPaste: // 1
+                pasteVisible(0)
+                return true
+            case 19 where allowsDigitQuickPaste: // 2
+                pasteVisible(1)
+                return true
+            case 20 where allowsDigitQuickPaste: // 3
+                pasteVisible(2)
+                return true
+            case 21 where allowsDigitQuickPaste: // 4
+                pasteVisible(3)
+                return true
+            case 23 where allowsDigitQuickPaste: // 5
+                pasteVisible(4)
+                return true
+            case 22 where allowsDigitQuickPaste: // 6
+                pasteVisible(5)
+                return true
+            case 26 where allowsDigitQuickPaste: // 7
+                pasteVisible(6)
+                return true
+            case 28 where allowsDigitQuickPaste: // 8
+                pasteVisible(7)
+                return true
+            case 25 where allowsDigitQuickPaste: // 9
+                pasteVisible(8)
                 return true
             default:
                 return false
@@ -272,6 +309,44 @@ final class AppCoordinator {
 
     func recentItems() -> [ClipItem] {
         (try? store.recentItems(limit: 10)) ?? []
+    }
+
+    /// Pastes the single most-recent history item directly into the frontmost app,
+    /// without opening the shelf — the global "Quick Paste Latest" hotkey. Reuses
+    /// `pasteFromShelf`'s place-reps + accessibility ⌘V path (with its "Press ⌘V"
+    /// HUD fallback when Accessibility isn't granted).
+    func quickPasteLatest() {
+        guard let item = (try? store.recentItems(limit: 1))?.first else {
+            HUD.show("Nothing to paste")
+            return
+        }
+        pasteFromShelf(item, plainTextOnly: false)
+    }
+
+    /// Advances the shelf's active tab to the next pinboard (History → first pinboard
+    /// → ... → wraps back to History) — the global "Next Pinboard" hotkey. If the shelf
+    /// isn't open yet, this opens it (landing on History) rather than cycling blind;
+    /// the user presses the hotkey again to actually advance once the shelf is visible.
+    func selectNextPinboard() {
+        guard shelfController.isVisible else {
+            shelfViewModel.refreshPermissionState()
+            shelfController.show()
+            return
+        }
+        let pinboards = shelfViewModel.pinboards
+        switch shelfViewModel.tab {
+        case .history:
+            if let first = pinboards.first, let id = first.id {
+                shelfViewModel.tab = .pinboard(id)
+            }
+        case .pinboard(let currentID):
+            let nextIndex = (pinboards.firstIndex(where: { $0.id == currentID }) ?? -1) + 1
+            if pinboards.indices.contains(nextIndex), let id = pinboards[nextIndex].id {
+                shelfViewModel.tab = .pinboard(id)
+            } else {
+                shelfViewModel.tab = .history
+            }
+        }
     }
 
     /// Enqueues `item` into the Paste Stack (activating the palette if it wasn't
