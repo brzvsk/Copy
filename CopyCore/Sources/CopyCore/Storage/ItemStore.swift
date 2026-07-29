@@ -18,7 +18,17 @@ public struct ItemStore {
         return try writer.write { db in
             if var existing = try ClipItem.filter(Column("contentHash") == hash).fetchOne(db) {
                 existing.lastUsedAt = now
+                existing.appBundleID = captured.sourceBundleID
+                existing.appName = captured.sourceAppName
+                existing.sizeBytes = captured.representations.reduce(0) { $0 + $1.data.count }
                 try existing.update(db)
+
+                let oldKeys = try String.fetchAll(db, sql:
+                    "SELECT DISTINCT blobKey FROM representation WHERE itemId = ? AND blobKey IS NOT NULL",
+                    arguments: [existing.id!])
+                try Representation.filter(Column("itemId") == existing.id!).deleteAll(db)
+                try insertRepresentations(captured.representations, itemID: existing.id!, in: db)
+                try cleanOrphanBlobs(oldKeys, in: db)
                 return existing
             }
             var item = ClipItem(
@@ -31,19 +41,29 @@ public struct ItemStore {
                 isFavorite: false
             )
             try item.insert(db)
-            for rep in captured.representations {
-                var record: Representation
-                if rep.data.count > Self.inlineThreshold {
-                    let key = try blobs.store(rep.data)
-                    record = Representation(id: nil, itemId: item.id!, uti: rep.uti,
-                                            inlineData: nil, blobKey: key)
-                } else {
-                    record = Representation(id: nil, itemId: item.id!, uti: rep.uti,
-                                            inlineData: rep.data, blobKey: nil)
-                }
-                try record.insert(db)
-            }
+            try insertRepresentations(captured.representations, itemID: item.id!, in: db)
             return item
+        }
+    }
+
+    private func insertRepresentations(_ reps: [CapturedRepresentation], itemID: Int64, in db: Database) throws {
+        for rep in reps {
+            var record: Representation
+            if rep.data.count > Self.inlineThreshold {
+                let key = try blobs.store(rep.data)
+                record = Representation(id: nil, itemId: itemID, uti: rep.uti, inlineData: nil, blobKey: key)
+            } else {
+                record = Representation(id: nil, itemId: itemID, uti: rep.uti, inlineData: rep.data, blobKey: nil)
+            }
+            try record.insert(db)
+        }
+    }
+
+    private func cleanOrphanBlobs(_ keys: [String], in db: Database) throws {
+        for key in keys {
+            let stillUsed = try Int.fetchOne(db, sql:
+                "SELECT COUNT(*) FROM representation WHERE blobKey = ?", arguments: [key]) ?? 0
+            if stillUsed == 0 { blobs.delete(key: key) }
         }
     }
 
@@ -121,10 +141,6 @@ public struct ItemStore {
             WHERE itemId IN (\(ids.map { String($0) }.joined(separator: ","))) AND blobKey IS NOT NULL
             """)
         try request.deleteAll(db)
-        for key in keys {
-            let stillUsed = try Int.fetchOne(db, sql:
-                "SELECT COUNT(*) FROM representation WHERE blobKey = ?", arguments: [key]) ?? 0
-            if stillUsed == 0 { blobs.delete(key: key) }
-        }
+        try cleanOrphanBlobs(keys, in: db)
     }
 }

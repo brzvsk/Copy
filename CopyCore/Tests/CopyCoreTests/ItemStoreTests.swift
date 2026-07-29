@@ -73,4 +73,44 @@ final class ItemStoreTests: XCTestCase {
         _ = try store.save(makeText("b"))
         XCTAssertEqual(try store.recentItems(limit: 10).count, 2)
     }
+
+    func testDedupRefreshesRepresentationsAndSource() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("hello"))
+
+        let styled = CapturedItem(
+            kind: .richText, plainText: "hello", hashData: Data("hello".utf8),
+            representations: [
+                CapturedRepresentation(uti: "public.rtf", data: Data("rtf".utf8)),
+                CapturedRepresentation(uti: "public.utf8-plain-text", data: Data("hello".utf8)),
+            ],
+            sourceBundleID: "com.other.app", sourceAppName: "OtherApp")
+        let merged = try store.save(styled)
+
+        let reps = try store.representations(forItemID: merged.id!)
+        XCTAssertEqual(reps.map(\.uti), ["public.rtf", "public.utf8-plain-text"])
+        XCTAssertEqual(merged.appBundleID, "com.other.app")
+        XCTAssertEqual(merged.appName, "OtherApp")
+        XCTAssertEqual(try store.recentItems(limit: 10).count, 1)
+    }
+
+    func testDedupRefreshCleansOrphanedBlob() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CopyTests-\(UUID().uuidString)")
+        let dbm = try DatabaseManager(directory: dir)
+        let store = ItemStore(writer: dbm.writer, blobs: BlobStore(directory: dbm.blobsDirectory))
+
+        let big = Data(repeating: 0xEE, count: 100_000)
+        let first = CapturedItem(kind: .image, plainText: "Image", hashData: Data("same".utf8),
+                                 representations: [CapturedRepresentation(uti: "public.png", data: big)],
+                                 sourceBundleID: nil, sourceAppName: nil)
+        let second = CapturedItem(kind: .image, plainText: "Image", hashData: Data("same".utf8),
+                                  representations: [CapturedRepresentation(uti: "public.png", data: Data([0x01]))],
+                                  sourceBundleID: nil, sourceAppName: nil)
+        _ = try store.save(first)
+        _ = try store.save(second)
+
+        let blobFiles = try FileManager.default.contentsOfDirectory(atPath: dbm.blobsDirectory.path)
+        XCTAssertEqual(blobFiles.count, 0, "old blob must be orphan-cleaned after refresh")
+    }
 }
