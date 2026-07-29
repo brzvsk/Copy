@@ -159,6 +159,10 @@ final class ShelfViewModel {
         accessibilityTrusted = AXIsProcessTrusted()
     }
 
+    /// Shift/⌘-click always extend the multi-selection, regardless of
+    /// `settings.doubleClickToPaste`. A plain click either selects-and-pastes (today's
+    /// behavior) or just selects, leaving the paste to `handleCardDoubleClick`/⏎ — see
+    /// that setting's doc comment in `SettingsStore`.
     func handleCardClick(_ item: ClipItem, modifiers: NSEvent.ModifierFlags) {
         if modifiers.contains(.shift) {
             selection.shiftClick(item.uuid, in: items.map(\.uuid))
@@ -166,8 +170,18 @@ final class ShelfViewModel {
             selection.commandClick(item.uuid, in: items.map(\.uuid))
         } else {
             selection.click(item.uuid)
-            requestPaste(item, plain: false)
+            if !settings.doubleClickToPaste {
+                requestPaste(item, plain: false)
+            }
         }
+    }
+
+    /// A no-modifier double-click on a card. This is the paste gesture when
+    /// `settings.doubleClickToPaste` is on; with it off, a single click already pastes,
+    /// so this just re-selects and re-pastes the same item, which is harmless.
+    func handleCardDoubleClick(_ item: ClipItem) {
+        selection.click(item.uuid)
+        requestPaste(item, plain: false)
     }
 
     func moveSelection(_ delta: Int) {

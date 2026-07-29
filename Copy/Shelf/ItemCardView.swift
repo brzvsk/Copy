@@ -11,6 +11,7 @@ struct ItemCardView: View {
     /// smaller card frame + tighter line limits so more cards fit on screen at once.
     var compact: Bool = false
     let onClick: (NSEvent.ModifierFlags) -> Void
+    let onDoubleClick: () -> Void
     let onPaste: () -> Void
     let onPastePlain: () -> Void
     let onEdit: () -> Void
@@ -146,7 +147,13 @@ struct ItemCardView: View {
             Button("Delete", role: .destructive, action: onDelete)
         }
         .onDrag(dragProvider)
-        .onTapGesture { onClick(NSEvent.modifierFlags) }
+        // Double-tap must be registered before the single-tap recognizer, or SwiftUI
+        // never resolves the double-click and only the single-tap ever fires. SwiftUI's
+        // count:2 gesture doesn't carry modifier flags, but that's fine: double-click
+        // pastes is defined as a no-modifier gesture — modifier-click multi-select is
+        // inherently a single-click action (see `ShelfViewModel.handleCardClick`).
+        .onTapGesture(count: 2) { onDoubleClick() }
+        .onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
     }
 
     private var header: some View {

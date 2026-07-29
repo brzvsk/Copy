@@ -50,6 +50,7 @@ final class SettingsStore {
     static let hideDuringScreenSharingKey = "hideDuringScreenSharing"
     static let compactShelfKey = "compactShelf"
     static let hideMenuBarIconKey = "hideMenuBarIcon"
+    static let doubleClickToPasteKey = "doubleClickToPaste"
 
     var retention: RetentionPeriod {
         didSet {
@@ -120,6 +121,19 @@ final class SettingsStore {
         }
     }
 
+    /// When true, a plain click on a shelf card only selects it (no paste) — pasting
+    /// takes a double-click or ⏎. Defaults to true: this is the safer default, since a
+    /// stray single click can no longer paste a card into whatever app is frontmost.
+    /// Read live at click time via `ShelfViewModel.settings` (both `@Observable`), so
+    /// there's no change-hook to wire — unlike `compactShelf`/`hideMenuBarIcon`, nothing
+    /// outside SwiftUI needs to react to this changing.
+    var doubleClickToPaste: Bool {
+        didSet {
+            guard doubleClickToPaste != oldValue else { return }
+            defaults.set(doubleClickToPaste, forKey: Self.doubleClickToPasteKey)
+        }
+    }
+
     @ObservationIgnored var onRulesChange: ((Set<String>) -> Void)?
     @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
     @ObservationIgnored var onCompactShelfChange: ((Bool) -> Void)?
@@ -147,6 +161,7 @@ final class SettingsStore {
         hideDuringScreenSharing = (defaults.object(forKey: Self.hideDuringScreenSharingKey) as? Bool) ?? false
         compactShelf = (defaults.object(forKey: Self.compactShelfKey) as? Bool) ?? false
         hideMenuBarIcon = (defaults.object(forKey: Self.hideMenuBarIconKey) as? Bool) ?? false
+        doubleClickToPaste = (defaults.object(forKey: Self.doubleClickToPasteKey) as? Bool) ?? true
         if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             excludedBundleIDs = decoded.sorted()

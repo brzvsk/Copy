@@ -51,6 +51,20 @@ struct GeneralSettings: View {
             }
 
             Section {
+                Picker("Clicking a Card", selection: $settings.doubleClickToPaste) {
+                    Text("Selects").tag(true)
+                    Text("Pastes").tag(false)
+                }
+                .pickerStyle(.segmented)
+            } footer: {
+                Text(settings.doubleClickToPaste
+                     ? "A single click selects a card. Double-click it or press Return to paste."
+                     : "A single click selects and immediately pastes a card.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Toggle("Launch at Login", isOn: launchAtLoginBinding)
             } footer: {
                 if let launchAtLoginError {
