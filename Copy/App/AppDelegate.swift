@@ -108,6 +108,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let clear = NSMenuItem(title: "Clear History…", action: #selector(clearHistory), keyEquivalent: "")
         clear.target = self
         menu.addItem(clear)
+        let export = NSMenuItem(title: "Export…", action: #selector(exportHistory), keyEquivalent: "")
+        export.target = self
+        menu.addItem(export)
+        let importItem = NSMenuItem(title: "Import…", action: #selector(importHistory), keyEquivalent: "")
+        importItem.target = self
+        menu.addItem(importItem)
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
@@ -142,6 +148,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func togglePause() {
         coordinator.togglePause()
+    }
+
+    @objc private func exportHistory() {
+        coordinator.exportHistory()
+    }
+
+    @objc private func importHistory() {
+        coordinator.importHistory()
     }
 
     @objc private func openSettings() {

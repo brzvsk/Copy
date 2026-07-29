@@ -393,6 +393,51 @@ public struct ItemStore {
             try ClipItem.filter(Column("id") == id).fetchOne(db)?.recognizedText
         }
     }
+
+    /// Looks up a single item by its content hash — used by `ArchiveIO.importArchive`
+    /// to resolve a pinboard's archived member hashes back to item ids in the target
+    /// store after those items have been (re-)inserted.
+    public func item(contentHash: String) throws -> ClipItem? {
+        try writer.read { db in
+            try ClipItem.filter(Column("contentHash") == contentHash).fetchOne(db)
+        }
+    }
+
+    /// Inserts an item reconstructed from an exported archive (`ArchiveIO`), preserving
+    /// its original timestamps, title, favorite flag, and recognized text so a restored
+    /// history is indistinguishable from the original. Dedups by content hash like
+    /// `save`/`createTextItem`: if an item with the same hash already exists, this is a
+    /// no-op and returns `false` — the property that makes re-importing the same
+    /// archive idempotent.
+    @discardableResult
+    public func importArchived(_ archived: ArchivedItem) throws -> Bool {
+        guard let kind = ItemKind(rawValue: archived.kind) else {
+            throw ArchiveError.unknownItemKind(archived.kind)
+        }
+        let reps = archived.representations.compactMap { rep -> CapturedRepresentation? in
+            guard let data = Data(base64Encoded: rep.dataBase64) else { return nil }
+            return CapturedRepresentation(uti: rep.uti, data: data)
+        }
+        return try writer.write { db in
+            guard try ClipItem.filter(Column("contentHash") == archived.contentHash).fetchOne(db) == nil else {
+                return false
+            }
+            var item = ClipItem(
+                id: nil, uuid: UUID().uuidString, kind: kind,
+                createdAt: archived.createdAt, lastUsedAt: archived.lastUsedAt,
+                plainText: archived.plainText, linkTitle: nil,
+                appBundleID: archived.appBundleID, appName: archived.appName,
+                contentHash: archived.contentHash,
+                sizeBytes: reps.reduce(0) { $0 + $1.data.count },
+                isFavorite: archived.isFavorite,
+                title: archived.title,
+                recognizedText: archived.recognizedText
+            )
+            try item.insert(db)
+            try insertRepresentations(reps, itemID: item.id!, in: db)
+            return true
+        }
+    }
 }
 
 public final class ObservationToken {

@@ -18,6 +18,7 @@ final class AppCoordinator {
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore)
     private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
     private(set) lazy var ocrController = OCRController(store: store)
+    private(set) lazy var archiveController = ArchiveController(store: store, pinboardStore: pinboardStore)
 
     /// Assigned eagerly in `init()` (from a local, not `self.pasteStackModel`) so the
     /// monitor's `onCapture` closure can capture it directly for the auto-enqueue-while-
@@ -436,6 +437,19 @@ final class AppCoordinator {
         } catch {
             NSLog("Copy: failed to clear history: \(error)")
         }
+    }
+
+    /// "Export…" status-menu action — writes the full history and pinboards to a
+    /// user-chosen `.json` file via `ArchiveController`.
+    func exportHistory() {
+        archiveController.exportHistory()
+    }
+
+    /// "Import…" status-menu action — restores history and pinboards from a
+    /// user-chosen `.json` backup file via `ArchiveController`, deduping by content
+    /// hash so re-importing the same file never creates duplicates.
+    func importHistory() {
+        archiveController.importHistory()
     }
 
     /// Puts the item on the clipboard and pastes it into the frontmost app.
