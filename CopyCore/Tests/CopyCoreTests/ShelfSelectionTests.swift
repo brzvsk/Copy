@@ -16,10 +16,10 @@ final class ShelfSelectionTests: XCTestCase {
     func testCommandClickToggles() {
         var sel = ShelfSelection()
         sel.click("a")
-        sel.commandClick("c")
+        sel.commandClick("c", in: order)
         XCTAssertEqual(sel.selected, ["a", "c"])
         XCTAssertEqual(sel.primary, "c")
-        sel.commandClick("c")
+        sel.commandClick("c", in: order)
         XCTAssertEqual(sel.selected, ["a"])
         XCTAssertEqual(sel.primary, "a")
     }
@@ -37,7 +37,7 @@ final class ShelfSelectionTests: XCTestCase {
     func testMoveCollapsesAndClamps() {
         var sel = ShelfSelection()
         sel.click("b")
-        sel.commandClick("d")
+        sel.commandClick("d", in: order)
         sel.move(1, in: order)
         XCTAssertEqual(sel.selected, ["e"])
         XCTAssertEqual(sel.primary, "e")
@@ -57,20 +57,35 @@ final class ShelfSelectionTests: XCTestCase {
     func testOrderedSelection() {
         var sel = ShelfSelection()
         sel.click("d")
-        sel.commandClick("a")
-        sel.commandClick("c")
+        sel.commandClick("a", in: order)
+        sel.commandClick("c", in: order)
         XCTAssertEqual(sel.orderedSelection(in: order), ["a", "c", "d"])
     }
 
     func testPruneDropsVanishedAndReanchorsPrimary() {
         var sel = ShelfSelection()
         sel.click("b")
-        sel.commandClick("c")
+        sel.commandClick("c", in: order)
         sel.prune(existing: ["a", "c", "d", "e"], order: ["a", "c", "d", "e"])
         XCTAssertEqual(sel.selected, ["c"])
         XCTAssertEqual(sel.primary, "c")
         sel.prune(existing: [], order: [])
         XCTAssertNil(sel.primary)
         XCTAssertTrue(sel.selected.isEmpty)
+    }
+
+    func testCommandClickDeterminismWithMultipleDeselections() {
+        let order = ["a", "b", "c"]
+        var sel = ShelfSelection()
+        sel.click("b")
+        sel.commandClick("c", in: order)
+        XCTAssertEqual(sel.selected, ["b", "c"])
+        XCTAssertEqual(sel.primary, "c")
+        sel.commandClick("a", in: order)
+        XCTAssertEqual(sel.selected, ["a", "b", "c"])
+        XCTAssertEqual(sel.primary, "a")
+        sel.commandClick("a", in: order)
+        XCTAssertEqual(sel.selected, ["b", "c"])
+        XCTAssertEqual(sel.primary, "b")
     }
 }

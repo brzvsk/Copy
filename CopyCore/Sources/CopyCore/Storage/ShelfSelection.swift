@@ -14,10 +14,10 @@ public struct ShelfSelection: Equatable, Sendable {
         selected = [uuid]
     }
 
-    public mutating func commandClick(_ uuid: String) {
+    public mutating func commandClick(_ uuid: String, in order: [String]) {
         if selected.contains(uuid) {
             selected.remove(uuid)
-            if primary == uuid { primary = selected.first }
+            if primary == uuid { primary = order.first(where: { selected.contains($0) }) }
         } else {
             selected.insert(uuid)
             primary = uuid

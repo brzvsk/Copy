@@ -96,7 +96,7 @@ final class ShelfViewModel {
         if modifiers.contains(.shift) {
             selection.shiftClick(item.uuid, in: items.map(\.uuid))
         } else if modifiers.contains(.command) {
-            selection.commandClick(item.uuid)
+            selection.commandClick(item.uuid, in: items.map(\.uuid))
         } else {
             selection.click(item.uuid)
             requestPaste(item, plain: false)
