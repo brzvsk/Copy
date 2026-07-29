@@ -129,6 +129,12 @@ private struct ShelfTabs: View {
                 }
             }
         }
+        .onChange(of: createPresented) { _, isPresented in
+            viewModel.pinboardPopoverShown = isPresented || renamingPinboard != nil
+        }
+        .onChange(of: renamingPinboard) { _, newValue in
+            viewModel.pinboardPopoverShown = createPresented || newValue != nil
+        }
     }
 
     /// Matches the existing `NSAlert` confirm pattern (`AppDelegate.clearHistory`), with
@@ -238,7 +244,7 @@ private struct ShelfItemsRow: View {
                                 onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
                                 onPaste: { viewModel.requestPaste(item, plain: false) },
                                 onPastePlain: { viewModel.requestPaste(item, plain: true) },
-                                onEdit: { viewModel.beginEdit() },
+                                onEdit: { viewModel.beginEdit(item) },
                                 onToggleFavorite: { viewModel.toggleFavorite(item) },
                                 onAddToPinboard: { id in viewModel.addItem(item, toPinboard: id) },
                                 onRemoveFromPinboard: {

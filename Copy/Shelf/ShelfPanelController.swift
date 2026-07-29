@@ -97,6 +97,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        if NSApp.modalWindow != nil { return }
         if let key = NSApp.keyWindow, let panel, panel.childWindows?.contains(key) == true {
             return
         }

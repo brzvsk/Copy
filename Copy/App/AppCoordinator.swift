@@ -29,7 +29,7 @@ final class AppCoordinator {
             // space, escape, return) instead of the shelf's global shortcuts — this
             // monitor is app-wide and fires before the sheet's responder chain would see
             // the event otherwise.
-            guard viewModel.editingItem == nil else { return false }
+            guard viewModel.editingItem == nil, !viewModel.pinboardPopoverShown else { return false }
             // ⌘1 → history tab, ⌘2...⌘9 → nth pinboard. Checked before keyCode routing
             // so the digit keys never fall through to other handlers.
             if event.modifierFlags.contains(.command),

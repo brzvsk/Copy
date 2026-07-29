@@ -35,6 +35,7 @@ final class ShelfViewModel {
     var selection = ShelfSelection()
     var previewShown = false
     var editingItem: ClipItem?
+    var pinboardPopoverShown = false
 
     @ObservationIgnored var onPaste: ((ClipItem, Bool) -> Void)?
     @ObservationIgnored var onPasteMultiple: ((String) -> Void)?
@@ -117,7 +118,16 @@ final class ShelfViewModel {
             if let item = picked.first ?? primaryItem { requestPaste(item, plain: plain) }
             return
         }
-        let joined = picked.map { $0.plainText ?? "" }.joined(separator: "\n")
+        let filtered = picked.filter { isEditableKind($0.kind) || $0.kind == .color }
+        guard !filtered.isEmpty else {
+            HUD.show("No text in selection")
+            return
+        }
+        if filtered.count == 1 {
+            requestPaste(filtered[0], plain: plain)
+            return
+        }
+        let joined = filtered.map { $0.plainText ?? "" }.joined(separator: "\n")
         onPasteMultiple?(joined)
     }
 
@@ -260,11 +270,12 @@ final class ShelfViewModel {
         }
     }
 
-    /// Called from a card's "Edit…" context menu item and the ⌘E shortcut. No-ops for
-    /// kinds `EditItemSheet` can't meaningfully edit (mirrors `ItemCardView.isEditable`).
-    func beginEdit() {
-        guard let item = primaryItem, isEditableKind(item.kind) else { return }
-        editingItem = item
+    /// Called from a card's "Edit…" context menu item (with that card's item) and the
+    /// ⌘E shortcut (parameterless, targets the primary selection). No-ops for kinds
+    /// `EditItemSheet` can't meaningfully edit (mirrors `ItemCardView.isEditable`).
+    func beginEdit(_ item: ClipItem? = nil) {
+        guard let target = item ?? primaryItem, isEditableKind(target.kind) else { return }
+        editingItem = target
     }
 
     /// Saves edited text from `EditItemSheet`, then dismisses it either way.
@@ -290,6 +301,7 @@ final class ShelfViewModel {
         items = new
         let order = items.map(\.uuid)
         selection.prune(existing: Set(order), order: order)
+        if selection.selected.isEmpty, let first = items.first { selection.click(first.uuid) }
     }
 
     /// Builds the drag payload for a card: its native representations (so dragging out
