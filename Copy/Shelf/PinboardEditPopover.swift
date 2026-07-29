@@ -18,12 +18,105 @@ struct PinboardEditPopover: View {
         "archivebox", "calendar", "person", "globe", "lightbulb", "heart",
     ]
 
-    /// `nil` represents "no emoji" (falls back to the SF Symbol in the tab).
-    static let emojiOptions: [String?] = [
-        nil, "📌", "⭐️", "💼", "📁", "🎨",
-        "📚", "🔗", "💡", "❤️", "🏷️", "🛒",
-        "💳", "🔑", "📝", "🖼️", "🌐",
+    /// Curated emoji categories for the full picker, modeled on the standard system
+    /// character-viewer groupings. Not exhaustive (Unicode defines thousands of
+    /// emoji) but broad enough that any commonly used emoji, including ZWJ sequences
+    /// (family, professions, flags) and skin-tone variants, is reachable without
+    /// leaving the popover. "No emoji" is a separate Clear affordance below, not a
+    /// grid entry.
+    private struct EmojiCategory {
+        let name: String
+        let symbol: String
+        let emojis: [String]
+    }
+
+    private static let emojiCategories: [EmojiCategory] = [
+        EmojiCategory(name: "Smileys & People", symbol: "face.smiling", emojis: [
+            "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃",
+            "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😋", "😜", "🤪",
+            "🤗", "🤔", "🤨", "😐", "🙄", "😏", "😴", "🤒", "🤕", "🥵",
+            "🥶", "😵", "🤠", "🥳", "😎", "🤓", "😕", "🙁", "😮", "😲",
+            "😢", "😭", "😱", "😡", "🤬", "😈", "💀", "👻", "🤖", "🎃",
+            "👋", "🤝", "👍", "👍🏽", "👎", "👏", "🙌", "🙏", "💪", "👶",
+            "🧑‍💻", "👨‍👩‍👧‍👦", "❤️", "💔",
+        ]),
+        EmojiCategory(name: "Animals & Nature", symbol: "pawprint", emojis: [
+            "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
+            "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🐤", "🦆",
+            "🦅", "🦉", "🦇", "🐺", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌",
+            "🐞", "🐢", "🐍", "🦎", "🐙", "🦑", "🦀", "🐠", "🐟", "🐬",
+            "🐳", "🐋", "🦈", "🐘", "🦒", "🦓", "🐪", "🐐", "🐑", "🐄",
+            "🌵", "🌲", "🌳", "🌴", "🌱", "🍀", "🌸", "🌻", "🌹", "🍁",
+        ]),
+        EmojiCategory(name: "Food & Drink", symbol: "fork.knife", emojis: [
+            "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐",
+            "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", "🥑", "🥦", "🥕",
+            "🌽", "🥔", "🍞", "🥐", "🧀", "🥚", "🍳", "🥞", "🥓", "🍔",
+            "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🍝", "🍜", "🍣", "🍱",
+            "🍤", "🍙", "🍦", "🍩", "🍪", "🎂", "🍰", "🍫", "🍿", "🍯",
+            "☕️", "🍵", "🍺", "🍷", "🍸", "🥂", "🧃", "🥛",
+        ]),
+        EmojiCategory(name: "Activity", symbol: "sportscourt", emojis: [
+            "⚽️", "🏀", "🏈", "⚾️", "🥎", "🎾", "🏐", "🏉", "🎱", "🏓",
+            "🏸", "🥊", "🥋", "⛳️", "🏹", "🎣", "🥌", "🎿", "⛷️", "🏂",
+            "🏋️", "🤼", "🤸", "⛹️", "🤺", "🏇", "🧘", "🏄", "🏊", "🚴",
+            "🚵", "🏆", "🥇", "🥈", "🥉", "🎖️", "🎗️", "🎫", "🎪", "🎭",
+            "🎨", "🎬", "🎤", "🎧", "🎼", "🎹", "🥁", "🎷", "🎸", "🎻",
+            "🎲", "♟️", "🎯", "🎳", "🎮", "🕹️",
+        ]),
+        EmojiCategory(name: "Travel & Places", symbol: "car", emojis: [
+            "🚗", "🚕", "🚙", "🚌", "🏎️", "🚓", "🚑", "🚒", "🚚", "🚲",
+            "🛵", "🏍️", "🚨", "🚂", "🚆", "🚇", "🚊", "✈️", "🛫", "🛬",
+            "🛩️", "🚀", "🛸", "🚁", "⛵️", "🚤", "🛳️", "⛴️", "🚢", "⚓️",
+            "🚧", "🚦", "🚥", "🗺️", "🗽", "🗼", "🏰", "🏯", "🎡", "🎢",
+            "🎠", "⛲️", "🏖️", "🏝️", "🏜️", "🌋", "⛰️", "🏔️", "🗻", "🏕️",
+            "🏠", "🏢", "🏬", "🏥", "🏦", "🏨", "⛪️", "🕌", "🕍", "🛕",
+        ]),
+        EmojiCategory(name: "Objects", symbol: "lightbulb", emojis: [
+            "⌚️", "📱", "💻", "⌨️", "🖥️", "🖨️", "🖱️", "🕹️", "💽", "💾",
+            "📷", "📸", "🎥", "📞", "☎️", "📺", "📻", "🎙️", "🧭", "⏰",
+            "⏳", "🔋", "🔌", "💡", "🔦", "🕯️", "🧯", "💸", "💵", "💳",
+            "💎", "🧰", "🔧", "🔨", "🛠️", "⚙️", "🔩", "⛓️", "🔫", "🧲",
+            "🔭", "🔬", "💊", "🩹", "🩺", "🚪", "🪞", "🛏️", "🛋️", "🪑",
+            "🚽", "🚿", "🛁", "🧴", "🧹", "🧺", "🧻", "🧼", "🧽", "🛒",
+        ]),
+        EmojiCategory(name: "Symbols", symbol: "number", emojis: [
+            "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔",
+            "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "☮️", "✝️",
+            "☪️", "🕉️", "☸️", "✡️", "🔯", "☯️", "🔀", "🔁", "🔂", "▶️",
+            "⏸️", "⏹️", "⏭️", "⏮️", "⏩", "⏪", "🔼", "🔽", "➡️", "⬅️",
+            "⬆️", "⬇️", "↔️", "🔄", "➕", "➖", "➗", "✖️", "♾️", "‼️",
+            "⁉️", "❓", "❗", "✅", "❌", "♻️", "©️", "®️", "™️", "🔟",
+        ]),
+        EmojiCategory(name: "Flags", symbol: "flag", emojis: [
+            "🏁", "🚩", "🎌", "🏳️", "🏳️‍🌈", "🏴‍☠️", "🇺🇸", "🇬🇧", "🇨🇦", "🇦🇺",
+            "🇩🇪", "🇫🇷", "🇮🇹", "🇪🇸", "🇵🇹", "🇧🇷", "🇲🇽", "🇯🇵", "🇰🇷", "🇨🇳",
+            "🇮🇳", "🇷🇺", "🇳🇱", "🇸🇪", "🇳🇴", "🇩🇰", "🇫🇮", "🇨🇭", "🇮🇪", "🇵🇱",
+        ]),
     ]
+
+    /// Reduces arbitrary text to a single emoji grapheme cluster. Swift's `Character`
+    /// already treats a full ZWJ sequence (family, professions), a flag (regional
+    /// indicator pair), or a skin-tone-modified emoji as one element, so taking the
+    /// first `Character` and re-wrapping it as a `String` guarantees the store never
+    /// receives more than one visual emoji. Empty input becomes `nil` ("no emoji",
+    /// falls back to the SF Symbol), matching M6's schema.
+    private static func singleGrapheme(_ text: String) -> String? {
+        text.first.map(String.init)
+    }
+
+    /// In-memory "recently used" convenience (session-only, not persisted); resets on
+    /// relaunch, which is fine for a lightweight discovery aid.
+    private static var recentEmojis: [String] = []
+
+    private static func recordRecent(_ emoji: String?) {
+        guard let emoji, !emoji.isEmpty else { return }
+        recentEmojis.removeAll { $0 == emoji }
+        recentEmojis.insert(emoji, at: 0)
+        if recentEmojis.count > 12 {
+            recentEmojis.removeLast(recentEmojis.count - 12)
+        }
+    }
 
     /// A curated, system-ish palette. Empty hex means "no color".
     static let colorOptions: [(name: String, hex: String)] = [
@@ -46,6 +139,7 @@ struct PinboardEditPopover: View {
     @State private var symbol: String
     @State private var emoji: String?
     @State private var tint: String
+    @State private var emojiCategoryIndex = 0
     @FocusState private var nameFocused: Bool
 
     init(mode: Mode, onCommit: @escaping (String, String, String?, String) -> Void) {
@@ -74,6 +168,32 @@ struct PinboardEditPopover: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Tabs shown above the emoji grid: a "Recent" tab first when there's history
+    /// from earlier in this app session, followed by the fixed category list.
+    private var emojiCategoryTabs: [(name: String, symbol: String)] {
+        var tabs: [(name: String, symbol: String)] = []
+        if !Self.recentEmojis.isEmpty {
+            tabs.append(("Recent", "clock"))
+        }
+        tabs.append(contentsOf: Self.emojiCategories.map { ($0.name, $0.symbol) })
+        return tabs
+    }
+
+    private var currentCategoryEmojis: [String] {
+        if !Self.recentEmojis.isEmpty {
+            if emojiCategoryIndex == 0 { return Self.recentEmojis }
+            return Self.categoryEmojis(at: emojiCategoryIndex - 1)
+        }
+        return Self.categoryEmojis(at: emojiCategoryIndex)
+    }
+
+    /// Bounds-checked access into `emojiCategories`; returns an empty grid rather
+    /// than crashing if the index is ever momentarily out of range.
+    private static func categoryEmojis(at index: Int) -> [String] {
+        guard emojiCategories.indices.contains(index) else { return [] }
+        return emojiCategories[index].emojis
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             TextField("Pinboard Name", text: $name)
@@ -95,16 +215,49 @@ struct PinboardEditPopover: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Emoji")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 6), spacing: 6) {
-                    ForEach(Self.emojiOptions, id: \.self) { candidate in
-                        EmojiSwatch(emoji: candidate, isSelected: candidate == emoji) {
-                            emoji = candidate
+                HStack {
+                    Text("Emoji")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let currentEmoji = emoji {
+                        Text(currentEmoji)
+                            .font(.system(size: 16))
+                        Button("Clear") { emoji = nil }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .foregroundStyle(Color.accentColor)
+                    } else {
+                        Text("None")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(emojiCategoryTabs.indices, id: \.self) { index in
+                            EmojiCategoryTab(
+                                symbol: emojiCategoryTabs[index].symbol,
+                                name: emojiCategoryTabs[index].name,
+                                isSelected: index == emojiCategoryIndex
+                            ) {
+                                emojiCategoryIndex = index
+                            }
                         }
                     }
                 }
+
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 6), spacing: 6) {
+                        ForEach(currentCategoryEmojis, id: \.self) { candidate in
+                            EmojiSwatch(emoji: candidate, isSelected: candidate == emoji) {
+                                emoji = Self.singleGrapheme(candidate)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 168)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -129,12 +282,13 @@ struct PinboardEditPopover: View {
             }
         }
         .padding(14)
-        .frame(width: 260)
+        .frame(width: 280)
         .onAppear { nameFocused = true }
     }
 
     private func commit() {
         guard !trimmedName.isEmpty else { return }
+        Self.recordRecent(emoji)
         onCommit(trimmedName, symbol, emoji, tint)
         dismiss()
     }
@@ -205,6 +359,34 @@ private struct EmojiSwatch: View {
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
         .accessibilityLabel(accessibleName)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// A small category tab above the emoji grid (Recent + the standard groupings).
+/// Icon-only with a tooltip, mirroring `SymbolSwatch`'s selection styling.
+private struct EmojiCategoryTab: View {
+    let symbol: String
+    let name: String
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12))
+                .foregroundStyle(isSelected ? Color.white : Color.primary.opacity(0.7))
+                .frame(width: 24, height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(isSelected ? Color.accentColor : (isHovering ? Color.primary.opacity(0.08) : .clear))
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help(name)
+        .accessibilityLabel(name)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
