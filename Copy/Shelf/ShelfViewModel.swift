@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import CopyCore
 import Observation
 import UniformTypeIdentifiers
@@ -36,6 +37,14 @@ final class ShelfViewModel {
     var previewShown = false
     var editingItem: ClipItem?
     var pinboardPopoverShown = false
+
+    /// Backs `ShelfRootView`'s permission banner. The shelf panel + its SwiftUI content
+    /// are created once and reused for the app's lifetime (see
+    /// `AppCoordinator.shelfController`), so this can't just be read in `.onAppear` —
+    /// that would only ever reflect whatever was true the very first time the shelf
+    /// ever appeared. `AppCoordinator.toggleShelf()` calls `refreshPermissionState()`
+    /// right before showing the panel instead, so every open reflects live state.
+    var accessibilityTrusted = AXIsProcessTrusted()
 
     @ObservationIgnored var onPaste: ((ClipItem, Bool) -> Void)?
     @ObservationIgnored var onPasteMultiple: ((String) -> Void)?
@@ -95,6 +104,13 @@ final class ShelfViewModel {
         if let first = items.first { selection.click(first.uuid) } else { selection.reset() }
         editingItem = nil
         if !query.isEmpty { query = "" }
+    }
+
+    /// Called by `AppCoordinator.toggleShelf()` right before showing the panel — see
+    /// the `accessibilityTrusted` doc comment for why a one-time `.onAppear` read isn't
+    /// enough.
+    func refreshPermissionState() {
+        accessibilityTrusted = AXIsProcessTrusted()
     }
 
     func handleCardClick(_ item: ClipItem, modifiers: NSEvent.ModifierFlags) {

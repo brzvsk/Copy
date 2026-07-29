@@ -231,7 +231,14 @@ final class AppCoordinator {
         onboardingWindowController.show()
     }
 
+    /// Refreshes the shelf's live permission state before showing it (not on hide) —
+    /// `shelfViewModel`/`shelfController` are both created once and reused for the
+    /// app's lifetime, so without this the permission banner would only ever reflect
+    /// whatever was true the very first time the shelf ever appeared.
     func toggleShelf() {
+        if !shelfController.isVisible {
+            shelfViewModel.refreshPermissionState()
+        }
         shelfController.toggle()
     }
 

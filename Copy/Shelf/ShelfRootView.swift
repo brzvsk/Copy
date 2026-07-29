@@ -1,20 +1,20 @@
 import SwiftUI
 import CopyCore
 import AppKit
-import ApplicationServices
 import UniformTypeIdentifiers
 
 struct ShelfRootView: View {
     @Bindable var viewModel: ShelfViewModel
-    @State private var accessibilityTrusted = true
     @State private var permissionBannerDismissed = false
 
-    /// The shelf panel is created once and reused for the app's lifetime (see
-    /// `AppCoordinator.shelfController`), so `onAppear` below only fires on the
-    /// panel's first-ever show — matching the "read once" intent here rather than
-    /// re-checking on every toggle.
+    /// Reads `viewModel.accessibilityTrusted` rather than checking `AXIsProcessTrusted()`
+    /// itself, since the shelf panel + this view are created once and reused for the
+    /// app's lifetime — a one-time `.onAppear` read here would only ever reflect
+    /// whatever was true the very first time the shelf ever appeared. `AppCoordinator`
+    /// refreshes that state on every shelf open (see `ShelfViewModel.refreshPermissionState()`),
+    /// so once access is granted, the next open simply stops showing the banner.
     private var showsPermissionBanner: Bool {
-        !accessibilityTrusted && !permissionBannerDismissed
+        !viewModel.accessibilityTrusted && !permissionBannerDismissed
     }
 
     var body: some View {
@@ -34,9 +34,6 @@ struct ShelfRootView: View {
                 onCancel: { viewModel.editingItem = nil },
                 onSave: { viewModel.commitEdit($0) }
             )
-        }
-        .onAppear {
-            accessibilityTrusted = AXIsProcessTrusted()
         }
     }
 }
