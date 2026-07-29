@@ -26,5 +26,13 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Tarik Caramanico - GPL-3.0</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://tarikbc.github.io/Copy/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>PLACEHOLDER_REPLACE_AT_KEYGEN</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

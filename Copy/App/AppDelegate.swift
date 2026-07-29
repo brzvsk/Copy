@@ -1,6 +1,7 @@
 import AppKit
 import CopyCore
 import KeyboardShortcuts
+import Sparkle
 
 extension KeyboardShortcuts.Name {
     static let toggleShelf = Self("toggleShelf", initial: .init(.v, modifiers: [.command, .shift]))
@@ -12,6 +13,9 @@ extension KeyboardShortcuts.Name {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var coordinator: AppCoordinator!
+    private let updaterController = SPUStandardUpdaterController(startingUpdater: true,
+                                                                   updaterDelegate: nil,
+                                                                   userDriverDelegate: nil)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -97,6 +101,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         pasteStack.target = self
         pasteStack.state = coordinator.isPasteStackActive ? .on : .off
         menu.addItem(pasteStack)
+        let checkForUpdates = NSMenuItem(title: "Check for Updates…",
+                                         action: #selector(checkForUpdates(_:)),
+                                         keyEquivalent: "")
+        checkForUpdates.target = self
+        menu.addItem(checkForUpdates)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Copy",
                                 action: #selector(NSApplication.terminate(_:)),
@@ -118,6 +127,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openSettings() {
         coordinator.openSettings()
+    }
+
+    @objc private func checkForUpdates(_ sender: Any?) {
+        updaterController.checkForUpdates(sender)
     }
 
     @objc private func togglePasteStack() {

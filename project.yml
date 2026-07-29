@@ -10,6 +10,9 @@ packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 3.0.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.0
 targets:
   Copy:
     type: application
@@ -20,6 +23,7 @@ targets:
     dependencies:
       - package: CopyCore
       - package: KeyboardShortcuts
+      - package: Sparkle
     scheme:
       testTargets: []
     info:
@@ -31,6 +35,13 @@ targets:
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "© 2026 Tarik Caramanico - GPL-3.0"
+        # Sparkle auto-update feed. SUPublicEDKey is a placeholder until the
+        # human-gated keygen step runs `generate_keys` and pastes the real
+        # public key here — see Scripts/sparkle-keys-README.md.
+        SUFeedURL: https://tarikbc.github.io/Copy/appcast.xml
+        SUPublicEDKey: "PLACEHOLDER_REPLACE_AT_KEYGEN"
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tarikbc.Copy
