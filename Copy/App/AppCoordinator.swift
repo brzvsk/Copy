@@ -7,12 +7,17 @@ import SwiftUI
 final class AppCoordinator {
     let store: ItemStore
     let pinboardStore: PinboardStore
+    let settings: SettingsStore
     private let monitor: ClipboardMonitor
     private let pasteService: PasteService
     private let persistQueue = DispatchQueue(label: "com.tarikbc.copy.persist", qos: .utility)
     private let saveErrors = SaveErrorReporter()
+    private var retentionTimer: DispatchSourceTimer?
     private(set) var isPaused = false
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore)
+
+    /// How often the retention pruner re-runs while the app stays open.
+    private static let retentionInterval: TimeInterval = 12 * 60 * 60
 
     private lazy var shelfController: ShelfPanelController = {
         let controller = ShelfPanelController { [weak self] in
@@ -107,10 +112,12 @@ final class AppCoordinator {
         self.pinboardStore = PinboardStore(writer: database.writer)
         self.pasteService = PasteService(pasteboard: NSPasteboard.general,
                                          keyPoster: CGKeyEventPoster())
+        let settings = SettingsStore()
+        self.settings = settings
         let reporter = saveErrors
         self.monitor = ClipboardMonitor(
             pasteboard: NSPasteboard.general,
-            rules: RulesEngine(),
+            rules: RulesEngine(excludedBundleIDs: Set(settings.excludedBundleIDs)),
             frontmostApp: {
                 let app = NSWorkspace.shared.frontmostApplication
                 return (app?.bundleIdentifier, app?.localizedName)
@@ -125,10 +132,52 @@ final class AppCoordinator {
                 }
             }
         )
+        settings.onRulesChange = { [weak self] excludedBundleIDs in
+            self?.monitor.rules = RulesEngine(excludedBundleIDs: excludedBundleIDs)
+        }
     }
 
     func start() {
         monitor.start()
+        runRetentionPrune()
+        scheduleRetentionTimer()
+    }
+
+    /// Prunes items past the configured retention window on the persist queue,
+    /// always sparing favorites and pinboard members (`ItemStore.prune` invariant).
+    private func runRetentionPrune() {
+        let cutoff = settings.retention.cutoff
+        let store = self.store
+        persistQueue.async {
+            do {
+                let deleted = try store.prune(olderThan: cutoff, maxItems: nil)
+                if deleted > 0 {
+                    NSLog("Copy: retention pruning removed \(deleted) item(s)")
+                }
+            } catch {
+                NSLog("Copy: retention pruning failed: \(error)")
+            }
+        }
+    }
+
+    private func scheduleRetentionTimer() {
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + Self.retentionInterval, repeating: Self.retentionInterval)
+        timer.setEventHandler { [weak self] in self?.runRetentionPrune() }
+        timer.resume()
+        retentionTimer = timer
+    }
+
+    /// Activates the app and opens the SwiftUI Settings scene. `showSettingsWindow:`
+    /// is the macOS 14+ selector for the `Settings` scene's default handler; if no
+    /// responder implements it (e.g. before the Settings scene exists), this is a
+    /// silent no-op and we just log it for diagnosis.
+    func openSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+        let handled = NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        if !handled {
+            NSLog("Copy: showSettingsWindow: was not handled by the responder chain")
+        }
     }
 
     func toggleShelf() {

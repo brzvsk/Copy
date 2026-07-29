@@ -4,6 +4,8 @@ import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
     static let toggleShelf = Self("toggleShelf", initial: .init(.v, modifiers: [.command, .shift]))
+    static let togglePasteStack = Self("togglePasteStack", initial: .init(.v, modifiers: [.control, .option, .command]))
+    static let pasteNextFromStack = Self("pasteNextFromStack", initial: .init(.n, modifiers: [.control, .option, .command]))
 }
 
 @MainActor
@@ -69,6 +71,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let clear = NSMenuItem(title: "Clear History…", action: #selector(clearHistory), keyEquivalent: "")
         clear.target = self
         menu.addItem(clear)
+        let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        settings.target = self
+        menu.addItem(settings)
+        // Placeholder until the Paste Stack palette lands; visibly "coming soon" rather than absent.
+        let pasteStack = NSMenuItem(title: "Paste Stack", action: nil, keyEquivalent: "")
+        pasteStack.isEnabled = false
+        menu.addItem(pasteStack)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Copy",
                                 action: #selector(NSApplication.terminate(_:)),
@@ -86,6 +95,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func togglePause() {
         coordinator.togglePause()
+    }
+
+    @objc private func openSettings() {
+        coordinator.openSettings()
     }
 
     @objc private func clearHistory() {
