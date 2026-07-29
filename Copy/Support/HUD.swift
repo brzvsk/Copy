@@ -4,7 +4,11 @@ import AppKit
 enum HUD {
     private static var window: NSPanel?
 
-    static func show(_ message: String, duration: TimeInterval = 1.4) {
+    static func show(
+        _ message: String,
+        on screen: NSScreen? = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }) ?? .main,
+        duration: TimeInterval = 1.4
+    ) {
         window?.orderOut(nil)
 
         let label = NSTextField(labelWithString: message)
@@ -35,7 +39,7 @@ enum HUD {
         effect.addSubview(label)
         panel.contentView = effect
 
-        if let screen = NSScreen.main {
+        if let screen {
             panel.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - size.width / 2,
                                          y: screen.visibleFrame.minY + 120))
         }

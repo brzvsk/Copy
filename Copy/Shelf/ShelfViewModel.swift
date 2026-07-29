@@ -88,6 +88,7 @@ final class ShelfViewModel {
     func clearTransientState() {
         previewShown = false
         selection.reset()
+        editingItem = nil
         if !query.isEmpty { query = "" }
     }
 
@@ -123,21 +124,36 @@ final class ShelfViewModel {
     func deleteSelection() {
         for item in orderedSelectedItems {
             guard let id = item.id else { continue }
-            try? store.delete(itemID: id)
+            do {
+                try store.delete(itemID: id)
+            } catch {
+                NSLog("Copy: failed to delete item: \(error)")
+                HUD.show("Couldn't complete that")
+            }
         }
         if !query.isEmpty { refresh() }
     }
 
     func toggleFavoritePrimary() {
         guard let item = primaryItem, let id = item.id else { return }
-        try? store.setFavorite(itemID: id, !item.isFavorite)
+        do {
+            try store.setFavorite(itemID: id, !item.isFavorite)
+        } catch {
+            NSLog("Copy: failed to toggle favorite: \(error)")
+            HUD.show("Couldn't complete that")
+        }
         if !query.isEmpty { refresh() }
     }
 
     func addSelection(toPinboard id: Int64) {
         for item in orderedSelectedItems {
             guard let itemID = item.id else { continue }
-            try? pinboardStore.add(itemID: itemID, to: id)
+            do {
+                try pinboardStore.add(itemID: itemID, to: id)
+            } catch {
+                NSLog("Copy: failed to add item to pinboard: \(error)")
+                HUD.show("Couldn't complete that")
+            }
         }
     }
 
@@ -145,43 +161,83 @@ final class ShelfViewModel {
 
     func delete(_ item: ClipItem) {
         guard let id = item.id else { return }
-        try? store.delete(itemID: id)
+        do {
+            try store.delete(itemID: id)
+        } catch {
+            NSLog("Copy: failed to delete item: \(error)")
+            HUD.show("Couldn't complete that")
+        }
         if !query.isEmpty { refresh() }
     }
 
     func toggleFavorite(_ item: ClipItem) {
         guard let id = item.id else { return }
-        try? store.setFavorite(itemID: id, !item.isFavorite)
+        do {
+            try store.setFavorite(itemID: id, !item.isFavorite)
+        } catch {
+            NSLog("Copy: failed to toggle favorite: \(error)")
+            HUD.show("Couldn't complete that")
+        }
         if !query.isEmpty { refresh() }
     }
 
     // MARK: - Pinboard actions passthrough
 
     func createPinboard(name: String, symbol: String) {
-        try? pinboardStore.create(name: name, symbol: symbol)
+        do {
+            try pinboardStore.create(name: name, symbol: symbol)
+        } catch {
+            NSLog("Copy: failed to create pinboard: \(error)")
+            HUD.show("Couldn't complete that")
+        }
     }
 
     func renamePinboard(id: Int64, to name: String) {
-        try? pinboardStore.rename(id: id, to: name)
+        do {
+            try pinboardStore.rename(id: id, to: name)
+        } catch {
+            NSLog("Copy: failed to rename pinboard: \(error)")
+            HUD.show("Couldn't complete that")
+        }
     }
 
     func setPinboardSymbol(id: Int64, _ symbol: String) {
-        try? pinboardStore.setSymbol(id: id, symbol)
+        do {
+            try pinboardStore.setSymbol(id: id, symbol)
+        } catch {
+            NSLog("Copy: failed to set pinboard symbol: \(error)")
+            HUD.show("Couldn't complete that")
+        }
     }
 
     func deletePinboard(id: Int64) {
-        try? pinboardStore.delete(id: id)
-        if tab == .pinboard(id) { tab = .history }
+        do {
+            try pinboardStore.delete(id: id)
+            if tab == .pinboard(id) { tab = .history }
+        } catch {
+            NSLog("Copy: failed to delete pinboard: \(error)")
+            HUD.show("Couldn't complete that")
+        }
     }
 
     func addItem(_ item: ClipItem, toPinboard id: Int64) {
         guard let itemID = item.id else { return }
-        try? pinboardStore.add(itemID: itemID, to: id)
+        do {
+            try pinboardStore.add(itemID: itemID, to: id)
+        } catch {
+            NSLog("Copy: failed to add item to pinboard: \(error)")
+            HUD.show("Couldn't complete that")
+        }
     }
 
     func removeItem(_ item: ClipItem, fromPinboard id: Int64) {
         guard let itemID = item.id else { return }
-        try? pinboardStore.remove(itemID: itemID, from: id)
+        do {
+            try pinboardStore.remove(itemID: itemID, from: id)
+        } catch {
+            NSLog("Copy: failed to remove item from pinboard: \(error)")
+            HUD.show("Couldn't complete that")
+        }
     }
 
     /// Looks up an item by uuid for a card→tab drop. `items` only holds the current
@@ -195,8 +251,13 @@ final class ShelfViewModel {
     /// Handles a card dropped onto a pinboard tab.
     func dropItem(uuid: String, toPinboard pinboard: Pinboard) {
         guard let id = pinboard.id, let item = item(forUUID: uuid), let itemID = item.id else { return }
-        try? pinboardStore.add(itemID: itemID, to: id)
-        HUD.show("Added to \(pinboard.name)")
+        do {
+            try pinboardStore.add(itemID: itemID, to: id)
+            HUD.show("Added to \(pinboard.name)")
+        } catch {
+            NSLog("Copy: failed to add item to pinboard: \(error)")
+            HUD.show("Couldn't complete that")
+        }
     }
 
     /// Called from a card's "Edit…" context menu item and the ⌘E shortcut. No-ops for

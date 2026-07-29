@@ -253,8 +253,12 @@ private struct ShelfItemsRow: View {
                 }
                 .onChange(of: viewModel.selection.primary) { _, newPrimary in
                     if let newPrimary {
-                        withAnimation(.easeOut(duration: 0.15)) {
+                        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
                             proxy.scrollTo(newPrimary, anchor: .center)
+                        } else {
+                            withAnimation(.easeOut(duration: 0.15)) {
+                                proxy.scrollTo(newPrimary, anchor: .center)
+                            }
                         }
                     }
                 }
