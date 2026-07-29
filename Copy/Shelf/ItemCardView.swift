@@ -12,6 +12,7 @@ struct ItemCardView: View {
     let onPaste: () -> Void
     let onPastePlain: () -> Void
     let onEdit: () -> Void
+    let onAdjustColor: () -> Void
     let onRename: () -> Void
     let onToggleFavorite: () -> Void
     let onAddToPinboard: (Int64) -> Void
@@ -81,6 +82,8 @@ struct ItemCardView: View {
             if isEditable {
                 Button("Edit…", action: onEdit)
                     .keyboardShortcut("e", modifiers: .command)
+            } else if item.kind == .color {
+                Button("Adjust Color…", action: onAdjustColor)
             }
             Button("Rename…", action: onRename)
             Button(item.isFavorite ? "Unfavorite" : "Favorite", action: onToggleFavorite)

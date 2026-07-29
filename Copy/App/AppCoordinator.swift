@@ -153,6 +153,9 @@ final class AppCoordinator {
         shelfViewModel.onCopyText = { [weak self] text in
             self?.copyText(text)
         }
+        shelfViewModel.onAdjustColorCopy = { [weak self] hex in
+            self?.adjustColorCopy(hex)
+        }
         shelfViewModel.onPasteMultiple = { [weak self, weak controller] joined in
             controller?.hide(restoreFocus: true)
             guard let self else { return }
@@ -374,6 +377,19 @@ final class AppCoordinator {
             [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(text.utf8))],
             plainTextOnly: false)
         HUD.show("Text copied")
+    }
+
+    /// Places a tweaked color from `ColorAdjustSheet`'s "Copy" button on the clipboard
+    /// (marked self-paste). Mirrors `ClipboardMonitor`'s color capture representation
+    /// (hex-as-utf8 under `colorType`, matching `PasteboardReading.colorHex()`'s
+    /// decode path) plus a plain-text hex rep, so the placed color round-trips the same
+    /// way a captured color would. Does not mutate the source item's stored hex.
+    func adjustColorCopy(_ hex: String) {
+        pasteService.place(
+            [CapturedRepresentation(uti: CopyPasteboard.colorType, data: Data(hex.utf8)),
+             CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(hex.utf8))],
+            plainTextOnly: false)
+        HUD.show("Color copied")
     }
 
     /// Whether the Paste Stack palette/engine are currently active — read by

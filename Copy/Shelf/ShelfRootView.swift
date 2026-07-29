@@ -48,6 +48,13 @@ struct ShelfRootView: View {
                 onRename: { viewModel.commitRename(item, to: $0) }
             )
         }
+        .sheet(item: $viewModel.adjustingColorItem) { item in
+            ColorAdjustSheet(
+                item: item,
+                onCancel: { viewModel.adjustingColorItem = nil },
+                onCopy: { viewModel.commitAdjustColor($0) }
+            )
+        }
     }
 }
 
@@ -342,6 +349,7 @@ private struct ShelfItemsRow: View {
                                 onPaste: { viewModel.requestPaste(item, plain: false) },
                                 onPastePlain: { viewModel.requestPaste(item, plain: true) },
                                 onEdit: { viewModel.beginEdit(item) },
+                                onAdjustColor: { viewModel.beginAdjustColor(item) },
                                 onRename: { viewModel.beginRename(item) },
                                 onToggleFavorite: { viewModel.toggleFavorite(item) },
                                 onAddToPinboard: { id in viewModel.addItem(item, toPinboard: id) },

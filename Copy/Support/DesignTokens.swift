@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 enum Tokens {
     static let cardWidth: CGFloat = 184
@@ -20,6 +21,17 @@ enum Tokens {
         return Color(red: Double((value >> 16) & 0xFF) / 255,
                      green: Double((value >> 8) & 0xFF) / 255,
                      blue: Double(value & 0xFF) / 255)
+    }
+
+    /// Converts a SwiftUI `Color` back to a "#RRGGBB" hex string, matching
+    /// `PasteboardReading.colorHex()`'s sRGB formatting so a re-copied color round-trips
+    /// through the same representation a captured color would.
+    static func hex(from color: Color) -> String {
+        let srgb = NSColor(color).usingColorSpace(.sRGB) ?? NSColor(color)
+        return String(format: "#%02X%02X%02X",
+                      Int(round(srgb.redComponent * 255)),
+                      Int(round(srgb.greenComponent * 255)),
+                      Int(round(srgb.blueComponent * 255)))
     }
 
     static let relativeFormatter: RelativeDateTimeFormatter = {

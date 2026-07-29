@@ -40,6 +40,7 @@ final class ShelfViewModel {
     var pinboardPopoverShown = false
     var creatingItem = false
     var renamingItem: ClipItem?
+    var adjustingColorItem: ClipItem?
 
     /// Backs `ShelfRootView`'s permission banner. The shelf panel + its SwiftUI content
     /// are created once and reused for the app's lifetime (see
@@ -53,6 +54,7 @@ final class ShelfViewModel {
     @ObservationIgnored var onPasteMultiple: ((String) -> Void)?
     @ObservationIgnored var onAddToPasteStack: ((ClipItem) -> Void)?
     @ObservationIgnored var onCopyText: ((String) -> Void)?
+    @ObservationIgnored var onAdjustColorCopy: ((String) -> Void)?
     @ObservationIgnored private var token: ObservationToken?
     @ObservationIgnored private var pinboardsToken: ObservationToken?
 
@@ -109,6 +111,7 @@ final class ShelfViewModel {
         editingItem = nil
         creatingItem = false
         renamingItem = nil
+        adjustingColorItem = nil
         if !query.isEmpty { query = "" }
     }
 
@@ -381,6 +384,21 @@ final class ShelfViewModel {
             HUD.show("Couldn't rename item")
         }
         if !query.isEmpty { refresh() }
+    }
+
+    /// Opens `ColorAdjustSheet` from a color card's "Adjust Color…" context menu item,
+    /// seeded with the item's current hex. No-ops for non-color items.
+    func beginAdjustColor(_ item: ClipItem) {
+        guard item.kind == .color else { return }
+        adjustingColorItem = item
+    }
+
+    /// Places the tweaked color (as a hex string) via the coordinator's
+    /// `onAdjustColorCopy` hook, then dismisses the sheet either way. Does not mutate
+    /// the stored item — this is a re-copy with a tweak, not an edit.
+    func commitAdjustColor(_ hex: String) {
+        defer { adjustingColorItem = nil }
+        onAdjustColorCopy?(hex)
     }
 
     private func isEditableKind(_ kind: ItemKind) -> Bool {
