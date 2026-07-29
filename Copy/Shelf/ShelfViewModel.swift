@@ -85,10 +85,13 @@ final class ShelfViewModel {
         }
     }
 
-    /// Reset search/selection when the shelf closes.
+    /// Reset search/selection when the shelf closes. Anchors selection to the newest
+    /// item rather than clearing it, since `show()` doesn't re-run `apply(_:)` on
+    /// reopen — leaving the selection empty here would otherwise leave ⏎/Space dead
+    /// until the user first pressed an arrow key.
     func clearTransientState() {
         previewShown = false
-        selection.reset()
+        if let first = items.first { selection.click(first.uuid) } else { selection.reset() }
         editingItem = nil
         if !query.isEmpty { query = "" }
     }
