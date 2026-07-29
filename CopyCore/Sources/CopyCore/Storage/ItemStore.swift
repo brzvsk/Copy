@@ -67,9 +67,13 @@ public struct ItemStore {
         }
     }
 
-    public func recentItems(limit: Int = 50) throws -> [ClipItem] {
+    public func recentItems(kinds: Set<ItemKind>? = nil, limit: Int = 50) throws -> [ClipItem] {
         try writer.read { db in
-            try ClipItem.order(Column("lastUsedAt").desc).limit(limit).fetchAll(db)
+            var request = ClipItem.order(Column("lastUsedAt").desc).limit(limit)
+            if let kinds {
+                request = request.filter(kinds.map(\.rawValue).contains(Column("kind")))
+            }
+            return try request.fetchAll(db)
         }
     }
 
@@ -88,16 +92,23 @@ public struct ItemStore {
         }
     }
 
-    public func search(_ query: String, limit: Int = 50) throws -> [ClipItem] {
+    public func search(_ query: String, kinds: Set<ItemKind>? = nil, limit: Int = 50) throws -> [ClipItem] {
         guard let pattern = FTS5Pattern(matchingAllPrefixesIn: query) else { return [] }
+        var sql = """
+            SELECT item.* FROM item
+            JOIN item_fts ON item_fts.rowid = item.id
+            WHERE item_fts MATCH ?
+            """
+        var arguments: [any DatabaseValueConvertible] = [pattern]
+        if let kinds {
+            let names = kinds.map(\.rawValue).sorted()
+            sql += " AND item.kind IN (\(names.map { _ in "?" }.joined(separator: ",")))"
+            arguments.append(contentsOf: names)
+        }
+        sql += " ORDER BY item.lastUsedAt DESC LIMIT ?"
+        arguments.append(limit)
         return try writer.read { db in
-            try ClipItem.fetchAll(db, sql: """
-                SELECT item.* FROM item
-                JOIN item_fts ON item_fts.rowid = item.id
-                WHERE item_fts MATCH ?
-                ORDER BY item.lastUsedAt DESC
-                LIMIT ?
-                """, arguments: [pattern, limit])
+            try ClipItem.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
         }
     }
 
@@ -142,5 +153,38 @@ public struct ItemStore {
             """)
         try request.deleteAll(db)
         try cleanOrphanBlobs(keys, in: db)
+    }
+
+    public func observeRecent(kinds: Set<ItemKind>? = nil, limit: Int = 100,
+                              onError: @escaping (Error) -> Void,
+                              onChange: @escaping ([ClipItem]) -> Void) -> ObservationToken {
+        let observation = ValueObservation.tracking { db -> [ClipItem] in
+            var request = ClipItem.order(Column("lastUsedAt").desc).limit(limit)
+            if let kinds {
+                request = request.filter(kinds.map(\.rawValue).contains(Column("kind")))
+            }
+            return try request.fetchAll(db)
+        }
+        let cancellable = observation.start(in: writer,
+                                            scheduling: .async(onQueue: .main),
+                                            onError: onError,
+                                            onChange: onChange)
+        return ObservationToken(cancellable)
+    }
+}
+
+public final class ObservationToken {
+    private let cancellable: AnyDatabaseCancellable
+
+    init(_ cancellable: AnyDatabaseCancellable) {
+        self.cancellable = cancellable
+    }
+
+    public func cancel() {
+        cancellable.cancel()
+    }
+
+    deinit {
+        cancellable.cancel()
     }
 }
