@@ -49,6 +49,10 @@ struct PasteStackView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Capture clicks across the whole panel so nothing falls through to the app behind
+        // (the glass material on macOS 26 has no backing NSView of its own). The header's
+        // WindowMoveArea sits deeper in the tree, so it still wins for window-dragging.
+        .background(WindowFixedArea())
         .glassSurface(cornerRadius: 12)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onChange(of: model.queue.itemUUIDs) { _, _ in onContentChange() }
@@ -124,9 +128,6 @@ struct PasteStackView: View {
                         onRemove: { model.queue.remove(item.uuid) }
                     )
                     .frame(height: Self.rowHeight)
-                    // Rows aren't window-draggable, so a drag here reorders (below) instead
-                    // of moving the window.
-                    .background(WindowFixedArea())
                     .offset(y: dragYOffset(uuid: item.uuid, index: index, items: items))
                     .zIndex(draggingUUID == item.uuid ? 1 : 0)
                     .gesture(reorderGesture(item: item, items: items))

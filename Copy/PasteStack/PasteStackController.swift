@@ -152,10 +152,9 @@ final class PasteStackController {
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = true
         panel.isFloatingPanel = true
-        // On: the header region is marked window-draggable (WindowMoveArea) and the list
-        // rows are marked fixed (WindowFixedArea) so their drag reorders instead of moving
-        // the window. See PasteStackView.
-        panel.isMovableByWindowBackground = true
+        // Off: the window is dragged explicitly from the header (WindowMoveArea →
+        // performDrag), so dragging a list row is free to reorder it. See PasteStackView.
+        panel.isMovableByWindowBackground = false
         panel.sharingType = hideDuringScreenSharing ? .none : .readOnly
         panel.childWindowSharingType = hideDuringScreenSharing ? .none : .readOnly
         panel.contentView = NSHostingView(rootView: PasteStackView(
