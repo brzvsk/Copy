@@ -112,6 +112,33 @@ public struct ItemStore {
         }
     }
 
+    /// A self-contained archive snapshot of one item (every field plus its representation
+    /// bytes), in the same shape `importArchived` consumes. The app captures this before
+    /// deleting an item so a later undo can re-insert it faithfully. Kept in CopyCore
+    /// because `ArchivedItem`'s memberwise initializer is internal to this module.
+    public func archivedSnapshot(itemID: Int64) throws -> ArchivedItem {
+        let reps = try representations(forItemID: itemID)
+        return try writer.read { db in
+            guard let item = try ClipItem.fetchOne(db, key: itemID) else {
+                throw DatabaseError(message: "item not found")
+            }
+            return ArchivedItem(
+                kind: item.kind.rawValue,
+                plainText: item.plainText,
+                title: item.title,
+                linkTitle: item.linkTitle,
+                recognizedText: item.recognizedText,
+                appName: item.appName,
+                appBundleID: item.appBundleID,
+                createdAt: item.createdAt,
+                lastUsedAt: item.lastUsedAt,
+                contentHash: item.contentHash,
+                isFavorite: item.isFavorite,
+                representations: reps.map { ArchivedRep(uti: $0.uti, dataBase64: $0.data.base64EncodedString()) }
+            )
+        }
+    }
+
     /// `pinboardID` is deliberately the last parameter (rather than sitting beside
     /// `kinds`) so existing positional call sites like `search(query, limit: 10)`
     /// (the `SearchClipboardIntent` AppIntent, which searches globally) keep compiling

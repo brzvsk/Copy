@@ -126,6 +126,10 @@ final class AppCoordinator {
                 && !event.modifierFlags.contains(.option): // cmd-O — open selected link/file
                 viewModel.openSelected()
                 return true
+            case 6 where event.modifierFlags.contains(.command)
+                && !event.modifierFlags.contains(.shift): // cmd-Z — undo last delete/removal
+                viewModel.undoLast()
+                return true
             case 49 where viewModel.query.isEmpty: // space previews in browse mode
                 viewModel.previewShown.toggle()
                 return true

@@ -278,15 +278,19 @@ final class ShelfViewModel {
     }
 
     func deleteSelection() {
+        var snapshots: [DeletedSnapshot] = []
         for item in orderedSelectedItems {
             guard let id = item.id else { continue }
+            let snapshot = undoSnapshot(for: item)
             do {
                 try store.delete(itemID: id)
+                if let snapshot { snapshots.append(snapshot) }
             } catch {
                 NSLog("Copy: failed to delete item: \(error)")
                 HUD.show("Couldn't complete that")
             }
         }
+        if !snapshots.isEmpty { pushUndo(.deleted(snapshots)) }
         if !query.isEmpty { refresh() }
     }
 
@@ -336,8 +340,10 @@ final class ShelfViewModel {
 
     func delete(_ item: ClipItem) {
         guard let id = item.id else { return }
+        let snapshot = undoSnapshot(for: item)
         do {
             try store.delete(itemID: id)
+            if let snapshot { pushUndo(.deleted([snapshot])) }
         } catch {
             NSLog("Copy: failed to delete item: \(error)")
             HUD.show("Couldn't complete that")
@@ -427,9 +433,83 @@ final class ShelfViewModel {
         guard let itemID = item.id else { return }
         do {
             try pinboardStore.remove(itemID: itemID, from: id)
+            pushUndo(.removedFromPinboard(itemID: itemID, pinboardID: id))
         } catch {
             NSLog("Copy: failed to remove item from pinboard: \(error)")
             HUD.show("Couldn't complete that")
+        }
+    }
+
+    // MARK: - Undo (session-only, bounded)
+    //
+    // A small LIFO stack that reverses the destructive shelf actions that are cheap to
+    // capture: a delete (re-insert the archived item + its pinboard memberships) and a
+    // remove-from-pinboard (re-add the membership). ⌘Z pops the top entry. Not persisted
+    // across launches by design.
+
+    private struct DeletedSnapshot {
+        let archived: ArchivedItem
+        let pinboardIDs: Set<Int64>
+    }
+
+    private enum UndoAction {
+        case deleted([DeletedSnapshot])
+        case removedFromPinboard(itemID: Int64, pinboardID: Int64)
+    }
+
+    @ObservationIgnored private var undoStack: [UndoAction] = []
+    private static let undoLimit = 25
+
+    private func pushUndo(_ action: UndoAction) {
+        undoStack.append(action)
+        if undoStack.count > Self.undoLimit {
+            undoStack.removeFirst(undoStack.count - Self.undoLimit)
+        }
+    }
+
+    /// Captures everything needed to re-create an item (its archive bytes + which
+    /// pinboards it belonged to) before it is deleted. Returns nil if the snapshot can't
+    /// be taken, in which case the delete simply isn't undoable rather than blocked.
+    private func undoSnapshot(for item: ClipItem) -> DeletedSnapshot? {
+        guard let id = item.id else { return nil }
+        do {
+            let archived = try store.archivedSnapshot(itemID: id)
+            let boards = (try? pinboardStore.pinboardIDs(forItemID: id)) ?? []
+            return DeletedSnapshot(archived: archived, pinboardIDs: boards)
+        } catch {
+            NSLog("Copy: undo snapshot failed: \(error)")
+            return nil
+        }
+    }
+
+    func undoLast() {
+        guard let action = undoStack.popLast() else {
+            HUD.show("Nothing to undo")
+            return
+        }
+        do {
+            switch action {
+            case .deleted(let snapshots):
+                for snapshot in snapshots {
+                    _ = try store.importArchived(snapshot.archived)
+                    // Resolve the re-inserted (or pre-existing, if the same content was
+                    // re-copied since) item by content hash to restore its memberships.
+                    if let restored = try store.item(contentHash: snapshot.archived.contentHash),
+                       let restoredID = restored.id {
+                        for board in snapshot.pinboardIDs {
+                            try pinboardStore.add(itemID: restoredID, to: board)
+                        }
+                    }
+                }
+                HUD.show(snapshots.count == 1 ? "Restored" : "Restored \(snapshots.count) items")
+            case .removedFromPinboard(let itemID, let pinboardID):
+                try pinboardStore.add(itemID: itemID, to: pinboardID)
+                HUD.show("Restored to pinboard")
+            }
+            refresh()
+        } catch {
+            NSLog("Copy: undo failed: \(error)")
+            HUD.show("Couldn't undo that")
         }
     }
 
