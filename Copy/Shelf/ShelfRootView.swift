@@ -260,7 +260,10 @@ private struct ShelfTabs: View {
                 Image(systemName: "plus")
                     .font(Tokens.caption)
                     .foregroundStyle(.secondary)
-                    .frame(width: 24, height: 24)
+                    // Match the drawer menu's enlarged, fully-hittable target so this
+                    // small glyph isn't hard to click (see DrawerMenu).
+                    .frame(width: 30, height: 26)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Add Pinboard")
@@ -472,7 +475,7 @@ private struct ShelfEmptyState: View {
     private var symbolName: String {
         switch viewModel.tab {
         case .history:
-            return "doc.on.clipboard"
+            return "square.on.square"
         case .pinboard(let id):
             return viewModel.pinboards.first(where: { $0.id == id })?.symbol ?? "pin"
         }
@@ -493,8 +496,17 @@ private struct ShelfEmptyState: View {
         return "Drag a card here or use Add to Pinboard"
     }
 
+    /// True only on the empty History tab with no active search: the genuine "nothing
+    /// captured yet" moment, where a short first-run primer earns its space. Search and
+    /// pinboard empties stay minimal.
+    private var isFirstRun: Bool {
+        guard viewModel.query.isEmpty else { return false }
+        if case .history = viewModel.tab { return true }
+        return false
+    }
+
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: isFirstRun ? 10 : 6) {
             Image(systemName: symbolName)
                 .font(.system(size: 24, weight: .light))
                 .foregroundStyle(.tertiary)
@@ -506,7 +518,20 @@ private struct ShelfEmptyState: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
+            if isFirstRun {
+                Text("Text, images, links, files, and colors all land here automatically.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                HStack(spacing: 14) {
+                    KeyHint(key: "⇧⌘V", label: "Open Copy")
+                    KeyHint(key: "↩", label: "Paste")
+                    KeyHint(key: "Space", label: "Preview")
+                }
+                .padding(.top, 2)
+            }
         }
+        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

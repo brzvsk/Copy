@@ -149,9 +149,10 @@ private struct StepHeading: View {
 private struct WelcomeStep: View {
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "doc.on.clipboard.fill")
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(.secondary)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 72, height: 72)
+                .accessibilityHidden(true)
             Text("Welcome to Copy")
                 .font(.title2.weight(.semibold))
             Text("A visual shelf for everything you copy.")
