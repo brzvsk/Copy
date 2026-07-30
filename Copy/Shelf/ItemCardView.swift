@@ -166,6 +166,10 @@ struct ItemCardView: View {
         // the selection there relies on the accent border + gradient fill alone.
         .shadow(color: (isSelected && colorScheme == .dark) ? Color.accentColor.opacity(0.32) : .clear,
                 radius: (isSelected && colorScheme == .dark) ? 8 : 0, y: 1)
+        // A gentle spring on the selection border/fill/glow so moving between cards reads
+        // as one cohesive motion rather than an instant snap. Scoped to `isSelected` so it
+        // never animates content changes; skipped under Reduce Motion.
+        .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.72), value: isSelected)
         .contextMenu {
             Button("Paste", action: onPaste)
             Button("Paste as Plain Text", action: onPastePlain)
