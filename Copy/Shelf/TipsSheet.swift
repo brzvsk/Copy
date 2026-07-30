@@ -53,6 +53,11 @@ struct TipsSheet: View {
             }
         }
         .frame(width: 420, height: 500)
+        // Same glass surface + clip as EditItemSheet/CreateItemSheet, so the sheet reads
+        // as a solid panel over the dim modal backdrop instead of floating with no
+        // background.
+        .glassSurface(cornerRadius: 14)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func section(_ title: String, _ rows: [(String, String)]) -> some View {
