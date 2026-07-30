@@ -16,6 +16,17 @@ func makeText(_ s: String) -> CapturedItem {
     )
 }
 
+/// An image `CapturedItem` of a given stored byte size and a distinct hash (so successive
+/// calls don't dedup into one item).
+func makeImage(bytes: Int, tag: String) -> CapturedItem {
+    let data = Data(repeating: 0xAB, count: bytes)
+    return CapturedItem(
+        kind: .image, plainText: "Image", hashData: Data(tag.utf8),
+        representations: [CapturedRepresentation(uti: "public.png", data: data)],
+        sourceBundleID: "com.test.app", sourceAppName: "TestApp"
+    )
+}
+
 final class ItemStoreTests: XCTestCase {
     func testSaveAndFetchRecent() throws {
         let store = try makeTempStore()
@@ -27,6 +38,54 @@ final class ItemStoreTests: XCTestCase {
         let recent = try store.recentItems(limit: 10)
         XCTAssertEqual(recent.count, 1)
         XCTAssertEqual(recent[0].plainText, "hello")
+    }
+
+    func testStorageBreakdownGroupsByKindAndSumsBytes() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("aa"))          // text, 2 bytes
+        _ = try store.save(makeText("bbbb"))        // text, 4 bytes
+        _ = try store.save(makeImage(bytes: 100, tag: "img1"))
+
+        let byKind = Dictionary(uniqueKeysWithValues: try store.storageBreakdown().map { ($0.kind, $0) })
+        XCTAssertEqual(byKind[.text]?.count, 2)
+        XCTAssertEqual(byKind[.text]?.bytes, 6)
+        XCTAssertEqual(byKind[.image]?.count, 1)
+        XCTAssertEqual(byKind[.image]?.bytes, 100)
+        XCTAssertNil(byKind[.link])                 // kinds with no items are omitted
+    }
+
+    func testStorageBreakdownExcludesFavorites() throws {
+        let store = try makeTempStore()
+        let fav = try store.save(makeText("keep"))
+        try store.setFavorite(itemID: fav.id!, true)
+        _ = try store.save(makeText("drop"))
+
+        let text = try store.storageBreakdown().first { $0.kind == .text }
+        XCTAssertEqual(text?.count, 1)              // favorite excluded from the clearable set
+        XCTAssertEqual(text?.bytes, 4)              // only "drop"
+    }
+
+    func testClearHistoryByKindClearsOnlyThatKind() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("t1"))
+        _ = try store.save(makeImage(bytes: 10, tag: "img1"))
+        _ = try store.save(makeImage(bytes: 20, tag: "img2"))
+
+        try store.clearHistory(kind: .image)
+
+        XCTAssertEqual(try store.recentItems(limit: 10).map(\.kind), [.text])
+        XCTAssertNil(try store.storageBreakdown().first { $0.kind == .image })
+    }
+
+    func testClearHistoryByKindKeepsFavorites() throws {
+        let store = try makeTempStore()
+        let fav = try store.save(makeImage(bytes: 30, tag: "favimg"))
+        try store.setFavorite(itemID: fav.id!, true)
+        _ = try store.save(makeImage(bytes: 10, tag: "img1"))
+
+        try store.clearHistory(kind: .image)
+
+        XCTAssertEqual(try store.recentItems(limit: 10).count, 1)  // favorite image survives
     }
 
     func testRecentOrderedByLastUsedDescending() throws {

@@ -253,7 +253,7 @@ final class AppCoordinator {
         return controller
     }()
 
-    private lazy var settingsWindowController = SettingsWindowController(settings: settings)
+    private lazy var settingsWindowController = SettingsWindowController(settings: settings, store: store)
     private lazy var onboardingWindowController = OnboardingWindowController()
 
     init() throws {

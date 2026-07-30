@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// A Telegram-style discrete slider: labeled stops along a track, tick dots at each stop, a
-/// filled accent portion up to the thumb, and a white thumb that follows the cursor while
-/// dragging and settles onto the nearest stop. Drives an `Int` index into the labels.
+/// A discrete slider: labeled stops along a track, tick dots at each stop, a filled accent
+/// portion up to the thumb, and a white thumb that follows the cursor while dragging and
+/// settles onto the nearest stop. Drives an `Int` index into the labels.
 ///
 /// Everything is positioned inside one `GeometryReader` so the labels sit over the same
 /// stop x-positions as the ticks; the two end labels are clamped inward a touch so they

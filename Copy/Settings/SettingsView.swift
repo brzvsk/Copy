@@ -1,3 +1,4 @@
+import CopyCore
 import SwiftUI
 
 /// Root content of the Settings window (hosted by `SettingsWindowController`): a
@@ -13,6 +14,7 @@ import SwiftUI
 /// settings content itself.
 struct SettingsView: View {
     let settings: SettingsStore
+    let store: ItemStore
     @State private var selection: SettingsSection? = .general
 
     var body: some View {
@@ -46,7 +48,7 @@ struct SettingsView: View {
         case .shortcuts:
             pane(.shortcuts) { ShortcutsSettings(settings: settings) }
         case .history:
-            pane(.history) { HistorySettings(settings: settings) }
+            pane(.history) { HistorySettings(settings: settings, store: store) }
         case .privacy:
             pane(.privacy) { PrivacySettings(settings: settings) }
         case .about:

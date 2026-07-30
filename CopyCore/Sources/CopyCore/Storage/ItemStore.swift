@@ -1,6 +1,20 @@
 import Foundation
 import GRDB
 
+/// One row of `ItemStore.storageBreakdown()`: a kind, how many clearable items it has, and
+/// their total stored bytes.
+public struct StorageUsage: Equatable, Sendable {
+    public let kind: ItemKind
+    public let count: Int
+    public let bytes: Int
+
+    public init(kind: ItemKind, count: Int, bytes: Int) {
+        self.kind = kind
+        self.count = count
+        self.bytes = bytes
+    }
+}
+
 public struct ItemStore {
     public static let inlineThreshold = 65_536
     public static let deleteChunkSize = 500
@@ -197,6 +211,45 @@ public struct ItemStore {
                 doomed = doomed.filter(Column("isFavorite") == false)
             }
             try deleteItems(doomed, in: db)
+        }
+    }
+
+    /// Clears just one kind from the clearable history — same keep rules as
+    /// `clearHistory(keepFavorites:)` (pinboard members and, when `keepFavorites`,
+    /// favorites are preserved). Used by the Settings storage view's per-type "Clear".
+    public func clearHistory(kind: ItemKind, keepFavorites: Bool = true) throws {
+        try writer.write { db in
+            let memberIDs = "SELECT DISTINCT itemId FROM pinboard_item"
+            var doomed = ClipItem
+                .filter(sql: "id NOT IN (\(memberIDs))")
+                .filter(Column("kind") == kind.rawValue)
+            if keepFavorites {
+                doomed = doomed.filter(Column("isFavorite") == false)
+            }
+            try deleteItems(doomed, in: db)
+        }
+    }
+
+    /// Per-kind item count and total `sizeBytes` over the *clearable* history: items not in
+    /// any pinboard and (when `keepFavorites`) not favorited — exactly the set
+    /// `clearHistory(keepFavorites:)` removes. Favorites and pinboard items are permanent
+    /// (excluded from the retention prune too), so they aren't counted here. Kinds with no
+    /// clearable items are omitted. Powers the Settings storage breakdown.
+    public func storageBreakdown(keepFavorites: Bool = true) throws -> [StorageUsage] {
+        try writer.read { db in
+            var sql = """
+                SELECT kind AS k, COUNT(*) AS c, COALESCE(SUM(sizeBytes), 0) AS b
+                FROM item
+                WHERE id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
+                """
+            if keepFavorites { sql += " AND isFavorite = 0" }
+            sql += " GROUP BY kind"
+            return try Row.fetchAll(db, sql: sql).compactMap { row in
+                guard let raw: String = row["k"], let kind = ItemKind(rawValue: raw) else { return nil }
+                let count: Int = row["c"]
+                let bytes: Int = row["b"]
+                return StorageUsage(kind: kind, count: count, bytes: bytes)
+            }
         }
     }
 

@@ -1,11 +1,16 @@
+import CopyCore
 import SwiftUI
 
-/// Retention window and link-preview fetching, both persisted through `SettingsStore`.
+/// Retention window, storage usage, and enrichment toggles. Retention and the toggles are
+/// persisted through `SettingsStore`; the storage block reads/clears history via `store`.
 struct HistorySettings: View {
     @Bindable var settings: SettingsStore
+    let store: ItemStore
 
     var body: some View {
         Form {
+            StorageUsageSection(store: store)
+
             Section {
                 StepSlider(labels: RetentionPeriod.sliderOrder.map(\.title), index: retentionIndex)
                     .padding(.top, 4)

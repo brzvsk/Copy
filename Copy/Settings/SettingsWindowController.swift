@@ -1,4 +1,5 @@
 import AppKit
+import CopyCore
 import SwiftUI
 
 /// Hosts `SettingsView` in a standard titled window that `AppCoordinator` owns and
@@ -16,8 +17,8 @@ import SwiftUI
 /// titled `NSWindow` shows fine for an accessory app; only the Dock icon is restricted.
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    convenience init(settings: SettingsStore) {
-        let hosting = NSHostingController(rootView: SettingsView(settings: settings))
+    convenience init(settings: SettingsStore, store: ItemStore) {
+        let hosting = NSHostingController(rootView: SettingsView(settings: settings, store: store))
         // The redesigned settings is a `NavigationSplitView`, which fills its container
         // rather than reporting an intrinsic size — so let the window drive sizing, not the
         // hosting controller. `SettingsView` carries its own `.frame(minWidth:minHeight:)`,
