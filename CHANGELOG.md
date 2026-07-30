@@ -5,6 +5,34 @@ All notable changes to Copy are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-07-30
+
+A refinement release: the Paste Stack is rebuilt from the ground up, the shelf and
+editor get a polish pass, and there's an optional dark theme.
+
+### Added
+
+- Optional pro-dark shelf theme (dark with an electric-blue accent), off by default
+- Hold Command to reveal keyboard hotkey hints on the shelf, plus a dismissible keyboard legend
+- Force-click a card to preview it; force-click a text card to open it in the editor
+- Favorites now sort to the top of the shelf, separated from the rest by a divider
+- A first-copy coach and onboarding motion to make the shelf easier to discover
+
+### Changed
+
+- Rebuilt the Paste Stack palette: clicks land reliably everywhere, you can add, edit, remove, and reorder queued items, drag the header to move it, and edit text in the full rich editor
+- Redesigned the rich text editor with formatting hotkeys, on-screen tips, and Command-Return to save
+- The card header now shows the copy's title where the app name used to be; click it to rename
+- You can scroll the shelf from anywhere, including the gaps between cards
+- Image cards are labeled "Image" with a photo icon in the header
+- Dropping a card onto a pinboard now opens that pinboard
+- Larger, easier-to-hit menu and icon buttons throughout
+
+### Fixed
+
+- Cards highlight instantly on click (removed a delay caused by the double-click gesture)
+- The installer's DMG background is lighter so its icon labels stay legible
+
 ## [0.1.0] - 2026-07-29
 
 Initial release.
