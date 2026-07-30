@@ -3,9 +3,9 @@
 // make-icon.swift
 //
 // Deterministically renders the Copy app icon: a rounded-rect app tile in a
-// restrained graphite gradient, holding a clipboard glyph with a single card
-// lifting off it (echoing the shelf). Pure Core Graphics + AppKit's PNG
-// encoder, no external assets, no randomness.
+// restrained graphite gradient, holding "The Duplicate" mark -- two stepped
+// cards, a front card and its lighter copy behind it, the brand's own logo.
+// Pure Core Graphics + AppKit's PNG encoder, no external assets, no randomness.
 //
 // Run with: swift Scripts/make-icon.swift
 // Writes all 10 required PNGs into Copy/Assets.xcassets/AppIcon.appiconset/.
@@ -34,6 +34,8 @@ enum Palette {
     static let cardFill = CGColor(red: 1, green: 1, blue: 1, alpha: 1)
     static let cardStroke = CGColor(red: 0.804, green: 0.812, blue: 0.827, alpha: 1)
     static let cardShadow = CGColor(red: 0, green: 0, blue: 0, alpha: 0.34)
+    // The "copy" behind the front card: a shade dimmer so it reads as a duplicate.
+    static let backCardFill = CGColor(red: 0.784, green: 0.796, blue: 0.824, alpha: 1) // #C8CBD2
 
     static let lineColor = CGColor(red: 0.729, green: 0.737, blue: 0.757, alpha: 1)
 }
@@ -124,86 +126,58 @@ func drawIcon(in context: CGContext, size: CGFloat) {
     // transparent margin, which is how native macOS icons render.
     context.restoreGState()
 
-    // MARK: Clipboard body
-    let boardWidth = s * 0.46
-    let boardHeight = s * 0.56
-    let boardX = tileRect.minX + s * 0.24
-    let boardY = tileRect.minY + s * 0.20
-    let boardRect = CGRect(x: boardX, y: boardY, width: boardWidth, height: boardHeight)
-    let boardRadius = s * 0.05
-    let boardPath = roundedRectPath(boardRect, radius: boardRadius)
+    // MARK: The Duplicate -- two stepped cards, "a thing and its copy".
+    let cardW = s * 0.40
+    let cardH = s * 0.50
+    let cardRadius = s * 0.055
+    let cardLine = max(1, s * 0.004)
 
+    // Back card (the copy): offset up and to the right, a shade dimmer so it reads
+    // as the duplicate sitting behind the front one.
+    let backRect = CGRect(x: tileRect.minX + s * 0.37, y: tileRect.minY + s * 0.31,
+                          width: cardW, height: cardH)
+    let backPath = roundedRectPath(backRect, radius: cardRadius)
     context.saveGState()
-    context.setShadow(offset: CGSize(width: 0, height: -s * 0.012), blur: s * 0.02, color: Palette.boardShadow)
-    context.addPath(boardPath)
-    context.setFillColor(Palette.boardFill)
+    context.setShadow(offset: CGSize(width: s * 0.006, height: -s * 0.012), blur: s * 0.022, color: Palette.cardShadow)
+    context.addPath(backPath)
+    context.setFillColor(Palette.backCardFill)
     context.fillPath()
     context.restoreGState()
-
-    context.addPath(boardPath)
-    context.setStrokeColor(Palette.boardStroke)
-    context.setLineWidth(max(1, s * 0.004))
+    context.addPath(backPath)
+    context.setStrokeColor(Palette.cardStroke)
+    context.setLineWidth(cardLine)
     context.strokePath()
 
-    // MARK: Clip (metal tab at the top of the board)
-    let clipWidth = s * 0.20
-    let clipHeight = s * 0.09
-    let clipX = boardX + boardWidth / 2 - clipWidth / 2
-    let clipY = boardY + boardHeight - clipHeight * 0.4
-    let clipRect = CGRect(x: clipX, y: clipY, width: clipWidth, height: clipHeight)
-    let clipPath = roundedRectPath(clipRect, radius: clipHeight * 0.35)
-
-    context.addPath(clipPath)
-    context.setFillColor(Palette.clipFill)
+    // Front card: offset down and to the left, solid white, carrying the content.
+    let frontRect = CGRect(x: tileRect.minX + s * 0.21, y: tileRect.minY + s * 0.15,
+                           width: cardW, height: cardH)
+    let frontPath = roundedRectPath(frontRect, radius: cardRadius)
+    context.saveGState()
+    context.setShadow(offset: CGSize(width: 0, height: -s * 0.016), blur: s * 0.032, color: Palette.cardShadow)
+    context.addPath(frontPath)
+    context.setFillColor(Palette.cardFill)
     context.fillPath()
-    context.addPath(clipPath)
-    context.setStrokeColor(Palette.clipStroke)
-    context.setLineWidth(max(1, s * 0.003))
+    context.restoreGState()
+    context.addPath(frontPath)
+    context.setStrokeColor(Palette.cardStroke)
+    context.setLineWidth(cardLine)
     context.strokePath()
 
-    // MARK: Content lines -- large sizes only, to avoid muddying small renders
+    // MARK: Content lines on the front card -- large sizes only, to avoid muddying
+    // small renders.
     if size >= 128 {
-        let lineHeight = s * 0.018
-        let lineInsetX = boardX + boardWidth * 0.16
-        let lineWidths: [CGFloat] = [boardWidth * 0.5, boardWidth * 0.62, boardWidth * 0.38]
-        var lineY = boardY + boardHeight * 0.28
+        let lineHeight = s * 0.026
+        let lineInsetX = frontRect.minX + cardW * 0.17
+        let lineWidths: [CGFloat] = [cardW * 0.60, cardW * 0.48, cardW * 0.34]
+        var lineY = frontRect.minY + cardH * 0.66
         for width in lineWidths {
             let lineRect = CGRect(x: lineInsetX, y: lineY, width: width, height: lineHeight)
             context.addPath(roundedRectPath(lineRect, radius: lineHeight / 2))
             context.setFillColor(Palette.lineColor)
             context.fillPath()
-            lineY += lineHeight + s * 0.03
+            lineY -= lineHeight + s * 0.05
         }
     }
-
-    // MARK: Lifting card -- echoes the shelf: a single card peeling off the stack.
-    // Positioned right of and below the clip's bounding band (x > 0.57, y in
-    // [0.724, 0.814]) with margin, so the card clearly clears the clip tab instead of
-    // crossing through it.
-    let cardWidth = s * 0.30
-    let cardHeight = s * 0.19
-    let cardCenter = CGPoint(x: tileRect.minX + s * 0.76, y: tileRect.minY + s * 0.70)
-    let cardAngle = -12.0 * CGFloat.pi / 180
-
-    context.saveGState()
-    context.translateBy(x: cardCenter.x, y: cardCenter.y)
-    context.rotate(by: cardAngle)
-    let cardRect = CGRect(x: -cardWidth / 2, y: -cardHeight / 2, width: cardWidth, height: cardHeight)
-    let cardRadius = s * 0.035
-    let cardPath = roundedRectPath(cardRect, radius: cardRadius)
-
-    context.saveGState()
-    context.setShadow(offset: CGSize(width: s * 0.008, height: -s * 0.018), blur: s * 0.028, color: Palette.cardShadow)
-    context.addPath(cardPath)
-    context.setFillColor(Palette.cardFill)
-    context.fillPath()
-    context.restoreGState()
-
-    context.addPath(cardPath)
-    context.setStrokeColor(Palette.cardStroke)
-    context.setLineWidth(max(1, s * 0.004))
-    context.strokePath()
-    context.restoreGState()
 }
 
 // MARK: - Rendering pipeline
