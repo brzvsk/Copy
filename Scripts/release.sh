@@ -399,12 +399,25 @@ else
   echo "    Inserting the new <item> into the existing $APPCAST_PATH"
   # Insert the new item right after the opening <channel> tag so the newest
   # release sorts first, matching Sparkle's convention of newest-item-first.
+  #
+  # The snippet is multi-line, so it's read from a file inside awk (via getline)
+  # rather than passed with `-v item=...`: BSD awk (what the macOS CI runner
+  # uses) rejects a literal newline in a `-v` assignment with "awk: newline in
+  # string", which silently broke this step. Reading from a file is portable
+  # across both BSD and GNU awk.
+  APPCAST_ITEM_FILE="$(mktemp)"
+  printf '%s\n' "$APPCAST_ITEM" > "$APPCAST_ITEM_FILE"
   APPCAST_TMP="$(mktemp)"
-  awk -v item="$APPCAST_ITEM" '
+  awk -v itemfile="$APPCAST_ITEM_FILE" '
     { print }
-    /<channel>/ && !inserted { print item; inserted = 1 }
+    /<channel>/ && !inserted {
+      while ((getline line < itemfile) > 0) print line
+      close(itemfile)
+      inserted = 1
+    }
   ' "$APPCAST_PATH" > "$APPCAST_TMP"
   mv "$APPCAST_TMP" "$APPCAST_PATH"
+  rm -f "$APPCAST_ITEM_FILE"
 fi
 
 step "Done. Publish command (run this yourself once you are ready -- it is not run for you):"
