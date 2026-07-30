@@ -258,6 +258,9 @@ final class AppCoordinator {
                             if pasteStackModel.isActive {
                                 pasteStackModel.enqueue(saved)
                             }
+                            // Already on the main queue; hop into main-actor isolation to
+                            // run the one-time first-copy coach (see the method).
+                            MainActor.assumeIsolated { AppCoordinator.showFirstCopyCoachIfNeeded() }
                         }
                     } catch {
                         reporter.report(error)
@@ -307,6 +310,21 @@ final class AppCoordinator {
         monitor.start()
         runRetentionPrune()
         scheduleRetentionTimer()
+    }
+
+    /// The one unguided moment in the whole journey: a fresh user has just copied their
+    /// very first thing but has no reason to know the shelf exists yet. Nudge them, once,
+    /// to summon it, using their actual hotkey. Static (not instance) because the capture
+    /// closure that fires it escapes to a background thread and can't hold `self`; gated so
+    /// it never fires before onboarding and never repeats.
+    private static func showFirstCopyCoachIfNeeded() {
+        let defaults = UserDefaults.standard
+        let seenKey = "hasSeenFirstCopyCoach"
+        guard defaults.bool(forKey: "hasOnboarded"),
+              !defaults.bool(forKey: seenKey) else { return }
+        defaults.set(true, forKey: seenKey)
+        let hotkey = KeyboardShortcuts.getShortcut(for: .toggleShelf)?.description ?? "⇧⌘V"
+        HUD.show("Saved to Copy. Press \(hotkey) to open it.", duration: 2.8)
     }
 
     /// Prunes items past the configured retention window on the persist queue,
