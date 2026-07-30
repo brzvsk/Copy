@@ -43,4 +43,42 @@ final class ItemStoreSearchTests: XCTestCase {
         try store.touch(itemID: a.id!, now: Date(timeIntervalSince1970: 3000))
         XCTAssertEqual(try store.recentItems(limit: 10).map(\.plainText), ["a", "b"])
     }
+
+    func testSearchScopedToPinboardReturnsOnlyMember() throws {
+        let (store, pinboards) = try makeTempStores()
+        let board = try pinboards.create(name: "Board", symbol: "pin")
+        let a = try store.save(makeText("widget alpha"))
+        let b = try store.save(makeText("widget beta"))
+        try pinboards.add(itemID: a.id!, to: board.id!)
+
+        let scoped = try store.search("widget", pinboardID: board.id!)
+        XCTAssertEqual(scoped.map(\.plainText), ["widget alpha"])
+
+        let global = try store.search("widget", pinboardID: nil)
+        XCTAssertEqual(Set(global.map(\.plainText)), Set(["widget alpha", "widget beta"]))
+    }
+
+    func testSearchScopedToPinboardExcludesNonMemberMatch() throws {
+        let (store, pinboards) = try makeTempStores()
+        let board = try pinboards.create(name: "Board", symbol: "pin")
+        _ = try store.save(makeText("gadget outside"))
+
+        XCTAssertEqual(try store.search("gadget", pinboardID: board.id!).count, 0)
+    }
+
+    func testSearchScopedToPinboardComposesWithKindsFilter() throws {
+        let (store, pinboards) = try makeTempStores()
+        let board = try pinboards.create(name: "Board", symbol: "pin")
+        let text = try store.save(makeText("marker note"))
+        let linkURL = "https://marker.example.com"
+        let link = try store.save(CapturedItem(
+            kind: .link, plainText: linkURL, hashData: Data(linkURL.utf8),
+            representations: [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(linkURL.utf8))],
+            sourceBundleID: "com.test.app", sourceAppName: "TestApp"))
+        try pinboards.add(itemID: text.id!, to: board.id!)
+        try pinboards.add(itemID: link.id!, to: board.id!)
+
+        let scopedText = try store.search("marker", kinds: [.text], pinboardID: board.id!)
+        XCTAssertEqual(scopedText.map(\.plainText), ["marker note"])
+    }
 }

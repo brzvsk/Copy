@@ -112,7 +112,11 @@ public struct ItemStore {
         }
     }
 
-    public func search(_ query: String, kinds: Set<ItemKind>? = nil, limit: Int = 50) throws -> [ClipItem] {
+    /// `pinboardID` is deliberately the last parameter (rather than sitting beside
+    /// `kinds`) so existing positional call sites like `search(query, limit: 10)`
+    /// (the `SearchClipboardIntent` AppIntent, which searches globally) keep compiling
+    /// unchanged and stay unscoped.
+    public func search(_ query: String, kinds: Set<ItemKind>? = nil, limit: Int = 50, pinboardID: Int64? = nil) throws -> [ClipItem] {
         guard let pattern = FTS5Pattern(matchingAllPrefixesIn: query) else { return [] }
         var sql = """
             SELECT item.* FROM item
@@ -124,6 +128,10 @@ public struct ItemStore {
             let names = kinds.map(\.rawValue).sorted()
             sql += " AND item.kind IN (\(names.map { _ in "?" }.joined(separator: ",")))"
             arguments.append(contentsOf: names)
+        }
+        if let pinboardID {
+            sql += " AND item.id IN (SELECT itemId FROM pinboard_item WHERE pinboardId = ?)"
+            arguments.append(pinboardID)
         }
         sql += " ORDER BY item.lastUsedAt DESC LIMIT ?"
         arguments.append(limit)

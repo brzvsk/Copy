@@ -105,6 +105,18 @@ private struct ShelfHeader: View {
     @Bindable var viewModel: ShelfViewModel
     @FocusState private var searchFocused: Bool
 
+    /// Quiet scope hint: on a pinboard tab, the search field's placeholder names the
+    /// board so the user knows a query only searches its members, not all of history.
+    /// Falls back to the global "Search" placeholder on History, and if the tab's
+    /// pinboard can't be resolved (e.g. mid-delete).
+    private var searchPlaceholder: String {
+        if case .pinboard(let id) = viewModel.tab,
+           let name = viewModel.pinboards.first(where: { $0.id == id })?.name {
+            return "Search \(name)"
+        }
+        return "Search"
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             ShelfTabs(viewModel: viewModel)
@@ -119,7 +131,7 @@ private struct ShelfHeader: View {
             }
             HStack(spacing: 5) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search", text: $viewModel.query)
+                TextField(searchPlaceholder, text: $viewModel.query)
                     .textFieldStyle(.plain)
                     .focused($searchFocused)
             }

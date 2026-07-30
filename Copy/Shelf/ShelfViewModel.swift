@@ -129,7 +129,7 @@ final class ShelfViewModel {
         token = nil
         previewShown = false
         if !query.isEmpty {
-            apply((try? store.search(query, kinds: scope.kinds, limit: 100)) ?? [])
+            apply((try? store.search(query, kinds: scope.kinds, limit: 100, pinboardID: searchPinboardID)) ?? [])
             return
         }
         switch tab {
@@ -142,6 +142,13 @@ final class ShelfViewModel {
                                                onError: { NSLog("Copy: observation failed: \($0)") },
                                                onChange: { [weak self] in self?.apply($0) })
         }
+    }
+
+    /// Scopes shelf search (`refresh()`) to the active pinboard tab; `nil` on the
+    /// History tab searches globally, same as before pinboard scoping existed.
+    private var searchPinboardID: Int64? {
+        if case .pinboard(let id) = tab { return id }
+        return nil
     }
 
     /// Reset search/selection when the shelf closes. Anchors selection to the newest
