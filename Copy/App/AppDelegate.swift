@@ -86,6 +86,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         coordinator.shelfViewModel.onCheckForUpdates = { [weak self] in
             self?.updaterController.checkForUpdates(nil)
         }
+        // Same bridge for the Settings > About "Check for Updates…" button.
+        coordinator.settings.onCheckForUpdates = { [weak self] in
+            self?.updaterController.checkForUpdates(nil)
+        }
         coordinator.shelfViewModel.onQuit = {
             NSApp.terminate(nil)
         }

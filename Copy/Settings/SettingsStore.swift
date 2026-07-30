@@ -150,6 +150,10 @@ final class SettingsStore {
     }
 
     @ObservationIgnored var onRulesChange: ((Set<String>) -> Void)?
+    /// Fired by the About pane's "Check for Updates…" button. Bridged to Sparkle's
+    /// `updaterController` in `AppDelegate` (which owns it), so this store — and the
+    /// SwiftUI settings views — never depend on Sparkle directly.
+    @ObservationIgnored var onCheckForUpdates: (() -> Void)?
     @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
     @ObservationIgnored var onCompactShelfChange: ((Bool) -> Void)?
     @ObservationIgnored var onShelfProDarkChange: ((Bool) -> Void)?

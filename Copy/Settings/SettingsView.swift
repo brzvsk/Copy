@@ -1,39 +1,63 @@
 import SwiftUI
 
-/// Root content of the SwiftUI `Settings` scene: three tabs backed by the shared
-/// `SettingsStore` (see `AppCoordinator.settings`).
+/// Root content of the Settings window (hosted by `SettingsWindowController`): a
+/// System-Settings-style sidebar (`NavigationSplitView`) of five sections, each backed by
+/// the shared `SettingsStore` (see `AppCoordinator.settings`).
 ///
-/// M7: deliberately NOT adopting `glassSurface` anywhere in this view or its three
-/// panes (`GeneralSettings`, `HistorySettings`, `PrivacySettings`). Unlike the shelf,
-/// paste stack, and popovers/sheets, Settings hosts in a plain titled `NSWindow`
-/// (`SettingsWindowController`) with no visual-effect material of its own, and its
-/// content is `Form(.formStyle(.grouped))` — a system control that already draws its
-/// own section chrome. Backing that in glass would fight the grouped form's own
-/// background rather than read as one intentional surface, and Apple's own System
-/// Settings app keeps its form content on the opaque window background rather than
-/// glass on macOS 26 (glass there is reserved for chrome like the sidebar, not the
-/// settings content itself — same reasoning as `ItemCardView`). The task brief called
-/// this surface "optional and lower-value"; this is that "note if you skip."
+/// The window is tinted electric-blue (`Tokens.electricBlue`) so the sidebar selection and
+/// all controls read as one brand accent, but it otherwise stays native: it follows the
+/// system appearance and each pane's controls sit in a grouped `Form`. That last choice is
+/// deliberate and unchanged from the tabbed version — unlike the shelf/paste stack/sheets,
+/// Settings keeps its content on the opaque grouped-form background rather than glass, the
+/// same way Apple's System Settings reserves glass for chrome (the sidebar) and not the
+/// settings content itself.
 struct SettingsView: View {
     let settings: SettingsStore
+    @State private var selection: SettingsSection? = .general
 
     var body: some View {
-        TabView {
-            GeneralSettings(settings: settings)
-                .tabItem {
-                    Label("General", systemImage: "gearshape")
+        NavigationSplitView {
+            List(selection: $selection) {
+                ForEach(SettingsSection.allCases) { section in
+                    HStack(spacing: 8) {
+                        SettingsSectionTile(systemImage: section.systemImage, color: section.tileColor)
+                        Text(section.title)
+                    }
+                    .padding(.vertical, 2)
+                    .tag(section)
                 }
-
-            HistorySettings(settings: settings)
-                .tabItem {
-                    Label("History", systemImage: "clock")
-                }
-
-            PrivacySettings(settings: settings)
-                .tabItem {
-                    Label("Privacy", systemImage: "hand.raised")
-                }
+            }
+            .navigationSplitViewColumnWidth(min: 178, ideal: 196, max: 230)
+        } detail: {
+            detail(for: selection ?? .general)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: 480)
+        .tint(Tokens.electricBlue)
+        .frame(minWidth: 640, minHeight: 460)
+    }
+
+    /// About leads with its own centered identity block; the other four panes get the
+    /// standard hero above their grouped `Form`.
+    @ViewBuilder
+    private func detail(for section: SettingsSection) -> some View {
+        switch section {
+        case .general:
+            pane(.general) { GeneralSettings(settings: settings) }
+        case .shortcuts:
+            pane(.shortcuts) { ShortcutsSettings(settings: settings) }
+        case .history:
+            pane(.history) { HistorySettings(settings: settings) }
+        case .privacy:
+            pane(.privacy) { PrivacySettings(settings: settings) }
+        case .about:
+            AboutSettings(settings: settings)
+        }
+    }
+
+    private func pane<Content: View>(_ section: SettingsSection, @ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            SettingsPaneHeader(section: section)
+            content()
+        }
     }
 }

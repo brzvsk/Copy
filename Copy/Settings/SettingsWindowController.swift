@@ -18,28 +18,18 @@ import SwiftUI
 final class SettingsWindowController: NSWindowController {
     convenience init(settings: SettingsStore) {
         let hosting = NSHostingController(rootView: SettingsView(settings: settings))
-        // Without this, `NSWindow(contentViewController:)` doesn't resolve the hosting
-        // controller's preferred content size against the actual SwiftUI content on
-        // Ventura+, leaving the window at AppKit's degenerate default (a 1pt-wide,
-        // effectively invisible sliver) instead of sizing to the TabView underneath.
-        hosting.sizingOptions = [.intrinsicContentSize]
+        // The redesigned settings is a `NavigationSplitView`, which fills its container
+        // rather than reporting an intrinsic size — so let the window drive sizing, not the
+        // hosting controller. `SettingsView` carries its own `.frame(minWidth:minHeight:)`,
+        // and the explicit content/min sizes below give a real starting frame (avoiding the
+        // 1pt sliver the old intrinsic-size path was needed to dodge for the TabView).
+        hosting.sizingOptions = []
         let window = NSWindow(contentViewController: hosting)
         window.title = "Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.isReleasedWhenClosed = false
-        // `sizingOptions` alone isn't enough on first launch: SwiftUI hasn't run a
-        // layout pass yet when this window is constructed, so the hosting controller's
-        // intrinsic size resolves to near-zero and the window ends up a 1pt sliver.
-        // An explicit floor here guarantees a real size regardless of that timing;
-        // `.intrinsicContentSize` still keeps later tab-switch height changes working.
-        //
-        // `contentMinSize` is the load-bearing part: without it, `.intrinsicContentSize`
-        // can push the window *shorter* than the General tab's content once it has
-        // several grouped sections (hotkeys, shelf size, dark shelf, click behavior,
-        // launch at login, hide menu bar icon), clipping the lower toggles off the
-        // bottom. The floor keeps the whole tab visible; taller tabs still scroll.
-        window.contentMinSize = NSSize(width: 480, height: 680)
-        window.setContentSize(NSSize(width: 480, height: 680))
+        window.contentMinSize = NSSize(width: 640, height: 460)
+        window.setContentSize(NSSize(width: 720, height: 520))
         self.init(window: window)
     }
 

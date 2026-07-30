@@ -22,23 +22,6 @@ struct GeneralSettings: View {
     var body: some View {
         Form {
             Section {
-                KeyboardShortcuts.Recorder("Open Copy:", name: .toggleShelf) { shortcut in
-                    shelfHotkeySet = shortcut != nil
-                    // Third trigger for AppDelegate's anti-stranding guard — see
-                    // `SettingsStore.onShelfHotkeyChange`'s doc comment. Must fire
-                    // here even though `hideMenuBarIcon` itself isn't changing.
-                    settings.onShelfHotkeyChange?()
-                }
-                KeyboardShortcuts.Recorder("Paste Stack:", name: .togglePasteStack)
-                KeyboardShortcuts.Recorder("Quick Paste Latest:", name: .quickPasteLatest)
-                KeyboardShortcuts.Recorder("Next Pinboard:", name: .nextPinboard)
-            } footer: {
-                Text("Quick Paste Latest pastes your most recent item into the current app without opening Copy. While the shelf is open, press a number key to paste that card.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
                 Picker("Shelf Size", selection: $settings.compactShelf) {
                     Text("Standard").tag(false)
                     Text("Compact").tag(true)
