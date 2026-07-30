@@ -1,6 +1,7 @@
 import SwiftUI
 import CopyCore
 import AppKit
+import KeyboardShortcuts
 import UniformTypeIdentifiers
 
 struct ShelfRootView: View {
@@ -144,12 +145,40 @@ private struct ShelfHeader: View {
                     .focused($searchFocused)
             }
             .frame(maxWidth: 220)
+            PasteStackButton(viewModel: viewModel)
             DrawerMenu(viewModel: viewModel)
         }
         .padding(.horizontal, Tokens.shelfPadding)
         .padding(.vertical, 8)
         .animation(.easeOut(duration: 0.12), value: viewModel.query.isEmpty)
         .onAppear { searchFocused = true }
+    }
+}
+
+/// Header control that opens the Paste Stack palette (`onTogglePasteStack`), tinting to the
+/// accent while the stack is active. While ⌘ is held it reveals the stack's rebindable
+/// hotkey as a `KeyCap`, matching the shelf's other ⌘-hold hints (the card number badges).
+private struct PasteStackButton: View {
+    @Bindable var viewModel: ShelfViewModel
+
+    private var hotkey: String {
+        KeyboardShortcuts.getShortcut(for: .togglePasteStack)?.description ?? "⇧⌘C"
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            IconButton(systemName: "square.stack.3d.up", fontSize: 15,
+                       size: CGSize(width: 34, height: 30),
+                       tint: viewModel.isPasteStackOn ? Color.accentColor : .secondary,
+                       help: "Paste Stack (\(hotkey))") {
+                viewModel.onTogglePasteStack?()
+            }
+            if viewModel.commandHeld {
+                KeyCap(text: hotkey)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: viewModel.commandHeld)
     }
 }
 
