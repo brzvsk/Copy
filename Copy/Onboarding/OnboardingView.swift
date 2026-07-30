@@ -22,6 +22,10 @@ struct OnboardingView: View {
 
     private let steps: [Step]
     @State private var stepIndex = 0
+    /// Drives the direction of the step transition so advancing slides left and going
+    /// back slides right, matching the shelf's own directional motion.
+    @State private var goingForward = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(onFinish: @escaping () -> Void) {
         self.onFinish = onFinish
@@ -58,13 +62,16 @@ struct OnboardingView: View {
             content
                 .padding(32)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .id(stepIndex)
+                .transition(stepTransition)
 
             VStack(spacing: 16) {
                 ProgressDots(count: steps.count, current: stepIndex)
                 HStack {
                     if !isFirstStep {
                         Button("Back") {
-                            withAnimation(.easeOut(duration: 0.15)) { stepIndex -= 1 }
+                            goingForward = false
+                            withAnimation(.easeOut(duration: 0.22)) { stepIndex -= 1 }
                         }
                         .buttonStyle(.bordered)
                     }
@@ -100,8 +107,18 @@ struct OnboardingView: View {
         if isLastStep {
             finish()
         } else {
-            withAnimation(.easeOut(duration: 0.15)) { stepIndex += 1 }
+            goingForward = true
+            withAnimation(.easeOut(duration: 0.22)) { stepIndex += 1 }
         }
+    }
+
+    /// A directional slide (advance left, back right), degrading to a plain crossfade
+    /// under Reduce Motion.
+    private var stepTransition: AnyTransition {
+        if reduceMotion { return .opacity }
+        return .asymmetric(
+            insertion: .move(edge: goingForward ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: goingForward ? .leading : .trailing).combined(with: .opacity))
     }
 
     /// The last step's Finish action: records that onboarding is done so it never shows

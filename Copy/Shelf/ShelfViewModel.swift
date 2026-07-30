@@ -45,6 +45,8 @@ final class ShelfViewModel {
     var editingItem: ClipItem?
     var pinboardPopoverShown = false
     var creatingItem = false
+    /// Presents the keyboard-and-tips cheat sheet (reached from the drawer menu).
+    var showingTips = false
     var adjustingColorItem: ClipItem?
     /// Drives the inline, click-to-edit title field on a card (`ItemCardView`). The
     /// app-wide key monitor guard treats an active inline field exactly like the other

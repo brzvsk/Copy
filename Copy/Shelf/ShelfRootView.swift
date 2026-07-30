@@ -74,6 +74,9 @@ struct ShelfRootView: View {
                 onCopy: { viewModel.commitAdjustColor($0) }
             )
         }
+        .sheet(isPresented: $viewModel.showingTips) {
+            TipsSheet(onDone: { viewModel.showingTips = false })
+        }
     }
 }
 
@@ -188,6 +191,7 @@ private struct DrawerMenu: View {
             Button("Export…") { viewModel.onExportHistory?() }
             Button("Import…") { viewModel.onImportHistory?() }
             Divider()
+            Button("Keyboard & Tips…") { viewModel.showingTips = true }
             Button("Settings…") { viewModel.onOpenSettings?() }
             Button("Check for Updates…") { viewModel.onCheckForUpdates?() }
             Divider()

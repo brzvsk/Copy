@@ -57,7 +57,7 @@ final class AppCoordinator {
             // app-wide and fires before the sheet's/field's responder chain would see
             // the event otherwise.
             guard viewModel.editingItem == nil, !viewModel.pinboardPopoverShown,
-                  !viewModel.creatingItem,
+                  !viewModel.creatingItem, !viewModel.showingTips,
                   viewModel.adjustingColorItem == nil,
                   viewModel.inlineRenamingItemID == nil else { return false }
             // ⌘1 → history tab, ⌘2...⌘9 → nth pinboard. Checked before keyCode routing
@@ -258,9 +258,14 @@ final class AppCoordinator {
                             if pasteStackModel.isActive {
                                 pasteStackModel.enqueue(saved)
                             }
-                            // Already on the main queue; hop into main-actor isolation to
-                            // run the one-time first-copy coach (see the method).
-                            MainActor.assumeIsolated { AppCoordinator.showFirstCopyCoachIfNeeded() }
+                            // Already on the main queue; hop into main-actor isolation for
+                            // the one-time activation nudges (see the methods).
+                            MainActor.assumeIsolated {
+                                AppCoordinator.showFirstCopyCoachIfNeeded()
+                                if !pasteStackModel.isActive {
+                                    AppCoordinator.notePasteStackOpportunity()
+                                }
+                            }
                         }
                     } catch {
                         reporter.report(error)
@@ -325,6 +330,24 @@ final class AppCoordinator {
         defaults.set(true, forKey: seenKey)
         let hotkey = KeyboardShortcuts.getShortcut(for: .toggleShelf)?.description ?? "⇧⌘V"
         HUD.show("Saved to Copy. Press \(hotkey) to open it.", duration: 2.8)
+    }
+
+    /// Tracks recent capture times; when an established user copies several things in
+    /// quick succession (exactly when a paste stack would help) and hasn't met the
+    /// feature yet, introduce it, once. Gated behind the first-copy coach so a brand-new
+    /// user copying a fast burst isn't double-nagged.
+    private static var recentCaptureTimes: [Date] = []
+    private static func notePasteStackOpportunity() {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: "hasSeenFirstCopyCoach"),
+              !defaults.bool(forKey: "hasSeenPasteStackHint") else { return }
+        let now = Date()
+        recentCaptureTimes.append(now)
+        recentCaptureTimes = recentCaptureTimes.filter { now.timeIntervalSince($0) < 10 }
+        guard recentCaptureTimes.count >= 3 else { return }
+        defaults.set(true, forKey: "hasSeenPasteStackHint")
+        let hotkey = KeyboardShortcuts.getShortcut(for: .togglePasteStack)?.description ?? "⇧⌘C"
+        HUD.show("Collecting a few things? Press \(hotkey) for the paste stack.", duration: 3.0)
     }
 
     /// Prunes items past the configured retention window on the persist queue,
