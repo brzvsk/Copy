@@ -162,8 +162,12 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
             panel.animator().alphaValue = 0
             panel.animator().setFrame(panel.frame.offsetBy(dx: 0, dy: -24), display: true)
         } completionHandler: { [weak self] in
-            guard let self, self.closeToken == token else { return }
-            self.finishHide(panel)
+            // NSAnimationContext runs its completion on the main thread; the closure's
+            // `@Sendable` type just can't see that statically.
+            MainActor.assumeIsolated {
+                guard let self, self.closeToken == token else { return }
+                self.finishHide(panel)
+            }
         }
     }
 
