@@ -38,8 +38,8 @@ final class SettingsWindowController: NSWindowController {
         // several grouped sections (hotkeys, shelf size, dark shelf, click behavior,
         // launch at login, hide menu bar icon), clipping the lower toggles off the
         // bottom. The floor keeps the whole tab visible; taller tabs still scroll.
-        window.contentMinSize = NSSize(width: 480, height: 620)
-        window.setContentSize(NSSize(width: 480, height: 620))
+        window.contentMinSize = NSSize(width: 480, height: 680)
+        window.setContentSize(NSSize(width: 480, height: 680))
         self.init(window: window)
     }
 
