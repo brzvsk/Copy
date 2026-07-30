@@ -260,6 +260,18 @@ struct ItemCardView: View {
         }
     }
 
+    /// File card body: a Finder-style Quick Look preview of the file, with its name
+    /// below. Extracted from `body(for:)` for the Swift type checker.
+    @ViewBuilder
+    private var fileBody: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            FileThumbnail(item: item, store: store, compact: compact)
+            Text(item.plainText ?? "File")
+                .font(Tokens.bodyMono)
+                .lineLimit(bodyLineLimit(standard: 2, compact: 1))
+        }
+    }
+
     /// Image card body: the thumbnail, plus a highlighted OCR snippet when a search
     /// matched the image's recognized text. Extracted from `body(for:)` so the switch
     /// there stays simple enough for the Swift type checker.
@@ -330,14 +342,7 @@ struct ItemCardView: View {
         case .image:
             imageBody
         case .file:
-            VStack(alignment: .leading, spacing: 6) {
-                Image(nsImage: NSWorkspace.shared.icon(for: Tokens.fileType(for: item)))
-                    .resizable()
-                    .frame(width: compact ? 32 : 44, height: compact ? 32 : 44)
-                Text(item.plainText ?? "File")
-                    .font(Tokens.bodyMono)
-                    .lineLimit(bodyLineLimit(standard: 6, compact: 3))
-            }
+            fileBody
         case .color:
             VStack(alignment: .leading, spacing: 6) {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -507,6 +512,43 @@ private struct CardClickGesture: ViewModifier {
         } else {
             content
                 .onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
+        }
+    }
+}
+
+/// A Finder-style Quick Look preview for a file card, falling back to the generic
+/// file-type icon while the thumbnail loads or when Quick Look can't render one (for
+/// example, a file that has since moved off disk).
+struct FileThumbnail: View {
+    let item: ClipItem
+    let store: ItemStore
+    var compact: Bool = false
+    @State private var image: NSImage?
+    @State private var resolved = false
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(nsImage: NSWorkspace.shared.icon(for: Tokens.fileType(for: item)))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: compact ? 32 : 44, height: compact ? 32 : 44)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            guard !resolved else { return }
+            resolved = true
+            image = ThumbnailCache.shared.cached(for: item)
+            if image == nil,
+               let url = QuickLookController.fileURLs(for: item, store: store)
+                   .first(where: { FileManager.default.fileExists(atPath: $0.path) }) {
+                ThumbnailCache.shared.fileThumbnail(for: item, url: url) { image = $0 }
+            }
         }
     }
 }
