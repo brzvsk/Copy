@@ -46,7 +46,10 @@ struct PasteStackView: View {
                 footer
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Top-anchored: the header stays pinned to the top no matter how the panel height
+        // and the content height drift — any mismatch shows as space below the footer, never
+        // a clipped header.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onChange(of: model.queue.itemUUIDs) { _, _ in onContentChange() }
     }
 
