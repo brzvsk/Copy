@@ -166,7 +166,14 @@ final class PasteStackController {
         let hosting = NSHostingView(rootView: PasteStackView(
             model: model,
             onClose: { [weak model] in model?.isActive = false },
-            onContentChange: { [weak self] in self?.resizeToFit() }
+            // Defer to the next runloop tick: the + button mutates the queue from inside a
+            // SwiftUI update, and resizing the panel (setFrame) synchronously there would
+            // re-enter SwiftUI's layout pass mid-update and corrupt the window. Adds from
+            // outside the view (the paste-stack hotkey) don't hit that, but deferring is
+            // safe for them too.
+            onContentChange: { [weak self] in
+                DispatchQueue.main.async { self?.resizeToFit() }
+            }
         )
         .tint(proDark ? Tokens.electricBlue : nil))
         hosting.translatesAutoresizingMaskIntoConstraints = false

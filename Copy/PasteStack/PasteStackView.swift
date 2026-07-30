@@ -115,6 +115,7 @@ struct PasteStackView: View {
                         isNext: order[item.uuid] == 1,
                         isEditing: editingUUID == item.uuid,
                         isDragging: draggingUUID == item.uuid,
+                        isEditable: isEditable(item),
                         editText: $editText,
                         onBeginEdit: { beginEdit(item) },
                         onCommitEdit: { commitEdit(item) },
@@ -126,7 +127,9 @@ struct PasteStackView: View {
                     .zIndex(draggingUUID == item.uuid ? 1 : 0)
                     .gesture(reorderGesture(item: item, items: items))
                     .contextMenu {
-                        Button("Edit…") { beginEdit(item) }.disabled(!isEditable(item))
+                        if isEditable(item) {
+                            Button("Edit…") { beginEdit(item) }
+                        }
                         Button("Remove", role: .destructive) { model.queue.remove(item.uuid) }
                     }
                 }
@@ -230,6 +233,7 @@ private struct PasteStackRow: View {
     let isNext: Bool
     let isEditing: Bool
     var isDragging: Bool = false
+    var isEditable: Bool = true
     @Binding var editText: String
     let onBeginEdit: () -> Void
     let onCommitEdit: () -> Void
@@ -274,8 +278,11 @@ private struct PasteStackRow: View {
             if !isEditing {
                 if isHovering {
                     HStack(spacing: 1) {
-                        IconButton(systemName: "pencil", fontSize: 10,
-                                   size: CGSize(width: 22, height: 22), help: "Edit", action: onBeginEdit)
+                        // Only text-like rows can be edited; images/files/colors show just Remove.
+                        if isEditable {
+                            IconButton(systemName: "pencil", fontSize: 10,
+                                       size: CGSize(width: 22, height: 22), help: "Edit", action: onBeginEdit)
+                        }
                         IconButton(systemName: "trash", fontSize: 10,
                                    size: CGSize(width: 22, height: 22), help: "Remove", action: onRemove)
                     }
@@ -299,7 +306,7 @@ private struct PasteStackRow: View {
         .padding(.horizontal, 6)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
-        .onTapGesture(count: 2) { onBeginEdit() }
+        .onTapGesture(count: 2) { if isEditable { onBeginEdit() } }
     }
 
     private var glyph: String {
