@@ -13,10 +13,10 @@ symlinks = {"Applications": "/Applications"}
 
 # App icon on the left, Applications folder on the right, at the same height; the
 # background art's drag arrow points from one to the other.
-icon_locations = {appname: (165, 180), "Applications": (495, 180)}
+icon_locations = {appname: (165, 250), "Applications": (495, 250)}
 background = "BACKGROUND_PLACEHOLDER"
 
-window_rect = ((200, 120), (660, 400))
+window_rect = ((200, 120), (660, 470))
 default_view = "icon-view"
 show_status_bar = False
 show_toolbar = False
