@@ -5,6 +5,20 @@ All notable changes to Copy are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-07-30
+
+A settings overhaul, plus finer control over what Copy keeps.
+
+### Added
+
+- Redesigned Settings as a sidebar: General, Shortcuts, History, Privacy, and a new About page (version, Check for Updates, and project links). The keyboard shortcuts now have their own page instead of crowding General.
+- History retention is now a slider, from 1 Day up to Unlimited.
+- Storage usage in History: see how much space each type of item uses (Text, Links, Images, Files, Colors), and clear a single type or the whole history, with the reclaimable size shown up front.
+
+### Fixed
+
+- The Keyboard & Tips window now has its background instead of rendering transparent.
+
 ## [0.1.1] - 2026-07-30
 
 A refinement release: the Paste Stack is rebuilt from the ground up, the shelf and
