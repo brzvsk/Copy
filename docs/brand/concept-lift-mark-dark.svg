@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Copy logomark: The Lift">
+  <defs>
+    <linearGradient id="g-lift-d" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6F6F4"/>
+      <stop offset="1" stop-color="#C9CBCF"/>
+    </linearGradient>
+  </defs>
+  <rect x="40" y="190" width="176" height="20" rx="10" fill="url(#g-lift-d)"/>
+  <rect x="106" y="182" width="44" height="20" rx="8" fill="#1C1D20"/>
+  <rect x="98" y="180" width="60" height="14" rx="7" fill="rgba(0,0,0,0.35)"/>
+  <rect x="82" y="59" width="92" height="118" rx="16" fill="url(#g-lift-d)" transform="rotate(-6 128 118)"/>
+</svg>

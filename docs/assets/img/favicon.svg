@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Copy">
+  <style>
+    .back { fill: #AEB1B8; }
+    .front { fill: #26282C; }
+    @media (prefers-color-scheme: dark) {
+      .back { fill: #7C7E85; }
+      .front { fill: #EEEEEC; }
+    }
+  </style>
+  <rect class="back" x="58" y="44" width="112" height="142" rx="18"/>
+  <rect class="front" x="94" y="80" width="112" height="142" rx="18"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Copy logomark: The Row">
+  <defs>
+    <linearGradient id="g-row-l" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#82858E"/>
+      <stop offset="1" stop-color="#26282C"/>
+    </linearGradient>
+  </defs>
+  <rect x="28" y="192" width="200" height="14" rx="7" fill="url(#g-row-l)"/>
+  <rect x="36" y="84" width="52" height="108" rx="12" fill="url(#g-row-l)"/>
+  <rect x="168" y="84" width="52" height="108" rx="12" fill="url(#g-row-l)"/>
+  <rect x="104" y="178" width="48" height="10" rx="5" fill="rgba(0,0,0,0.22)"/>
+  <rect x="102" y="68" width="52" height="108" rx="12" fill="#AEB1B8"/>
+</svg>

@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Copy — Logo Concepts, Round 2</title>
+<style>
+  :root {
+    --page-bg: #F5F5F4;
+    --page-panel: #FFFFFF;
+    --page-border: #E4E4E1;
+    --page-text: #1D1E22;
+    --page-text-dim: #6B6D74;
+    --page-text-mute: #9A9BA1;
+
+    --solid-light: #1D1E22;  /* flat ink, used at favicon scale */
+    --solid-dark: #F2F2F0;
+    --swatch-light: #FFFFFF;
+    --swatch-dark: #1C1D20;
+    --swatch-light-border: #E3E3E0;
+    --swatch-dark-border: #313236;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg: #121214;
+      --page-panel: #1A1A1D;
+      --page-border: #2B2B2F;
+      --page-text: #EDEDEC;
+      --page-text-dim: #9B9CA3;
+      --page-text-mute: #6D6E74;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--page-bg);
+    color: var(--page-text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 64px 24px 96px;
+  }
+
+  /* ---------- Header ---------- */
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--page-text-mute);
+    margin: 0 0 12px;
+  }
+  h1 {
+    font-size: clamp(32px, 5vw, 44px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 14px;
+  }
+  .lede {
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--page-text-dim);
+    max-width: 660px;
+    margin: 0 0 8px;
+  }
+  .lede em { color: var(--page-text); font-style: normal; }
+
+  /* ---------- Quick nav strip ---------- */
+  .toc {
+    display: flex;
+    gap: 10px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+  }
+  .toc a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px 9px 10px;
+    background: var(--page-panel);
+    border: 1px solid var(--page-border);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--page-text);
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .toc a svg { width: 22px; height: 22px; flex-shrink: 0; }
+  .toc a .toc-sub {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--page-text-mute);
+    margin-top: 1px;
+  }
+
+  /* ---------- Concept sections ---------- */
+  section.concept {
+    margin-top: 64px;
+    padding-top: 40px;
+    border-top: 1px solid var(--page-border);
+  }
+  .concept-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .concept-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .concept-index {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--page-text-mute);
+    letter-spacing: 0.06em;
+  }
+  .concept-title h2 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .pick-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--page-text-dim);
+    border: 1px solid var(--page-border);
+    border-radius: 999px;
+    padding: 5px 11px;
+    white-space: nowrap;
+  }
+  .rationale {
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--page-text-dim);
+    max-width: 660px;
+    margin: 0 0 28px;
+  }
+
+  .row-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--page-text-mute);
+    margin: 28px 0 10px;
+  }
+  .row-label:first-of-type { margin-top: 0; }
+
+  .swatch-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 640px) {
+    .swatch-row { grid-template-columns: 1fr; }
+  }
+
+  .swatch {
+    position: relative;
+    border-radius: 16px;
+    padding: 36px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 200px;
+  }
+  .swatch.light { background: var(--swatch-light); border: 1px solid var(--swatch-light-border); }
+  .swatch.dark  { background: var(--swatch-dark);  border: 1px solid var(--swatch-dark-border); }
+  .swatch-tag {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .swatch.light .swatch-tag { color: #A6A7AC; }
+  .swatch.dark  .swatch-tag { color: #6E6F75; }
+
+  .hero-mark { width: 116px; height: 116px; }
+
+  /* favicon-proof row */
+  .fav-proof {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .fav-tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px 7px 10px;
+    border-radius: 8px 8px 0 0;
+    font-size: 12px;
+    font-weight: 500;
+    max-width: 150px;
+  }
+  .swatch.light .fav-tab { background: #EFEFED; color: #55565C; }
+  .swatch.dark  .fav-tab { background: #29292D; color: #C7C8CC; }
+  .fav-tab span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fav-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .fav-sizes {
+    display: flex;
+    align-items: flex-end;
+    gap: 18px;
+  }
+  .fav-size-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .fav-size-item svg { display: block; }
+  .fav-size-item small {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .swatch.light .fav-size-item small { color: #9A9BA1; }
+  .swatch.dark  .fav-size-item small { color: #7A7B81; }
+
+  .lockup-mark { width: 240px; height: auto; }
+  .lockup-row { display: flex; align-items: center; gap: 18px; }
+  .lockup-row .lockup-icon { width: 56px; height: 56px; flex-shrink: 0; }
+  .lockup-row svg.wordmark-svg { width: 150px; height: auto; }
+
+  /* ---------- Recommendation ---------- */
+  .recommendation {
+    margin-top: 72px;
+    padding: 28px 28px 30px;
+    border-radius: 16px;
+    background: var(--page-panel);
+    border: 1px solid var(--page-border);
+  }
+  .recommendation h3 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--page-text-mute);
+  }
+  .recommendation p {
+    margin: 0 0 10px;
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--page-text-dim);
+    max-width: 760px;
+  }
+  .recommendation p:last-child { margin-bottom: 0; }
+  .recommendation strong { color: var(--page-text); }
+
+  footer.note {
+    margin-top: 32px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--page-text-mute);
+    max-width: 760px;
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <p class="eyebrow">Brand exploration — round 2</p>
+  <h1>Copy — logo concepts</h1>
+  <p class="lede">Round 1 didn't land: the abstract ring read as a random shape, the
+    stacked bars read as something unfortunate, and the shelf mark itself was too soft
+    to commit to. This round stays in the shelf/card/clipboard territory that had real
+    potential and pushes six directions much further — bolder silhouettes, a touch of
+    the app icon's own tonal depth (a soft graphite gradient, a quiet contact shadow),
+    still zero color accents.</p>
+
+  <nav class="toc">
+    <a href="#concept-lift">
+      <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="40" y="190" width="176" height="20" rx="10" fill="#1D1E22"/><rect x="106" y="182" width="44" height="20" rx="8" fill="#fff"/><rect x="82" y="59" width="92" height="118" rx="16" fill="#1D1E22" transform="rotate(-6 128 118)"/></svg>
+      <span>The Lift<span class="toc-sub">card rising off the shelf</span></span>
+    </a>
+    <a href="#concept-duplicate">
+      <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="58" y="44" width="112" height="142" rx="18" fill="#AEB1B8"/><rect x="94" y="80" width="112" height="142" rx="18" fill="#1D1E22"/></svg>
+      <span>The Duplicate<span class="toc-sub">a card and its copy</span></span>
+    </a>
+    <a href="#concept-row">
+      <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="28" y="192" width="200" height="14" rx="7" fill="#1D1E22"/><rect x="36" y="84" width="52" height="108" rx="12" fill="#1D1E22"/><rect x="168" y="84" width="52" height="108" rx="12" fill="#1D1E22"/><rect x="102" y="68" width="52" height="108" rx="12" fill="#AEB1B8"/></svg>
+      <span>The Row<span class="toc-sub">the shelf itself</span></span>
+    </a>
+    <a href="#concept-punch">
+      <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="16" y="16" width="224" height="224" rx="84" fill="#1D1E22"/><rect x="74" y="58" width="108" height="140" rx="20" fill="#FFFFFF" transform="rotate(-8 128 128)"/></svg>
+      <span>The Punch<span class="toc-sub">a card cut from graphite</span></span>
+    </a>
+    <a href="#concept-clip">
+      <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="64" y="76" width="128" height="152" rx="20" fill="#1D1E22"/><rect x="94" y="56" width="68" height="34" rx="16" fill="#AEB1B8"/><rect x="118" y="66" width="20" height="10" rx="5" fill="#fff"/></svg>
+      <span>The Clip<span class="toc-sub">modern clipboard</span></span>
+    </a>
+    <a href="#concept-fold">
+      <svg viewBox="0 0 256 256" aria-hidden="true"><path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="#1D1E22"/><path d="M 200,158 L 154,204 L 200,204 Z" fill="#AEB1B8"/></svg>
+      <span>The Fold<span class="toc-sub">wildcard, dog-eared card</span></span>
+    </a>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- 1 — THE LIFT                                                  -->
+  <!-- ============================================================ -->
+  <section class="concept" id="concept-lift">
+    <div class="concept-head">
+      <div class="concept-title">
+        <span class="concept-index">1</span>
+        <h2>The Lift</h2>
+      </div>
+      <span class="pick-tag">Top pick</span>
+    </div>
+    <p class="rationale">The refinement of round 1's shelf idea, made confident: the
+      ledge now has an open slot in it, a card sits well clear above the gap, and a
+      soft contact shadow ties the two together. It is the ⇧⌘V summon — a card rising
+      off the shelf — caught as a single still frame.</p>
+
+    <p class="row-label">Hero</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Lift">
+          <defs><linearGradient id="hero-lift-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+          <rect x="40" y="190" width="176" height="20" rx="10" fill="url(#hero-lift-l)"/>
+          <rect x="106" y="182" width="44" height="20" rx="8" fill="#FFFFFF"/>
+          <rect x="98" y="180" width="60" height="14" rx="7" fill="rgba(0,0,0,0.22)"/>
+          <rect x="82" y="59" width="92" height="118" rx="16" fill="url(#hero-lift-l)" transform="rotate(-6 128 118)"/>
+        </svg>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Lift">
+          <defs><linearGradient id="hero-lift-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+          <rect x="40" y="190" width="176" height="20" rx="10" fill="url(#hero-lift-d)"/>
+          <rect x="106" y="182" width="44" height="20" rx="8" fill="#1C1D20"/>
+          <rect x="98" y="180" width="60" height="14" rx="7" fill="rgba(0,0,0,0.35)"/>
+          <rect x="82" y="59" width="92" height="118" rx="16" fill="url(#hero-lift-d)" transform="rotate(-6 128 118)"/>
+        </svg>
+      </div>
+    </div>
+
+    <p class="row-label">Favicon scale</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="40" y="190" width="176" height="20" rx="10" fill="#1D1E22"/><rect x="106" y="182" width="44" height="20" rx="8" fill="#FFFFFF"/><rect x="82" y="59" width="92" height="118" rx="16" fill="#1D1E22" transform="rotate(-6 128 118)"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="40" y="190" width="176" height="20" rx="10" fill="#1D1E22"/><rect x="106" y="182" width="44" height="20" rx="8" fill="#FFFFFF"/><rect x="82" y="59" width="92" height="118" rx="16" fill="#1D1E22" transform="rotate(-6 128 118)"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="40" y="190" width="176" height="20" rx="10" fill="#1D1E22"/><rect x="106" y="182" width="44" height="20" rx="8" fill="#FFFFFF"/><rect x="82" y="59" width="92" height="118" rx="16" fill="#1D1E22" transform="rotate(-6 128 118)"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="40" y="190" width="176" height="20" rx="10" fill="#F2F2F0"/><rect x="106" y="182" width="44" height="20" rx="8" fill="#1C1D20"/><rect x="82" y="59" width="92" height="118" rx="16" fill="#F2F2F0" transform="rotate(-6 128 118)"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="40" y="190" width="176" height="20" rx="10" fill="#F2F2F0"/><rect x="106" y="182" width="44" height="20" rx="8" fill="#1C1D20"/><rect x="82" y="59" width="92" height="118" rx="16" fill="#F2F2F0" transform="rotate(-6 128 118)"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="40" y="190" width="176" height="20" rx="10" fill="#F2F2F0"/><rect x="106" y="182" width="44" height="20" rx="8" fill="#1C1D20"/><rect x="82" y="59" width="92" height="118" rx="16" fill="#F2F2F0" transform="rotate(-6 128 118)"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="row-label">Lockup</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Lift">
+            <defs><linearGradient id="lock-lift-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+            <rect x="40" y="190" width="176" height="20" rx="10" fill="url(#lock-lift-l)"/>
+            <rect x="106" y="182" width="44" height="20" rx="8" fill="#FFFFFF"/>
+            <rect x="98" y="180" width="60" height="14" rx="7" fill="rgba(0,0,0,0.22)"/>
+            <rect x="82" y="59" width="92" height="118" rx="16" fill="url(#lock-lift-l)" transform="rotate(-6 128 118)"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#1D1E22">Copy</text></svg>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Lift">
+            <defs><linearGradient id="lock-lift-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+            <rect x="40" y="190" width="176" height="20" rx="10" fill="url(#lock-lift-d)"/>
+            <rect x="106" y="182" width="44" height="20" rx="8" fill="#1C1D20"/>
+            <rect x="98" y="180" width="60" height="14" rx="7" fill="rgba(0,0,0,0.35)"/>
+            <rect x="82" y="59" width="92" height="118" rx="16" fill="url(#lock-lift-d)" transform="rotate(-6 128 118)"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#F2F2F0">Copy</text></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 2 — THE DUPLICATE                                             -->
+  <!-- ============================================================ -->
+  <section class="concept" id="concept-duplicate">
+    <div class="concept-head">
+      <div class="concept-title">
+        <span class="concept-index">2</span>
+        <h2>The Duplicate</h2>
+      </div>
+    </div>
+    <p class="rationale">What round 1's ring was reaching for, done with the actual
+      product shape instead of an invented letterform: two identical cards, stepped
+      apart at a precise, clean offset, one a shade lighter to read as "behind." No
+      rotation, no ambiguity — the plainest possible way to say "a thing and its copy."</p>
+
+    <p class="row-label">Hero</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Duplicate">
+          <defs><linearGradient id="hero-dup-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+          <rect x="58" y="44" width="112" height="142" rx="18" fill="#AEB1B8"/>
+          <rect x="94" y="80" width="112" height="142" rx="18" fill="url(#hero-dup-l)"/>
+        </svg>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Duplicate">
+          <defs><linearGradient id="hero-dup-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+          <rect x="58" y="44" width="112" height="142" rx="18" fill="#7C7E85"/>
+          <rect x="94" y="80" width="112" height="142" rx="18" fill="url(#hero-dup-d)"/>
+        </svg>
+      </div>
+    </div>
+
+    <p class="row-label">Favicon scale</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="58" y="44" width="112" height="142" rx="18" fill="#AEB1B8"/><rect x="94" y="80" width="112" height="142" rx="18" fill="#1D1E22"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="58" y="44" width="112" height="142" rx="18" fill="#AEB1B8"/><rect x="94" y="80" width="112" height="142" rx="18" fill="#1D1E22"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="58" y="44" width="112" height="142" rx="18" fill="#AEB1B8"/><rect x="94" y="80" width="112" height="142" rx="18" fill="#1D1E22"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="58" y="44" width="112" height="142" rx="18" fill="#7C7E85"/><rect x="94" y="80" width="112" height="142" rx="18" fill="#F2F2F0"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="58" y="44" width="112" height="142" rx="18" fill="#7C7E85"/><rect x="94" y="80" width="112" height="142" rx="18" fill="#F2F2F0"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="58" y="44" width="112" height="142" rx="18" fill="#7C7E85"/><rect x="94" y="80" width="112" height="142" rx="18" fill="#F2F2F0"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="row-label">Lockup</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Duplicate">
+            <defs><linearGradient id="lock-dup-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+            <rect x="58" y="44" width="112" height="142" rx="18" fill="#AEB1B8"/>
+            <rect x="94" y="80" width="112" height="142" rx="18" fill="url(#lock-dup-l)"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#1D1E22">Copy</text></svg>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Duplicate">
+            <defs><linearGradient id="lock-dup-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+            <rect x="58" y="44" width="112" height="142" rx="18" fill="#7C7E85"/>
+            <rect x="94" y="80" width="112" height="142" rx="18" fill="url(#lock-dup-d)"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#F2F2F0">Copy</text></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 3 — THE ROW                                                   -->
+  <!-- ============================================================ -->
+  <section class="concept" id="concept-row">
+    <div class="concept-head">
+      <div class="concept-title">
+        <span class="concept-index">3</span>
+        <h2>The Row</h2>
+      </div>
+    </div>
+    <p class="rationale">The actual product silhouette, reduced: three cards standing
+      on the shelf, the middle one raised as if previewed. Most literal of the six —
+      it more or less <em>is</em> a screenshot of the app compressed into an icon — at
+      the cost of being the busiest silhouette here.</p>
+
+    <p class="row-label">Hero</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Row">
+          <defs><linearGradient id="hero-row-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+          <rect x="28" y="192" width="200" height="14" rx="7" fill="url(#hero-row-l)"/>
+          <rect x="36" y="84" width="52" height="108" rx="12" fill="url(#hero-row-l)"/>
+          <rect x="168" y="84" width="52" height="108" rx="12" fill="url(#hero-row-l)"/>
+          <rect x="104" y="178" width="48" height="10" rx="5" fill="rgba(0,0,0,0.22)"/>
+          <rect x="102" y="68" width="52" height="108" rx="12" fill="#AEB1B8"/>
+        </svg>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Row">
+          <defs><linearGradient id="hero-row-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+          <rect x="28" y="192" width="200" height="14" rx="7" fill="url(#hero-row-d)"/>
+          <rect x="36" y="84" width="52" height="108" rx="12" fill="url(#hero-row-d)"/>
+          <rect x="168" y="84" width="52" height="108" rx="12" fill="url(#hero-row-d)"/>
+          <rect x="104" y="178" width="48" height="10" rx="5" fill="rgba(0,0,0,0.35)"/>
+          <rect x="102" y="68" width="52" height="108" rx="12" fill="#7C7E85"/>
+        </svg>
+      </div>
+    </div>
+
+    <p class="row-label">Favicon scale</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="28" y="192" width="200" height="14" rx="7" fill="#1D1E22"/><rect x="36" y="84" width="52" height="108" rx="12" fill="#1D1E22"/><rect x="168" y="84" width="52" height="108" rx="12" fill="#1D1E22"/><rect x="102" y="68" width="52" height="108" rx="12" fill="#AEB1B8"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="28" y="192" width="200" height="14" rx="7" fill="#1D1E22"/><rect x="36" y="84" width="52" height="108" rx="12" fill="#1D1E22"/><rect x="168" y="84" width="52" height="108" rx="12" fill="#1D1E22"/><rect x="102" y="68" width="52" height="108" rx="12" fill="#AEB1B8"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="28" y="192" width="200" height="14" rx="7" fill="#1D1E22"/><rect x="36" y="84" width="52" height="108" rx="12" fill="#1D1E22"/><rect x="168" y="84" width="52" height="108" rx="12" fill="#1D1E22"/><rect x="102" y="68" width="52" height="108" rx="12" fill="#AEB1B8"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="28" y="192" width="200" height="14" rx="7" fill="#F2F2F0"/><rect x="36" y="84" width="52" height="108" rx="12" fill="#F2F2F0"/><rect x="168" y="84" width="52" height="108" rx="12" fill="#F2F2F0"/><rect x="102" y="68" width="52" height="108" rx="12" fill="#7C7E85"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="28" y="192" width="200" height="14" rx="7" fill="#F2F2F0"/><rect x="36" y="84" width="52" height="108" rx="12" fill="#F2F2F0"/><rect x="168" y="84" width="52" height="108" rx="12" fill="#F2F2F0"/><rect x="102" y="68" width="52" height="108" rx="12" fill="#7C7E85"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="28" y="192" width="200" height="14" rx="7" fill="#F2F2F0"/><rect x="36" y="84" width="52" height="108" rx="12" fill="#F2F2F0"/><rect x="168" y="84" width="52" height="108" rx="12" fill="#F2F2F0"/><rect x="102" y="68" width="52" height="108" rx="12" fill="#7C7E85"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="row-label">Lockup</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Row">
+            <defs><linearGradient id="lock-row-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+            <rect x="28" y="192" width="200" height="14" rx="7" fill="url(#lock-row-l)"/>
+            <rect x="36" y="84" width="52" height="108" rx="12" fill="url(#lock-row-l)"/>
+            <rect x="168" y="84" width="52" height="108" rx="12" fill="url(#lock-row-l)"/>
+            <rect x="104" y="178" width="48" height="10" rx="5" fill="rgba(0,0,0,0.22)"/>
+            <rect x="102" y="68" width="52" height="108" rx="12" fill="#AEB1B8"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#1D1E22">Copy</text></svg>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Row">
+            <defs><linearGradient id="lock-row-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+            <rect x="28" y="192" width="200" height="14" rx="7" fill="url(#lock-row-d)"/>
+            <rect x="36" y="84" width="52" height="108" rx="12" fill="url(#lock-row-d)"/>
+            <rect x="168" y="84" width="52" height="108" rx="12" fill="url(#lock-row-d)"/>
+            <rect x="104" y="178" width="48" height="10" rx="5" fill="rgba(0,0,0,0.35)"/>
+            <rect x="102" y="68" width="52" height="108" rx="12" fill="#7C7E85"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#F2F2F0">Copy</text></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 4 — THE PUNCH                                                 -->
+  <!-- ============================================================ -->
+  <section class="concept" id="concept-punch">
+    <div class="concept-head">
+      <div class="concept-title">
+        <span class="concept-index">4</span>
+        <h2>The Punch</h2>
+      </div>
+      <span class="pick-tag">Runner-up</span>
+    </div>
+    <p class="rationale">Negative space instead of a stated shape: a solid graphite
+      squircle with one card die-cut out of it at the app icon's own tilt. Nothing to
+      misread — it's a tile with a hole in it — and the single-gesture simplicity makes
+      it the most bulletproof of the six at 16px.</p>
+
+    <p class="row-label">Hero</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Punch">
+          <defs><linearGradient id="hero-punch-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+          <rect x="16" y="16" width="224" height="224" rx="84" fill="url(#hero-punch-l)"/>
+          <rect x="74" y="58" width="108" height="140" rx="20" fill="#FFFFFF" transform="rotate(-8 128 128)"/>
+        </svg>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Punch">
+          <defs><linearGradient id="hero-punch-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+          <rect x="16" y="16" width="224" height="224" rx="84" fill="url(#hero-punch-d)"/>
+          <rect x="74" y="58" width="108" height="140" rx="20" fill="#1C1D20" transform="rotate(-8 128 128)"/>
+        </svg>
+      </div>
+    </div>
+
+    <p class="row-label">Favicon scale</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="16" y="16" width="224" height="224" rx="84" fill="#1D1E22"/><rect x="74" y="58" width="108" height="140" rx="20" fill="#FFFFFF" transform="rotate(-8 128 128)"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="16" y="16" width="224" height="224" rx="84" fill="#1D1E22"/><rect x="74" y="58" width="108" height="140" rx="20" fill="#FFFFFF" transform="rotate(-8 128 128)"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="16" y="16" width="224" height="224" rx="84" fill="#1D1E22"/><rect x="74" y="58" width="108" height="140" rx="20" fill="#FFFFFF" transform="rotate(-8 128 128)"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="16" y="16" width="224" height="224" rx="84" fill="#F2F2F0"/><rect x="74" y="58" width="108" height="140" rx="20" fill="#1C1D20" transform="rotate(-8 128 128)"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="16" y="16" width="224" height="224" rx="84" fill="#F2F2F0"/><rect x="74" y="58" width="108" height="140" rx="20" fill="#1C1D20" transform="rotate(-8 128 128)"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="16" y="16" width="224" height="224" rx="84" fill="#F2F2F0"/><rect x="74" y="58" width="108" height="140" rx="20" fill="#1C1D20" transform="rotate(-8 128 128)"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="row-label">Lockup</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Punch">
+            <defs><linearGradient id="lock-punch-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+            <rect x="16" y="16" width="224" height="224" rx="84" fill="url(#lock-punch-l)"/>
+            <rect x="74" y="58" width="108" height="140" rx="20" fill="#FFFFFF" transform="rotate(-8 128 128)"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#1D1E22">Copy</text></svg>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Punch">
+            <defs><linearGradient id="lock-punch-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+            <rect x="16" y="16" width="224" height="224" rx="84" fill="url(#lock-punch-d)"/>
+            <rect x="74" y="58" width="108" height="140" rx="20" fill="#1C1D20" transform="rotate(-8 128 128)"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#F2F2F0">Copy</text></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 5 — THE CLIP                                                  -->
+  <!-- ============================================================ -->
+  <section class="concept" id="concept-clip">
+    <div class="concept-head">
+      <div class="concept-title">
+        <span class="concept-index">5</span>
+        <h2>The Clip</h2>
+      </div>
+    </div>
+    <p class="rationale">The literal clipboard, stripped down: a plain card with a
+      simple flattened tab clamped across the top and a single slot cut into it — no
+      chrome, no teeth, no padded corners, so it doesn't sit anywhere near Paste's
+      trade dress. Closest kin to the existing app icon of the six, which is also its
+      main risk: it can read as a re-crop rather than a new mark.</p>
+
+    <p class="row-label">Hero</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Clip">
+          <defs><linearGradient id="hero-clip-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+          <rect x="64" y="76" width="128" height="152" rx="20" fill="url(#hero-clip-l)"/>
+          <rect x="94" y="56" width="68" height="34" rx="16" fill="#AEB1B8"/>
+          <rect x="118" y="66" width="20" height="10" rx="5" fill="#FFFFFF"/>
+        </svg>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Clip">
+          <defs><linearGradient id="hero-clip-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+          <rect x="64" y="76" width="128" height="152" rx="20" fill="url(#hero-clip-d)"/>
+          <rect x="94" y="56" width="68" height="34" rx="16" fill="#7C7E85"/>
+          <rect x="118" y="66" width="20" height="10" rx="5" fill="#1C1D20"/>
+        </svg>
+      </div>
+    </div>
+
+    <p class="row-label">Favicon scale</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="64" y="76" width="128" height="152" rx="20" fill="#1D1E22"/><rect x="94" y="56" width="68" height="34" rx="16" fill="#AEB1B8"/><rect x="118" y="66" width="20" height="10" rx="5" fill="#FFFFFF"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="64" y="76" width="128" height="152" rx="20" fill="#1D1E22"/><rect x="94" y="56" width="68" height="34" rx="16" fill="#AEB1B8"/><rect x="118" y="66" width="20" height="10" rx="5" fill="#FFFFFF"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="64" y="76" width="128" height="152" rx="20" fill="#1D1E22"/><rect x="94" y="56" width="68" height="34" rx="16" fill="#AEB1B8"/><rect x="118" y="66" width="20" height="10" rx="5" fill="#FFFFFF"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="64" y="76" width="128" height="152" rx="20" fill="#F2F2F0"/><rect x="94" y="56" width="68" height="34" rx="16" fill="#7C7E85"/><rect x="118" y="66" width="20" height="10" rx="5" fill="#1C1D20"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><rect x="64" y="76" width="128" height="152" rx="20" fill="#F2F2F0"/><rect x="94" y="56" width="68" height="34" rx="16" fill="#7C7E85"/><rect x="118" y="66" width="20" height="10" rx="5" fill="#1C1D20"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><rect x="64" y="76" width="128" height="152" rx="20" fill="#F2F2F0"/><rect x="94" y="56" width="68" height="34" rx="16" fill="#7C7E85"/><rect x="118" y="66" width="20" height="10" rx="5" fill="#1C1D20"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="row-label">Lockup</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Clip">
+            <defs><linearGradient id="lock-clip-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+            <rect x="64" y="76" width="128" height="152" rx="20" fill="url(#lock-clip-l)"/>
+            <rect x="94" y="56" width="68" height="34" rx="16" fill="#AEB1B8"/>
+            <rect x="118" y="66" width="20" height="10" rx="5" fill="#FFFFFF"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#1D1E22">Copy</text></svg>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Clip">
+            <defs><linearGradient id="lock-clip-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+            <rect x="64" y="76" width="128" height="152" rx="20" fill="url(#lock-clip-d)"/>
+            <rect x="94" y="56" width="68" height="34" rx="16" fill="#7C7E85"/>
+            <rect x="118" y="66" width="20" height="10" rx="5" fill="#1C1D20"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#F2F2F0">Copy</text></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 6 — THE FOLD (wildcard)                                       -->
+  <!-- ============================================================ -->
+  <section class="concept" id="concept-fold">
+    <div class="concept-head">
+      <div class="concept-title">
+        <span class="concept-index">6</span>
+        <h2>The Fold</h2>
+      </div>
+      <span class="pick-tag">Wildcard</span>
+    </div>
+    <p class="rationale">The one genuine swing: a card with its corner dog-eared,
+      revealing the lighter underside of the page. Nothing else in the set uses this
+      move — it borrows the universal "there's a page here" cue instead of the
+      clipboard/shelf vocabulary, and it's the most tactile, premium-feeling shape of
+      the six. Trade-off: it reads as "a note" more than it reads as "your clipboard
+      history," so it leans hardest on the wordmark to close the gap.</p>
+
+    <p class="row-label">Hero</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Fold">
+          <defs><linearGradient id="hero-fold-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+          <path d="M 200,158 L 154,204 L 200,204 Z" fill="rgba(0,0,0,0.22)" transform="translate(3,3)"/>
+          <path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="url(#hero-fold-l)"/>
+          <path d="M 200,158 L 154,204 L 200,204 Z" fill="#AEB1B8"/>
+        </svg>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <svg class="hero-mark" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Fold">
+          <defs><linearGradient id="hero-fold-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+          <path d="M 200,158 L 154,204 L 200,204 Z" fill="rgba(0,0,0,0.35)" transform="translate(3,3)"/>
+          <path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="url(#hero-fold-d)"/>
+          <path d="M 200,158 L 154,204 L 200,204 Z" fill="#7C7E85"/>
+        </svg>
+      </div>
+    </div>
+
+    <p class="row-label">Favicon scale</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="#1D1E22"/><path d="M 200,158 L 154,204 L 200,204 Z" fill="#AEB1B8"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="#1D1E22"/><path d="M 200,158 L 154,204 L 200,204 Z" fill="#AEB1B8"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="#1D1E22"/><path d="M 200,158 L 154,204 L 200,204 Z" fill="#AEB1B8"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="fav-proof">
+          <div class="fav-tab">
+            <svg viewBox="0 0 256 256" aria-hidden="true"><path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="#F2F2F0"/><path d="M 200,158 L 154,204 L 200,204 Z" fill="#7C7E85"/></svg>
+            <span>Copy</span>
+          </div>
+          <div class="fav-sizes">
+            <div class="fav-size-item">
+              <svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="#F2F2F0"/><path d="M 200,158 L 154,204 L 200,204 Z" fill="#7C7E85"/></svg>
+              <small>16px</small>
+            </div>
+            <div class="fav-size-item">
+              <svg width="32" height="32" viewBox="0 0 256 256" aria-hidden="true"><path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="#F2F2F0"/><path d="M 200,158 L 154,204 L 200,204 Z" fill="#7C7E85"/></svg>
+              <small>32px</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="row-label">Lockup</p>
+    <div class="swatch-row">
+      <div class="swatch light">
+        <span class="swatch-tag">Light</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Fold">
+            <defs><linearGradient id="lock-fold-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#82858E"/><stop offset="1" stop-color="#26282C"/></linearGradient></defs>
+            <path d="M 200,158 L 154,204 L 200,204 Z" fill="rgba(0,0,0,0.22)" transform="translate(3,3)"/>
+            <path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="url(#lock-fold-l)"/>
+            <path d="M 200,158 L 154,204 L 200,204 Z" fill="#AEB1B8"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#1D1E22">Copy</text></svg>
+        </div>
+      </div>
+      <div class="swatch dark">
+        <span class="swatch-tag">Dark</span>
+        <div class="lockup-row">
+          <svg class="lockup-icon" viewBox="0 0 256 256" role="img" aria-label="Copy logomark: The Fold">
+            <defs><linearGradient id="lock-fold-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F6F4"/><stop offset="1" stop-color="#C9CBCF"/></linearGradient></defs>
+            <path d="M 200,158 L 154,204 L 200,204 Z" fill="rgba(0,0,0,0.35)" transform="translate(3,3)"/>
+            <path d="M74,52 L182,52 A18,18 0 0 1 200,70 L200,158 L154,204 L74,204 A18,18 0 0 1 56,186 L56,70 A18,18 0 0 1 74,52 Z" fill="url(#lock-fold-d)"/>
+            <path d="M 200,158 L 154,204 L 200,204 Z" fill="#7C7E85"/>
+          </svg>
+          <svg class="wordmark-svg" viewBox="0 0 320 100" role="img" aria-label="Copy wordmark"><text x="10" y="70" font-family="-apple-system,'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5px" fill="#F2F2F0">Copy</text></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- RECOMMENDATION                                                -->
+  <!-- ============================================================ -->
+  <div class="recommendation">
+    <h3>Studio recommendation</h3>
+    <p><strong>1 — The Lift.</strong> It's the direct answer to "develop the shelf
+      direction further": the open slot in the ledge plus the risen card tells a
+      one-frame story (something left the shelf, right there, a second ago) instead of
+      just describing "cards," which is what made round 1's version feel inert. The
+      soft graphite gradient and contact shadow give it real weight without adding any
+      color.</p>
+    <p><strong>4 — The Punch</strong> is the strongest runner-up and arguably the safer
+      pick if favicon robustness matters more than storytelling: one squircle, one
+      cut-out card, nothing to misread at any size. <strong>2 — The Duplicate</strong>
+      is the cleanest execution of "copy" as a concept and would make a fine standalone
+      brandmark independent of the app icon. <strong>3 — The Row</strong> is the most
+      literal but the busiest at 16px. <strong>5 — The Clip</strong> is honest but sits
+      closest to the existing icon. <strong>6 — The Fold</strong> is the real wildcard —
+      worth a look if "premium and a little unexpected" beats "obviously a clipboard."</p>
+  </div>
+
+  <footer class="note">
+    Every mark here was rendered in an actual browser at both hero and true 16px/32px
+    favicon size before being included — round 1 shipped a mark whose silhouette only
+    became obvious as a problem once it was on screen, so this time nothing made the
+    page without that check. Palette: a soft graphite gradient (<code>#82858E</code> →
+    <code>#26282C</code> on light, <code>#F6F6F4</code> → <code>#C9CBCF</code> on dark)
+    matching the app icon's own tile colors, plus one flat mid-gray for
+    secondary/background elements. No color accent anywhere. Favicon-scale renders use
+    flat fills (no gradient) since it's imperceptible at that size and it's one less
+    thing to go wrong small.
+  </footer>
+
+</main>
+</body>
+</html>

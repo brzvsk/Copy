@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Copy logomark: The Clip">
+  <defs>
+    <linearGradient id="g-clip-d" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6F6F4"/>
+      <stop offset="1" stop-color="#C9CBCF"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="76" width="128" height="152" rx="20" fill="url(#g-clip-d)"/>
+  <rect x="94" y="56" width="68" height="34" rx="16" fill="#7C7E85"/>
+  <rect x="118" y="66" width="20" height="10" rx="5" fill="#1C1D20"/>
+</svg>
