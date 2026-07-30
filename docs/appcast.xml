@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
     <channel>
+        <item>
+            <title>Version 0.1.0</title>
+            <pubDate>Thu, 30 Jul 2026 03:07:20 +0000</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure
+                url="https://github.com/tarikbc/Copy/releases/download/v0.1.0/Copy-0.1.0.dmg"
+                sparkle:edSignature="nZ0n6aFJMv+OoBm2GL0nfhmQognVBUW5byAXbC/LGTlyMbWEuyRr0sxfGvDvgK6nrisvfsfCvbsRbZIRREEeCg=="
+                length="4795179"
+                type="application/octet-stream"
+            />
+        </item>
         <title>Copy</title>
         <link>https://tarikbc.github.io/Copy/appcast.xml</link>
         <description>Copy release notes and updates</description>
