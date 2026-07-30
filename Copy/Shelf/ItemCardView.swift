@@ -136,6 +136,10 @@ struct ItemCardView: View {
             }
         }
         .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+        // A soft accent glow lifts the selected card off the row, matching the shelf's
+        // Liquid Glass depth. Clear (no glow) when unselected.
+        .shadow(color: isSelected ? Color.accentColor.opacity(0.35) : .clear,
+                radius: isSelected ? 9 : 0, y: 1)
         .contextMenu {
             Button("Paste", action: onPaste)
             Button("Paste as Plain Text", action: onPastePlain)
