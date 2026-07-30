@@ -30,6 +30,9 @@ final class ShelfViewModel {
     let settings: SettingsStore
 
     var items: [ClipItem] = []
+    /// How many leading items in `items` are favorites; the shelf draws a divider after
+    /// this many cards to separate starred copies from the rest.
+    var favoritesCount = 0
     var query = "" {
         didSet { if query != oldValue { refresh() } }
     }
@@ -688,7 +691,12 @@ final class ShelfViewModel {
     }
 
     private func apply(_ new: [ClipItem]) {
-        items = new
+        // Favorites float to the front (preserving recency within each group); the shelf
+        // draws a divider at the boundary (`favoritesCount`).
+        let favorites = new.filter(\.isFavorite)
+        let rest = new.filter { !$0.isFavorite }
+        items = favorites + rest
+        favoritesCount = favorites.count
         let order = items.map(\.uuid)
         selection.prune(existing: Set(order), order: order)
         if selection.selected.isEmpty, let first = items.first { selection.click(first.uuid) }

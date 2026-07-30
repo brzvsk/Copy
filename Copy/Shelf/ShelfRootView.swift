@@ -307,6 +307,9 @@ private struct ShelfTabs: View {
                         guard !uuids.isEmpty else { return }
                         DispatchQueue.main.async {
                             viewModel.dropItems(uuids: uuids, toPinboard: pinboard)
+                            // Open the pinboard we just filed into, so the drop's result is
+                            // visible right away.
+                            if let id = pinboard.id { viewModel.tab = .pinboard(id) }
                         }
                     }
                     return true
@@ -469,7 +472,13 @@ private struct ShelfItemsRow: View {
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: Tokens.cardGap(compact: compact)) {
-                        ForEach(viewModel.items, id: \.uuid) { item in
+                        ForEach(Array(viewModel.items.enumerated()), id: \.element.uuid) { index, item in
+                            // A divider between the leading favorites and the rest.
+                            if index == viewModel.favoritesCount,
+                               viewModel.favoritesCount > 0,
+                               viewModel.favoritesCount < viewModel.items.count {
+                                FavoritesDivider(compact: compact)
+                            }
                             ItemCardView(
                                 item: item,
                                 isSelected: viewModel.isSelected(item),
@@ -540,6 +549,26 @@ private struct ShelfItemsRow: View {
                 }
             }
         }
+    }
+}
+
+/// The vertical rule between the leading favorited cards and the rest of the shelf,
+/// topped with a small star so the grouping reads at a glance.
+private struct FavoritesDivider: View {
+    var compact: Bool = false
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Image(systemName: "star.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+            RoundedRectangle(cornerRadius: 1, style: .continuous)
+                .fill(Color(nsColor: .separatorColor).opacity(0.8))
+                .frame(width: 1.5)
+        }
+        .frame(height: Tokens.cardHeight(compact: compact))
+        .padding(.horizontal, 2)
+        .accessibilityLabel("Favorites divider")
     }
 }
 

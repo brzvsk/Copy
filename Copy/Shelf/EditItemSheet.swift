@@ -81,7 +81,9 @@ struct EditItemSheet: View {
             Spacer(minLength: 8)
             Button("Save") { onSave(attributedText) }
                 .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
+                // ⌘Return saves: a plain Return inserts a newline in the editor, so the
+                // default-action Return can't reach the Save button while typing.
+                .keyboardShortcut(.return, modifiers: .command)
                 .disabled(isUnchanged)
         }
         .padding(.horizontal, 14)
@@ -114,12 +116,18 @@ struct EditItemSheet: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 12) {
             Text(statsText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
-            Spacer()
+            Spacer(minLength: 12)
+            HStack(spacing: 10) {
+                KeyHint(key: "⌘B", label: "Bold")
+                KeyHint(key: "⌘I", label: "Italic")
+                KeyHint(key: "⌘U", label: "Underline")
+                KeyHint(key: "⌘↩", label: "Save")
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
