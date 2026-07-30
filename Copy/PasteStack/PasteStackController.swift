@@ -136,7 +136,7 @@ final class PasteStackController {
         }
         let dividers: CGFloat = 2
         let footer: CGFloat = 82
-        let content: CGFloat = CGFloat(count) * 30
+        let content: CGFloat = CGFloat(count) * PasteStackView.rowHeight + 8
         return min(max(header + dividers + footer + content, 180), Self.maxHeight)
     }
 
