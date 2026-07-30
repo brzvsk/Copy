@@ -165,9 +165,10 @@ private struct DrawerMenu: View {
     var body: some View {
         // A plain Button that pops an NSMenu, rather than a SwiftUI `Menu`: the latter's
         // `.borderlessButton` style only made the glyph pixels clickable, so the ⋯ was
-        // extremely hard to hit. `HeaderIconButton` gives a large, hover-highlighted,
-        // fully-hittable target.
-        HeaderIconButton(systemName: "ellipsis.circle", fontSize: 16, accessibilityLabel: "More", action: showMenu)
+        // extremely hard to hit. `IconButton` gives a large, hover-highlighted,
+        // fully-hittable target with a tooltip.
+        IconButton(systemName: "ellipsis.circle", fontSize: 16,
+                   size: CGSize(width: 34, height: 30), help: "More", action: showMenu)
     }
 
     private func showMenu() {
@@ -210,34 +211,6 @@ private final class MenuAction {
 private final class MenuActionTarget: NSObject {
     @objc func fire(_ sender: NSMenuItem) {
         (sender.representedObject as? MenuAction)?.run()
-    }
-}
-
-/// A generously-sized, hover-highlighted icon button for the shelf header (the + and ⋯).
-/// The large frame plus `contentShape` make the whole area clickable, and the hover fill
-/// both gives feedback and makes the click target obvious.
-private struct HeaderIconButton: View {
-    let systemName: String
-    var fontSize: CGFloat = 13
-    var accessibilityLabel: String
-    let action: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: fontSize, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 34, height: 30)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(hovering ? Color.primary.opacity(0.09) : .clear)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .accessibilityLabel(accessibilityLabel)
     }
 }
 
@@ -315,7 +288,8 @@ private struct ShelfTabs: View {
                     return true
                 }
             }
-            HeaderIconButton(systemName: "plus", fontSize: 12, accessibilityLabel: "Add Pinboard") {
+            IconButton(systemName: "plus", fontSize: 12,
+                       size: CGSize(width: 34, height: 30), help: "New pinboard") {
                 createPresented = true
             }
             .popover(isPresented: $createPresented) {
@@ -653,15 +627,9 @@ private struct KeyboardLegend: View {
             KeyHint(key: "⌥↩", label: "Plain text")
             KeyHint(key: "⌘⌫", label: "Delete")
             Spacer(minLength: 8)
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 18, height: 18)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Hide keyboard tips")
+            IconButton(systemName: "xmark", fontSize: 9,
+                       size: CGSize(width: 22, height: 20), help: "Hide keyboard tips",
+                       action: onDismiss)
         }
         .padding(.horizontal, Tokens.shelfPadding)
         .padding(.top, 4)

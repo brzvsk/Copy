@@ -564,14 +564,14 @@ private struct CardHoverActions: View {
 
     var body: some View {
         HStack(spacing: 1) {
-            actionButton(systemName: isFavorite ? "star.fill" : "star",
-                         tint: isFavorite ? .yellow : .secondary,
-                         label: isFavorite ? "Remove from favorites" : "Favorite",
-                         action: onToggleFavorite)
-            actionButton(systemName: "trash",
-                         tint: .secondary,
-                         label: "Delete",
-                         action: onDelete)
+            IconButton(systemName: isFavorite ? "star.fill" : "star",
+                       fontSize: 11, size: CGSize(width: 22, height: 22),
+                       tint: isFavorite ? .yellow : .secondary,
+                       help: isFavorite ? "Remove from favorites" : "Favorite",
+                       action: onToggleFavorite)
+            IconButton(systemName: "trash",
+                       fontSize: 11, size: CGSize(width: 22, height: 22),
+                       help: "Delete", action: onDelete)
         }
         .padding(2)
         .background(
@@ -580,18 +580,6 @@ private struct CardHoverActions: View {
                 .overlay(Capsule(style: .continuous)
                     .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5))
         )
-    }
-
-    private func actionButton(systemName: String, tint: Color, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(tint)
-                .frame(width: 22, height: 22)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
     }
 }
 

@@ -188,6 +188,7 @@ private struct FormatButton: View {
                 )
         }
         .buttonStyle(.plain)
+        .help(label)
         .accessibilityLabel(label)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }

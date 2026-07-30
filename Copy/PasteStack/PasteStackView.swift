@@ -67,8 +67,11 @@ struct PasteStackView: View {
                     .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5)))
             }
             Spacer()
-            StackIconButton(symbol: "plus", label: "Add the latest copy") { model.addMostRecent() }
-            StackIconButton(symbol: "xmark", label: "Close Paste Stack", action: onClose)
+            if count > 0 {
+                IconButton(systemName: "trash", help: "Clear the stack") { model.queue.clear() }
+            }
+            IconButton(systemName: "plus", help: "Add the latest copy") { model.addMostRecent() }
+            IconButton(systemName: "xmark", help: "Close") { onClose() }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
@@ -173,19 +176,14 @@ struct PasteStackView: View {
 
     private var footer: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                Picker("Paste order", selection: $model.queue.isLIFO) {
-                    Text("Oldest first").tag(false)
-                    Text("Newest first").tag(true)
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .accessibilityLabel("Paste order")
-
-                Button("Clear") { model.queue.clear() }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
+            Picker("Paste order", selection: $model.queue.isLIFO) {
+                Text("Oldest first").tag(false)
+                Text("Newest first").tag(true)
             }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel("Paste order")
 
             Text("⌘V pastes the next item.")
                 .font(Tokens.caption)
@@ -193,33 +191,6 @@ struct PasteStackView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-    }
-}
-
-/// A generously-sized, hover-highlighted icon button for the palette header (+ and close).
-/// Mirrors the shelf's `HeaderIconButton` so these small glyphs are reliably clickable.
-private struct StackIconButton: View {
-    let symbol: String
-    var fontSize: CGFloat = 12
-    let label: String
-    let action: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: fontSize, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 28, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(hovering ? Color.primary.opacity(0.09) : .clear)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .accessibilityLabel(label)
     }
 }
 
@@ -292,22 +263,12 @@ private struct PasteStackRow: View {
     }
 
     private var rowActions: some View {
-        HStack(spacing: 2) {
-            actionButton("pencil", label: "Edit", action: onBeginEdit)
-            actionButton("trash", label: "Remove", action: onRemove)
+        HStack(spacing: 1) {
+            IconButton(systemName: "pencil", fontSize: 10,
+                       size: CGSize(width: 22, height: 22), help: "Edit", action: onBeginEdit)
+            IconButton(systemName: "trash", fontSize: 10,
+                       size: CGSize(width: 22, height: 22), help: "Remove", action: onRemove)
         }
-    }
-
-    private func actionButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 20, height: 20)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
     }
 
     private var glyph: String {
