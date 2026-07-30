@@ -1,4 +1,5 @@
 import CopyCore
+import Foundation
 import Observation
 
 /// Backs the Paste Stack palette (`PasteStackController`/`PasteStackView`): owns the
@@ -23,10 +24,34 @@ final class PasteStackModel {
 
     let store: ItemStore
 
+    /// Bumped after an in-place edit so `PasteStackView` re-renders (the queue's uuids
+    /// don't change on an edit, so nothing else would trigger a refresh).
+    var revision = 0
+
     @ObservationIgnored var onActiveChange: ((Bool) -> Void)?
 
     init(store: ItemStore) {
         self.store = store
+    }
+
+    /// CRUD "create": adds the most recent captured item that isn't already queued.
+    func addMostRecent() {
+        guard let latest = (try? store.recentItems(limit: 30))?
+            .first(where: { !queue.itemUUIDs.contains($0.uuid) }) else { return }
+        queue.enqueue(latest.uuid)
+    }
+
+    /// CRUD "update": replaces a queued item's text in place. Editing the shared
+    /// `ClipItem` updates it everywhere (history too), which is the expected behavior for
+    /// the same item.
+    func updateText(_ item: ClipItem, to newText: String) {
+        guard let id = item.id else { return }
+        do {
+            _ = try store.replaceContent(itemID: id, with: newText)
+            revision += 1
+        } catch {
+            NSLog("Copy: failed to edit paste-stack item: \(error)")
+        }
     }
 
     /// Resolves queued uuids to `ClipItem`s, preserving queue order. This is a PURE
