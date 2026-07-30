@@ -218,6 +218,18 @@ final class AppCoordinator {
                 pasteService.sendPasteKeystroke()
             }
         }
+        controller.onFlagsChanged = { [weak self] event in
+            self?.shelfViewModel.commandHeld = event.modifierFlags.contains(.command)
+        }
+        controller.onForceClick = { [weak self] in
+            // Force-clicking a card opens its preview, like pressing Space. The pointer is
+            // over the force-clicked card, so preview whatever it's hovering: select that
+            // card (a force-click's own click hasn't resolved yet at this stage) and show
+            // the preview popover for it.
+            guard let self, let uuid = self.shelfViewModel.hoveredItemID else { return }
+            self.shelfViewModel.selection.click(uuid)
+            self.shelfViewModel.previewShown = true
+        }
         return controller
     }()
 

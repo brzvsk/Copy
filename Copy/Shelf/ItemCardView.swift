@@ -21,6 +21,9 @@ struct ItemCardView: View {
     /// decided in `ShelfViewModel.handleCardClick` from the selection state — see
     /// `CardClickGesture` for why there is no separate double-click gesture.
     let onClick: (NSEvent.ModifierFlags) -> Void
+    /// Reports pointer enter/leave so the shelf can track which card is hovered (used by
+    /// force-click-to-preview).
+    let onHoverChanged: (Bool) -> Void
     let onPaste: () -> Void
     let onPastePlain: () -> Void
     let onEdit: () -> Void
@@ -143,6 +146,7 @@ struct ItemCardView: View {
             } else {
                 withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
             }
+            onHoverChanged(hovering)
         }
         .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
         // A soft accent glow lifts the selected card off the row in dark mode, matching

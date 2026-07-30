@@ -156,7 +156,12 @@ struct RichTextEditor: NSViewRepresentable {
         textView.allowsUndo = true
         textView.delegate = context.coordinator
         textView.font = .systemFont(ofSize: 13)
-        textView.textContainerInset = NSSize(width: 6, height: 6)
+        textView.textColor = .labelColor
+        // Newly typed text (and any plain-text item) uses a clean system font and the
+        // adaptive label color, so the editor never falls back to NSTextView's small
+        // serif default. Generous inset gives the content room to breathe.
+        textView.typingAttributes = [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor]
+        textView.textContainerInset = NSSize(width: 14, height: 12)
         textView.drawsBackground = true
         textView.backgroundColor = .textBackgroundColor
         textView.isVerticallyResizable = true

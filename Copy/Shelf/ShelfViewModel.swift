@@ -47,6 +47,13 @@ final class ShelfViewModel {
     var creatingItem = false
     /// Presents the keyboard-and-tips cheat sheet (reached from the drawer menu).
     var showingTips = false
+    /// True while the ⌘ key is held with the shelf open; reveals the keyboard legend and
+    /// the ⌘-number hints on pinboard tabs. Driven by a flags-changed monitor in
+    /// `ShelfPanelController` (wired in `AppCoordinator`).
+    var commandHeld = false
+    /// The uuid of the card the pointer is currently over, so a force-click can preview
+    /// exactly the card under the cursor (set by `ItemCardView`'s hover callback).
+    var hoveredItemID: String?
     var adjustingColorItem: ClipItem?
     /// Drives the inline, click-to-edit title field on a card (`ItemCardView`). The
     /// app-wide key monitor guard treats an active inline field exactly like the other
@@ -166,6 +173,9 @@ final class ShelfViewModel {
         creatingItem = false
         adjustingColorItem = nil
         inlineRenamingItemID = nil
+        showingTips = false
+        commandHeld = false
+        hoveredItemID = nil
         if !query.isEmpty { query = "" }
     }
 

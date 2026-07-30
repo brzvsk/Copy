@@ -38,7 +38,14 @@ struct EditItemSheet: View {
            let decoded = NSAttributedString(rtf: rtfRep.data, documentAttributes: nil) {
             return decoded
         }
-        return NSAttributedString(string: item.plainText ?? "")
+        // Plain-text items carry no attributes; give them an explicit system font and the
+        // adaptive label color so the editor renders clean, readable text (an unattributed
+        // string otherwise falls back to NSTextView's default, a small serif) rather than
+        // the cramped look it had before.
+        return NSAttributedString(string: item.plainText ?? "", attributes: [
+            .font: NSFont.systemFont(ofSize: 13),
+            .foregroundColor: NSColor.labelColor,
+        ])
     }
 
     private var isUnchanged: Bool {
@@ -46,36 +53,45 @@ struct EditItemSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
-            formattingToolbar
-            editor
+        VStack(spacing: 0) {
+            toolbar
+            Divider()
+            // Fills the middle edge-to-edge between the dividers; the text view keeps its
+            // own opaque `.textBackgroundColor` fill so the content region reads as a
+            // distinct, legible surface against the glass toolbar and footer.
+            RichTextEditor(attributedText: $attributedText, controller: editorController)
+            Divider()
             footer
         }
-        .padding(16)
-        .frame(width: 480, height: 360)
-        // M7: outer sheet container only — the text view below keeps its own opaque
-        // `.textBackgroundColor` fill for contrast, so glassing this container doesn't
-        // touch legibility of the text being edited.
-        .glassSurface(cornerRadius: 12)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(width: 520, height: 440)
+        .glassSurface(cornerRadius: 14)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("Edit")
-                .font(.headline)
-            Spacer()
-            Text(item.appName ?? "Unknown")
-                .font(.caption)
+    /// Cancel on the left, the B/I/U/S formatting group centered, Save (prominent) on the
+    /// right — the standard editor-toolbar hierarchy.
+    private var toolbar: some View {
+        HStack(spacing: 12) {
+            Button("Cancel", action: onCancel)
+                .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .keyboardShortcut(.cancelAction)
+            Spacer(minLength: 8)
+            formattingGroup
+            Spacer(minLength: 8)
+            Button("Save") { onSave(attributedText) }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(isUnchanged)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
-    /// Quiet, borderless SF Symbol buttons — a clean B/I/U/S row rather than a loud
-    /// ribbon toolbar. Bold/Italic/Underline get their conventional ⌘ shortcuts;
-    /// Strikethrough has no system-standard one, so it's click-only.
-    private var formattingToolbar: some View {
+    /// A grouped B/I/U/S control (Bold/Italic/Underline get their ⌘ shortcuts;
+    /// Strikethrough has no system-standard one, so it's click-only). The soft grouped
+    /// background reads as one segmented control rather than four loose icons.
+    private var formattingGroup: some View {
         HStack(spacing: 2) {
             FormatButton(symbol: "bold", label: "Bold", shortcut: "b", isActive: editorController.isBoldActive) {
                 editorController.toggleBold()
@@ -89,31 +105,24 @@ struct EditItemSheet: View {
             FormatButton(symbol: "strikethrough", label: "Strikethrough", isActive: editorController.isStrikethroughActive) {
                 editorController.toggleStrikethrough()
             }
-            Spacer()
         }
-    }
-
-    private var editor: some View {
-        RichTextEditor(attributedText: $attributedText, controller: editorController)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-            )
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.4))
+        )
     }
 
     private var footer: some View {
-        HStack(alignment: .center) {
+        HStack {
             Text(statsText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .monospacedDigit()
             Spacer()
-            Button("Cancel", action: onCancel)
-                .keyboardShortcut(.cancelAction)
-            Button("Save") { onSave(attributedText) }
-                .keyboardShortcut(.defaultAction)
-                .disabled(isUnchanged)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
     }
 
     private var statsText: String {
@@ -163,11 +172,11 @@ private struct FormatButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(isActive ? Color.accentColor : .secondary)
-                .frame(width: 26, height: 22)
+                .foregroundStyle(isActive ? Color.white : .secondary)
+                .frame(width: 32, height: 24)
                 .background(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(isActive ? Color.accentColor.opacity(0.15) : .clear)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(isActive ? Color.accentColor : .clear)
                 )
         }
         .buttonStyle(.plain)

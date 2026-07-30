@@ -30,6 +30,11 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     static let compactShelfHeight: CGFloat = 244
 
     var onKeyEvent: ((NSEvent) -> Bool)?
+    /// Called on every modifier-key change while the shelf is open (⌘-hold hints).
+    var onFlagsChanged: ((NSEvent) -> Void)?
+    /// Called once when a force-click (pressure stage 2) begins over the shelf.
+    var onForceClick: (() -> Void)?
+    private var lastPressureStage = 0
     var onDidHide: (() -> Void)?
 
     private let makeContent: () -> NSView
@@ -152,9 +157,25 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
 
     private func installKeyMonitor() {
         guard keyMonitor == nil else { return }
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged, .pressure]) { [weak self] event in
             guard let self, self.isVisible else { return event }
-            return (self.onKeyEvent?(event) ?? false) ? nil : event
+            switch event.type {
+            case .keyDown:
+                return (self.onKeyEvent?(event) ?? false) ? nil : event
+            case .flagsChanged:
+                self.onFlagsChanged?(event)
+                return event
+            case .pressure:
+                // Fire once as the press crosses into the force-click stage (2), not on
+                // every pressure sample while it's held.
+                if event.stage >= 2, self.lastPressureStage < 2 {
+                    self.onForceClick?()
+                }
+                self.lastPressureStage = event.stage
+                return event
+            default:
+                return event
+            }
         }
     }
 

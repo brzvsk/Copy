@@ -12,11 +12,12 @@ struct ShelfRootView: View {
 
     private static let legendDismissedKey = "shelfKeyboardLegendDismissed"
 
-    /// The legend teaches the keyboard path, so it earns its slim strip only when there
-    /// are cards to act on, the user hasn't dismissed it, and the shelf is at full height
-    /// (compact mode trades this away for density).
+    /// The legend teaches the keyboard path, so it earns its slim strip when there are
+    /// cards to act on and the shelf is at full height (compact mode trades this away for
+    /// density). Holding ⌘ re-summons it even after it's been dismissed.
     private var showsLegend: Bool {
-        !legendDismissed && !viewModel.items.isEmpty && !viewModel.settings.compactShelf
+        guard !viewModel.items.isEmpty, !viewModel.settings.compactShelf else { return false }
+        return !legendDismissed || viewModel.commandHeld
     }
 
     private func dismissLegend() {
@@ -226,9 +227,10 @@ private struct ShelfTabs: View {
                 label: "History",
                 symbol: "clock",
                 isSelected: viewModel.tab == .history,
+                shortcutHint: viewModel.commandHeld ? "1" : nil,
                 action: { viewModel.tab = .history }
             )
-            ForEach(viewModel.pinboards, id: \.id) { pinboard in
+            ForEach(Array(viewModel.pinboards.enumerated()), id: \.element.id) { offset, pinboard in
                 TabPill(
                     label: pinboard.name,
                     symbol: pinboard.symbol,
@@ -236,6 +238,9 @@ private struct ShelfTabs: View {
                     tint: pinboard.tint,
                     isSelected: pinboard.id.map { viewModel.tab == .pinboard($0) } ?? false,
                     isDropTargeted: pinboard.id != nil && dropTargetedPinboardID == pinboard.id,
+                    // ⌘1 is History, so pinboards start at ⌘2; only the first eight get a
+                    // hint (⌘9 is the ceiling of the number-key routing).
+                    shortcutHint: (viewModel.commandHeld && offset + 2 <= 9) ? "\(offset + 2)" : nil,
                     action: {
                         guard let id = pinboard.id else { return }
                         viewModel.tab = .pinboard(id)
@@ -334,6 +339,8 @@ private struct TabPill: View {
     var tint: String = ""
     let isSelected: Bool
     var isDropTargeted: Bool = false
+    /// The ⌘-number that jumps to this tab (e.g. "1"), shown as a badge while ⌘ is held.
+    var shortcutHint: String? = nil
     let action: () -> Void
     @State private var isHovering = false
 
@@ -354,6 +361,15 @@ private struct TabPill: View {
                     Circle()
                         .fill(tintColor)
                         .frame(width: 6, height: 6)
+                        .accessibilityHidden(true)
+                }
+                if let shortcutHint {
+                    Text("⌘\(shortcutHint)")
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.6)))
                         .accessibilityHidden(true)
                 }
             }
@@ -443,6 +459,13 @@ private struct ShelfItemsRow: View {
                                 compact: compact,
                                 searchQuery: viewModel.query,
                                 onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
+                                onHoverChanged: { hovering in
+                                    if hovering {
+                                        viewModel.hoveredItemID = item.uuid
+                                    } else if viewModel.hoveredItemID == item.uuid {
+                                        viewModel.hoveredItemID = nil
+                                    }
+                                },
                                 onPaste: { viewModel.requestPaste(item, plain: false) },
                                 onPastePlain: { viewModel.requestPaste(item, plain: true) },
                                 onEdit: { viewModel.beginEdit(item) },
