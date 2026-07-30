@@ -117,12 +117,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func createStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "doc.on.clipboard",
-                                     accessibilityDescription: "Copy")
+        item.button?.image = Self.menuBarIcon()
         let menu = NSMenu()
         menu.delegate = self
         item.menu = menu
         statusItem = item
+    }
+
+    /// The Duplicate mark as a monochrome menu-bar template: a front card with its copy
+    /// stepped behind it, matching the app icon. A cleared gap between the two keeps them
+    /// legible as two distinct cards at menu-bar size. `isTemplate` lets the menu bar
+    /// tint it for light and dark automatically.
+    private static func menuBarIcon() -> NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            func card(_ r: CGRect) -> CGPath {
+                CGPath(roundedRect: r, cornerWidth: 2.2, cornerHeight: 2.2, transform: nil)
+            }
+            let back = CGRect(x: 7, y: 6.4, width: 8.2, height: 10.2)
+            let front = CGRect(x: 2.8, y: 1.8, width: 8.2, height: 10.2)
+            ctx.setFillColor(NSColor.black.cgColor)
+            ctx.addPath(card(back))
+            ctx.fillPath()
+            ctx.setBlendMode(.clear)
+            ctx.addPath(card(front.insetBy(dx: -1.1, dy: -1.1)))
+            ctx.fillPath()
+            ctx.setBlendMode(.normal)
+            ctx.addPath(card(front))
+            ctx.fillPath()
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 
     func applicationWillTerminate(_ notification: Notification) {

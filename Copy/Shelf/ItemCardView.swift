@@ -40,6 +40,8 @@ struct ItemCardView: View {
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var isEditable: Bool {
         switch item.kind {
         case .text, .richText, .link: return true
@@ -140,10 +142,11 @@ struct ItemCardView: View {
             }
         }
         .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
-        // A soft accent glow lifts the selected card off the row, matching the shelf's
-        // Liquid Glass depth. Clear (no glow) when unselected.
-        .shadow(color: isSelected ? Color.accentColor.opacity(0.35) : .clear,
-                radius: isSelected ? 9 : 0, y: 1)
+        // A soft accent glow lifts the selected card off the row in dark mode, matching
+        // the shelf's Liquid Glass depth. In light mode a colored halo reads heavy, so
+        // the selection there relies on the accent border + gradient fill alone.
+        .shadow(color: (isSelected && colorScheme == .dark) ? Color.accentColor.opacity(0.32) : .clear,
+                radius: (isSelected && colorScheme == .dark) ? 8 : 0, y: 1)
         .contextMenu {
             Button("Paste", action: onPaste)
             Button("Paste as Plain Text", action: onPastePlain)
