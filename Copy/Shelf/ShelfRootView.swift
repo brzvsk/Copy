@@ -6,6 +6,23 @@ import UniformTypeIdentifiers
 struct ShelfRootView: View {
     @Bindable var viewModel: ShelfViewModel
     @State private var permissionBannerDismissed = false
+    /// Persisted so the keyboard legend, once dismissed, stays gone. Read once here;
+    /// `dismissLegend()` writes it back. Defaults to shown (false) for new users.
+    @State private var legendDismissed = UserDefaults.standard.bool(forKey: Self.legendDismissedKey)
+
+    private static let legendDismissedKey = "shelfKeyboardLegendDismissed"
+
+    /// The legend teaches the keyboard path, so it earns its slim strip only when there
+    /// are cards to act on, the user hasn't dismissed it, and the shelf is at full height
+    /// (compact mode trades this away for density).
+    private var showsLegend: Bool {
+        !legendDismissed && !viewModel.items.isEmpty && !viewModel.settings.compactShelf
+    }
+
+    private func dismissLegend() {
+        UserDefaults.standard.set(true, forKey: Self.legendDismissedKey)
+        withAnimation(.easeOut(duration: 0.15)) { legendDismissed = true }
+    }
 
     /// Reads `viewModel.accessibilityTrusted` rather than checking `AXIsProcessTrusted()`
     /// itself, since the shelf panel + this view are created once and reused for the
@@ -25,6 +42,10 @@ struct ShelfRootView: View {
             ShelfHeader(viewModel: viewModel)
             Divider()
             ShelfItemsRow(viewModel: viewModel)
+            if showsLegend {
+                KeyboardLegend(onDismiss: dismissLegend)
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .glassSurface(corners: .top(12))
@@ -533,5 +554,33 @@ private struct ShelfEmptyState: View {
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// A slim, dismissible strip along the shelf's bottom that teaches the core keyboard
+/// path. Sized to fit the standard shelf's spare vertical space below the cards; hidden
+/// in compact mode and once dismissed (see `ShelfRootView.showsLegend`).
+private struct KeyboardLegend: View {
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            KeyHint(key: "↩", label: "Paste")
+            KeyHint(key: "Space", label: "Preview")
+            KeyHint(key: "⌥↩", label: "Plain text")
+            KeyHint(key: "⌘⌫", label: "Delete")
+            Spacer(minLength: 8)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Hide keyboard tips")
+        }
+        .padding(.horizontal, Tokens.shelfPadding)
+        .padding(.vertical, 3)
     }
 }

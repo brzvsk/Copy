@@ -42,6 +42,8 @@ struct ItemCardView: View {
     let dragProvider: () -> NSItemProvider
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
 
     private var isEditable: Bool {
         switch item.kind {
@@ -134,12 +136,28 @@ struct ItemCardView: View {
                         lineWidth: isSelected ? 2 : 1)
         )
         .overlay(alignment: .topTrailing) {
-            if item.isFavorite {
+            // On hover, surface the two most-buried card actions (favorite, delete) as a
+            // floating pill so they're discoverable without opening the context menu.
+            // Otherwise, just the quiet favorite indicator when the card is favorited.
+            if isHovering && !isInlineRenaming {
+                CardHoverActions(isFavorite: item.isFavorite,
+                                 onToggleFavorite: onToggleFavorite,
+                                 onDelete: onDelete)
+                    .padding(5)
+                    .transition(.opacity)
+            } else if item.isFavorite {
                 Image(systemName: "star.fill")
                     .font(.system(size: 9))
                     .foregroundStyle(.yellow)
                     .padding(6)
                     .accessibilityLabel("Favorite")
+            }
+        }
+        .onHover { hovering in
+            if reduceMotion {
+                isHovering = hovering
+            } else {
+                withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
             }
         }
         .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
@@ -513,6 +531,48 @@ private struct CardClickGesture: ViewModifier {
 
     func body(content: Content) -> some View {
         content.onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
+    }
+}
+
+/// The floating action pill shown on card hover (see `ItemCardView`'s top-trailing
+/// overlay). Surfaces favorite and delete, the two high-value actions otherwise hidden
+/// in the right-click menu. Kept to two buttons so it stays a quiet affordance rather
+/// than a toolbar; pinboards and the rest remain in the context menu and via drag.
+private struct CardHoverActions: View {
+    let isFavorite: Bool
+    let onToggleFavorite: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 1) {
+            actionButton(systemName: isFavorite ? "star.fill" : "star",
+                         tint: isFavorite ? .yellow : .secondary,
+                         label: isFavorite ? "Remove from favorites" : "Favorite",
+                         action: onToggleFavorite)
+            actionButton(systemName: "trash",
+                         tint: .secondary,
+                         label: "Delete",
+                         action: onDelete)
+        }
+        .padding(2)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.regularMaterial)
+                .overlay(Capsule(style: .continuous)
+                    .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5))
+        )
+    }
+
+    private func actionButton(systemName: String, tint: Color, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(tint)
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
 
