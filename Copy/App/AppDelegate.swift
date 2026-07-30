@@ -6,7 +6,7 @@ import Sparkle
 
 extension KeyboardShortcuts.Name {
     static let toggleShelf = Self("toggleShelf", initial: .init(.v, modifiers: [.command, .shift]))
-    static let togglePasteStack = Self("togglePasteStack", initial: .init(.v, modifiers: [.control, .option, .command]))
+    static let togglePasteStack = Self("togglePasteStack", initial: .init(.c, modifiers: [.command, .shift]))
     static let pasteNextFromStack = Self("pasteNextFromStack", initial: .init(.n, modifiers: [.control, .option, .command]))
     /// No default shortcut — the user opts in from Settings. Pastes the most recent
     /// history item directly into the frontmost app without opening the shelf.
@@ -173,8 +173,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        let pasteStack = NSMenuItem(title: "Paste Stack", action: #selector(togglePasteStack), keyEquivalent: "v")
-        pasteStack.keyEquivalentModifierMask = [.control, .option, .command]
+        let pasteStack = NSMenuItem(title: "Paste Stack", action: #selector(togglePasteStack), keyEquivalent: "c")
+        pasteStack.keyEquivalentModifierMask = [.command, .shift]
         pasteStack.target = self
         pasteStack.state = coordinator.isPasteStackActive ? .on : .off
         menu.addItem(pasteStack)

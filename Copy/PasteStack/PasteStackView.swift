@@ -2,11 +2,12 @@ import AppKit
 import CopyCore
 import SwiftUI
 
-/// Content of the floating Paste Stack palette (`PasteStackController` hosts this).
-/// Reorders via drag (`.onMove`), removes rows via swipe or context menu, flips
-/// FIFO/LIFO, and clears the queue. `onContentChange` fires whenever the queue's
-/// uuids change (enqueue, remove, clear, reorder) so the controller can re-fit the
-/// panel's height to the new row count — see `PasteStackController.resizeToFit()`.
+/// Content of the floating Paste Stack palette (`PasteStackController` hosts this). The
+/// queue is shown in paste order: each row is numbered by when it will be pasted, and
+/// the one that Command V will paste next is marked. Reorders via drag (`.onMove`),
+/// removes rows via swipe or context menu, flips which end pastes first, and clears the
+/// queue. `onContentChange` fires whenever the queue's uuids change so the controller can
+/// re-fit the panel's height to the new row count (see `PasteStackController.resizeToFit()`).
 struct PasteStackView: View {
     @Bindable var model: PasteStackModel
     var onClose: () -> Void = {}
@@ -30,7 +31,7 @@ struct PasteStackView: View {
             }
             .frame(maxHeight: .infinity)
             Divider()
-            footer
+            footer(hasItems: !items.isEmpty)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .glassSurface(cornerRadius: 12)
@@ -39,10 +40,20 @@ struct PasteStackView: View {
     }
 
     private func header(count: Int) -> some View {
-        HStack {
-            Text("Paste Stack · \(count)")
-                .font(Tokens.caption)
+        HStack(spacing: 8) {
+            Image(systemName: "square.stack.3d.up")
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
+            Text("Paste Stack")
+                .font(.system(size: 13, weight: .semibold))
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5)))
+            }
             Spacer()
             closeButton
         }
@@ -52,11 +63,9 @@ struct PasteStackView: View {
 
     /// Branched rather than chained (`.buttonStyle(.plain).buttonStyle(.glass)`) to
     /// avoid relying on SwiftUI's `buttonStyle` override-ordering for two different
-    /// styles on one button — each `#available` branch applies exactly one style, so
-    /// there's no ambiguity about which one is actually in effect. `.glass` gives this
-    /// dismiss control the small circular glass-pill treatment Apple's own floating
-    /// glass panels use for icon-only close buttons on macOS 26; pre-26 it's the
-    /// original quiet `.plain` icon, unchanged.
+    /// styles on one button. `.glass` gives this dismiss control the small circular
+    /// glass-pill treatment Apple's own floating glass panels use for icon-only close
+    /// buttons on macOS 26; pre-26 it's the original quiet `.plain` icon, unchanged.
     @ViewBuilder
     private var closeButton: some View {
         let button = Button(action: onClose) {
@@ -73,16 +82,17 @@ struct PasteStackView: View {
         }
     }
 
-    // Mirrors ShelfRootView's empty state exactly (spacing, icon size/weight, text
-    // size/weight) so the two surfaces read as the same design language.
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "square.stack")
                 .font(.system(size: 24, weight: .light))
                 .foregroundStyle(.tertiary)
-            Text("Copy items or add them from the shelf")
+            Text("Your paste stack is empty")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
+            Text("Copy items or add cards from the shelf, then press Command V to paste through them.")
+                .font(Tokens.caption)
+                .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -90,16 +100,19 @@ struct PasteStackView: View {
     }
 
     private func list(items: [ClipItem]) -> some View {
-        List {
+        let order = pasteNumbers(for: items)
+        return List {
             ForEach(items, id: \.uuid) { item in
-                PasteStackRow(item: item)
+                PasteStackRow(item: item,
+                              number: order[item.uuid] ?? 0,
+                              isNext: order[item.uuid] == 1)
                     .swipeActions {
-                        Button("Delete", role: .destructive) {
+                        Button("Remove", role: .destructive) {
                             model.queue.remove(item.uuid)
                         }
                     }
                     .contextMenu {
-                        Button("Delete", role: .destructive) {
+                        Button("Remove", role: .destructive) {
                             model.queue.remove(item.uuid)
                         }
                     }
@@ -108,6 +121,19 @@ struct PasteStackView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+    }
+
+    /// Maps each item's uuid to its 1-based paste position. Row 1 is whatever Command V
+    /// pastes next: the first-added item under "Oldest first" (FIFO), or the last-added
+    /// under "Newest first" (LIFO). `model.items()` is in insertion order, so LIFO
+    /// numbers from the bottom up. Mirrors `PasteStackQueue.peek`/`dequeue`.
+    private func pasteNumbers(for items: [ClipItem]) -> [String: Int] {
+        let isLIFO = model.queue.isLIFO
+        var map: [String: Int] = [:]
+        for (index, item) in items.enumerated() {
+            map[item.uuid] = isLIFO ? (items.count - index) : (index + 1)
+        }
+        return map
     }
 
     /// `List.onMove` hands a `destination` that can equal the row count (drop past the
@@ -119,17 +145,25 @@ struct PasteStackView: View {
         model.queue.move(from: sourceIndex, to: target)
     }
 
-    private var footer: some View {
+    private func footer(hasItems: Bool) -> some View {
         VStack(spacing: 8) {
-            Picker("Order", selection: $model.queue.isLIFO) {
-                Text("FIFO").tag(false).help("First in, first out")
-                Text("LIFO").tag(true).help("Last in, first out")
+            Picker("Paste order", selection: $model.queue.isLIFO) {
+                Text("Oldest first").tag(false)
+                Text("Newest first").tag(true)
             }
             .labelsHidden()
             .pickerStyle(.segmented)
             .frame(maxWidth: .infinity)
+            .accessibilityLabel("Paste order")
+
+            if hasItems {
+                Text("Press Command V to paste the next item.")
+                    .font(Tokens.caption)
+                    .foregroundStyle(.tertiary)
+            }
 
             clearButton
+                .disabled(!hasItems)
         }
         .padding(12)
     }
@@ -152,9 +186,21 @@ struct PasteStackView: View {
 
 private struct PasteStackRow: View {
     let item: ClipItem
+    let number: Int
+    let isNext: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
+            Text("\(number)")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(isNext ? Color.white : Color.secondary)
+                .frame(width: 20, height: 20)
+                .background(
+                    Circle().fill(isNext
+                                  ? Color.accentColor
+                                  : Color(nsColor: .quaternaryLabelColor).opacity(0.5))
+                )
+                .accessibilityLabel(isNext ? "Next, position \(number)" : "Position \(number)")
             Image(systemName: glyph)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -162,8 +208,17 @@ private struct PasteStackRow: View {
             Text(item.displayTitle)
                 .font(Tokens.bodyMono)
                 .lineLimit(1)
+            Spacer(minLength: 0)
+            if isNext {
+                Text("Next")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
     }
 
     private var glyph: String {
