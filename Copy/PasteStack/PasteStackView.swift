@@ -2,15 +2,13 @@ import AppKit
 import CopyCore
 import SwiftUI
 
-/// Content of the floating Paste Stack palette (`PasteStackController` hosts this).
-///
-/// The palette is a non-activating, never-key panel (so plain ⌘V keeps going to the app
-/// underneath). SwiftUI's `List` and the drag-and-drop system are unreliable in that
-/// context, so this is a plain `ScrollView` of fixed-height rows, and reordering is done
-/// with a direct drag gesture that offsets rows live and commits the move on release — no
-/// dependence on window focus. Entries can be added (header +, queues the latest copy),
-/// edited in place (double-click or the pencil), removed (trash on hover or the context
-/// menu), reordered by dragging, and cleared (header trash).
+/// Content of the floating Paste Stack palette. The palette is a non-activating, never-key
+/// panel (so plain ⌘V keeps pasting into the app underneath — see `PasteStackEngine`), and
+/// its panel `contentView` is a real `NSVisualEffectView` that captures every click, so the
+/// SwiftUI here can stay simple. Rows are a fixed-height `ScrollView`; reorder is a direct
+/// drag gesture (no drag-and-drop system, which needs window focus). Entries can be added
+/// (header +, queues the latest copy), edited in place (double-click / pencil), removed
+/// (trash on hover / context menu), reordered by dragging, and cleared (header trash).
 struct PasteStackView: View {
     @Bindable var model: PasteStackModel
     var onClose: () -> Void = {}
@@ -34,7 +32,7 @@ struct PasteStackView: View {
         let items = resolvedItems
         VStack(spacing: 0) {
             header(count: items.count)
-            Divider()
+            Divider().opacity(0.6)
             Group {
                 if items.isEmpty {
                     emptyState
@@ -44,13 +42,11 @@ struct PasteStackView: View {
             }
             .frame(maxHeight: .infinity)
             if !items.isEmpty {
-                Divider()
+                Divider().opacity(0.6)
                 footer
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .glassSurface(cornerRadius: 12)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onChange(of: model.queue.itemUUIDs) { _, _ in onContentChange() }
     }
 
@@ -79,10 +75,9 @@ struct PasteStackView: View {
             IconButton(systemName: "xmark", help: "Close") { onClose() }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        // The header is the window's drag handle (the buttons are controls, so they click
-        // rather than drag). `.background` sizes to the header, so it never grows the row.
-        .background(WindowMoveArea())
+        .padding(.vertical, 8)
+        // The header is the palette's drag handle; the buttons on top take their own clicks.
+        .background(WindowDragArea())
     }
 
     // MARK: Empty state
@@ -133,16 +128,14 @@ struct PasteStackView: View {
                     }
                 }
             }
-            // A real backing view so the wheel scrolls even over the gaps between rows.
-            .background(Color.black.opacity(0.001))
+            .padding(.vertical, 4)
         }
-        .scrollContentBackground(.hidden)
     }
 
     // MARK: Reorder (direct drag, no drag-and-drop system)
 
     private func reorderGesture(item: ClipItem, items: [ClipItem]) -> some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .local)
+        DragGesture(minimumDistance: 6, coordinateSpace: .local)
             .onChanged { value in
                 if draggingUUID == nil { draggingUUID = item.uuid }
                 dragTranslation = value.translation.height
@@ -152,20 +145,15 @@ struct PasteStackView: View {
                 guard let dragging = draggingUUID,
                       let source = items.firstIndex(where: { $0.uuid == dragging }) else { return }
                 let target = clampedTarget(source: source, count: items.count)
-                if target != source {
-                    model.queue.move(from: source, to: target)
-                }
+                if target != source { model.queue.move(from: source, to: target) }
             }
     }
 
-    /// Where the dragged row would land, from how many row-heights it's been dragged.
     private func clampedTarget(source: Int, count: Int) -> Int {
         let delta = Int((dragTranslation / Self.rowHeight).rounded())
         return min(max(source + delta, 0), count - 1)
     }
 
-    /// The dragged row follows the cursor; the rows it's passing over slide aside to open
-    /// a gap at the drop target.
     private func dragYOffset(uuid: String, index: Int, items: [ClipItem]) -> CGFloat {
         guard let dragging = draggingUUID,
               let source = items.firstIndex(where: { $0.uuid == dragging }) else { return 0 }
@@ -302,11 +290,7 @@ private struct PasteStackRow: View {
         .frame(maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(isDragging ? Color.primary.opacity(0.08) : (isHovering ? Color.primary.opacity(0.04) : .clear))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .stroke(isDragging ? Color(nsColor: .separatorColor) : .clear, lineWidth: 1)
+                .fill(isDragging ? Color.primary.opacity(0.1) : (isHovering ? Color.primary.opacity(0.05) : .clear))
         )
         .shadow(color: isDragging ? .black.opacity(0.2) : .clear, radius: isDragging ? 6 : 0, y: 2)
         .padding(.horizontal, 6)

@@ -152,30 +152,40 @@ final class PasteStackController {
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = true
         panel.isFloatingPanel = true
-        // Off: the window is dragged explicitly from the header (WindowMoveArea →
+        // Off: the window is dragged explicitly from the header (WindowDragArea →
         // performDrag), so dragging a list row is free to reorder it. See PasteStackView.
         panel.isMovableByWindowBackground = false
         panel.sharingType = hideDuringScreenSharing ? .none : .readOnly
         panel.childWindowSharingType = hideDuringScreenSharing ? .none : .readOnly
-        // Wrap the SwiftUI content in a container that absorbs clicks the glass content
-        // leaves unhandled, so nothing falls through the (transparent, non-key) panel to
-        // the app behind. See ClickCapturingContainer.
+
+        // The panel's contentView is a real NSVisualEffectView, not the SwiftUI
+        // `.glassEffect`: on macOS 26 that effect has no backing NSView, so the empty areas
+        // of this non-key panel let clicks fall through to the app behind. A visual-effect
+        // view is a real view that absorbs every click over its frame while still reading as
+        // dark glass, consistent with the shelf. The SwiftUI content sits on top of it.
         let hosting = NSHostingView(rootView: PasteStackView(
             model: model,
             onClose: { [weak model] in model?.isActive = false },
             onContentChange: { [weak self] in self?.resizeToFit() }
         )
         .tint(proDark ? Tokens.electricBlue : nil))
-        let container = ClickCapturingContainer()
         hosting.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(hosting)
+
+        let background = NSVisualEffectView()
+        background.material = .hudWindow
+        background.blendingMode = .behindWindow
+        background.state = .active
+        background.wantsLayer = true
+        background.layer?.cornerRadius = 12
+        background.layer?.masksToBounds = true
+        background.addSubview(hosting)
         NSLayoutConstraint.activate([
-            hosting.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            hosting.topAnchor.constraint(equalTo: container.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            hosting.leadingAnchor.constraint(equalTo: background.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: background.trailingAnchor),
+            hosting.topAnchor.constraint(equalTo: background.topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: background.bottomAnchor),
         ])
-        panel.contentView = container
+        panel.contentView = background
         return panel
     }
 }
