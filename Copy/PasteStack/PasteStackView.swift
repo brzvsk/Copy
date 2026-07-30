@@ -36,8 +36,12 @@ struct PasteStackView: View {
                 }
             }
             .frame(maxHeight: .infinity)
-            Divider()
-            footer(hasItems: !items.isEmpty)
+            // The order picker and Clear only make sense with items in the queue; hiding
+            // them when empty keeps the empty palette clean.
+            if !items.isEmpty {
+                Divider()
+                footer
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .glassSurface(cornerRadius: 12)
@@ -63,39 +67,11 @@ struct PasteStackView: View {
                     .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5)))
             }
             Spacer()
-            iconButton("plus", label: "Add the latest copy") { model.addMostRecent() }
-            closeButton
+            StackIconButton(symbol: "plus", label: "Add the latest copy") { model.addMostRecent() }
+            StackIconButton(symbol: "xmark", label: "Close Paste Stack", action: onClose)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-
-    @ViewBuilder
-    private var closeButton: some View {
-        let button = Button(action: onClose) {
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityLabel("Close Paste Stack")
-
-        if #available(macOS 26, *) {
-            button.buttonStyle(.glass)
-        } else {
-            button.buttonStyle(.plain)
-        }
-    }
-
-    private func iconButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 22, height: 22)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
     }
 
     // MARK: Empty state
@@ -103,12 +79,12 @@ struct PasteStackView: View {
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "square.stack")
-                .font(.system(size: 24, weight: .light))
+                .font(.system(size: 26, weight: .light))
                 .foregroundStyle(.tertiary)
-            Text("Your paste stack is empty")
+            Text("Nothing queued")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
-            Text("Add the latest copy with +, add cards from the shelf, or copy while the stack is open. Then press Command V to paste through them.")
+            Text("Add a copy with +, then ⌘V walks the stack.")
                 .font(Tokens.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -195,39 +171,55 @@ struct PasteStackView: View {
 
     // MARK: Footer
 
-    private func footer(hasItems: Bool) -> some View {
+    private var footer: some View {
         VStack(spacing: 8) {
-            Picker("Paste order", selection: $model.queue.isLIFO) {
-                Text("Oldest first").tag(false)
-                Text("Newest first").tag(true)
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel("Paste order")
+            HStack(spacing: 8) {
+                Picker("Paste order", selection: $model.queue.isLIFO) {
+                    Text("Oldest first").tag(false)
+                    Text("Newest first").tag(true)
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Paste order")
 
-            if hasItems {
-                Text("Press Command V to paste the next item.")
-                    .font(Tokens.caption)
-                    .foregroundStyle(.tertiary)
+                Button("Clear") { model.queue.clear() }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
             }
 
-            clearButton
-                .disabled(!hasItems)
+            Text("⌘V pastes the next item.")
+                .font(Tokens.caption)
+                .foregroundStyle(.tertiary)
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
+}
 
-    @ViewBuilder
-    private var clearButton: some View {
-        let button = Button("Clear") { model.queue.clear() }
-            .frame(maxWidth: .infinity)
+/// A generously-sized, hover-highlighted icon button for the palette header (+ and close).
+/// Mirrors the shelf's `HeaderIconButton` so these small glyphs are reliably clickable.
+private struct StackIconButton: View {
+    let symbol: String
+    var fontSize: CGFloat = 12
+    let label: String
+    let action: () -> Void
+    @State private var hovering = false
 
-        if #available(macOS 26, *) {
-            button.buttonStyle(.glass)
-        } else {
-            button
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: fontSize, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(hovering ? Color.primary.opacity(0.09) : .clear)
+                )
+                .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityLabel(label)
     }
 }
 

@@ -129,9 +129,14 @@ final class PasteStackController {
     private func computeHeight() -> CGFloat {
         let count = model.items().count
         let header: CGFloat = 34
+        // Empty palette has no footer (order picker + Clear are hidden), so it's just the
+        // header, a divider, and the compact empty state.
+        if count == 0 {
+            return header + 1 + 120
+        }
         let dividers: CGFloat = 2
-        let footer: CGFloat = 76
-        let content: CGFloat = count == 0 ? 90 : CGFloat(count) * 30
+        let footer: CGFloat = 82
+        let content: CGFloat = CGFloat(count) * 30
         return min(max(header + dividers + footer + content, 180), Self.maxHeight)
     }
 
