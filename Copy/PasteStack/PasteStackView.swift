@@ -1,6 +1,7 @@
 import AppKit
 import CopyCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Content of the floating Paste Stack palette (`PasteStackController` hosts this). The
 /// queue is shown in paste order: each row is numbered by when it will be pasted, and the
@@ -15,6 +16,7 @@ struct PasteStackView: View {
 
     @State private var editingUUID: String?
     @State private var editText: String = ""
+    @State private var dragging: String?
 
     /// Reads `model.revision` (so an in-place edit re-renders) and resolves the queue's
     /// uuids to items once per body evaluation.
@@ -75,6 +77,9 @@ struct PasteStackView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
+        // The header is the palette's drag handle (see WindowDragHandle); the buttons on
+        // top still take their own clicks.
+        .background(WindowDragHandle())
     }
 
     // MARK: Empty state
@@ -100,35 +105,51 @@ struct PasteStackView: View {
 
     private func list(items: [ClipItem]) -> some View {
         let order = pasteNumbers(for: items)
-        return List {
-            ForEach(items, id: \.uuid) { item in
-                PasteStackRow(
-                    item: item,
-                    number: order[item.uuid] ?? 0,
-                    isNext: order[item.uuid] == 1,
-                    isEditing: editingUUID == item.uuid,
-                    editText: $editText,
-                    onBeginEdit: { beginEdit(item) },
-                    onCommitEdit: { commitEdit(item) },
-                    onCancelEdit: { editingUUID = nil },
-                    onRemove: { model.queue.remove(item.uuid) }
-                )
-                .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
-                .listRowSeparator(.hidden)
-                .swipeActions {
-                    Button("Remove", role: .destructive) { model.queue.remove(item.uuid) }
-                }
-                .contextMenu {
-                    Button("Edit…") { beginEdit(item) }
-                        .disabled(!isEditable(item))
-                    Button("Remove", role: .destructive) { model.queue.remove(item.uuid) }
+        return ScrollView {
+            VStack(spacing: 0) {
+                ForEach(items, id: \.uuid) { item in
+                    PasteStackRow(
+                        item: item,
+                        number: order[item.uuid] ?? 0,
+                        isNext: order[item.uuid] == 1,
+                        isEditing: editingUUID == item.uuid,
+                        isDragging: dragging == item.uuid,
+                        editText: $editText,
+                        onBeginEdit: { beginEdit(item) },
+                        onCommitEdit: { commitEdit(item) },
+                        onCancelEdit: { editingUUID = nil },
+                        onRemove: { model.queue.remove(item.uuid) }
+                    )
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .contextMenu {
+                        Button("Edit…") { beginEdit(item) }
+                            .disabled(!isEditable(item))
+                        Button("Remove", role: .destructive) { model.queue.remove(item.uuid) }
+                    }
+                    // Drag a row to reorder. The payload is unused (the delegate reorders
+                    // via `dragging`); it's own-process only so a row never drags out.
+                    .onDrag {
+                        dragging = item.uuid
+                        let provider = NSItemProvider()
+                        provider.registerDataRepresentation(forTypeIdentifier: Self.reorderType, visibility: .ownProcess) { done in
+                            done(Data(item.uuid.utf8), nil)
+                            return nil
+                        }
+                        return provider
+                    }
+                    .onDrop(of: [UTType(Self.reorderType) ?? .plainText],
+                            delegate: PasteReorderDelegate(item: item, model: model, dragging: $dragging))
                 }
             }
-            .onMove(perform: move)
+            // A real backing view so a scroll wheel over the gaps between rows still
+            // scrolls (same fix as the shelf's card row).
+            .background(Color.black.opacity(0.001))
         }
-        .listStyle(.plain)
         .scrollContentBackground(.hidden)
     }
+
+    private static let reorderType = "com.tarikbc.copy.pastestack-reorder"
 
     private func isEditable(_ item: ClipItem) -> Bool {
         switch item.kind {
@@ -163,15 +184,6 @@ struct PasteStackView: View {
         return map
     }
 
-    /// `List.onMove` hands a `destination` that can equal the row count (drop past the
-    /// last row); `PasteStackQueue.move(from:to:)` requires `to < count`, so translate
-    /// down by one whenever the drop lands after the source's original position.
-    private func move(from source: IndexSet, to destination: Int) {
-        guard let sourceIndex = source.first else { return }
-        let target = destination > sourceIndex ? destination - 1 : destination
-        model.queue.move(from: sourceIndex, to: target)
-    }
-
     // MARK: Footer
 
     private var footer: some View {
@@ -194,11 +206,33 @@ struct PasteStackView: View {
     }
 }
 
+private struct PasteReorderDelegate: DropDelegate {
+    let item: ClipItem
+    let model: PasteStackModel
+    @Binding var dragging: String?
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func dropEntered(info: DropInfo) {
+        guard let dragging, dragging != item.uuid else { return }
+        let uuids = model.queue.itemUUIDs
+        guard let from = uuids.firstIndex(of: dragging),
+              let to = uuids.firstIndex(of: item.uuid) else { return }
+        withAnimation(.easeInOut(duration: 0.16)) { model.queue.move(from: from, to: to) }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
+    }
+}
+
 private struct PasteStackRow: View {
     let item: ClipItem
     let number: Int
     let isNext: Bool
     let isEditing: Bool
+    var isDragging: Bool = false
     @Binding var editText: String
     let onBeginEdit: () -> Void
     let onCommitEdit: () -> Void
@@ -257,6 +291,7 @@ private struct PasteStackRow: View {
             }
         }
         .padding(.vertical, 3)
+        .opacity(isDragging ? 0.35 : 1)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .onTapGesture(count: 2) { onBeginEdit() }
