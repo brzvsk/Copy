@@ -19,7 +19,7 @@ final class KeyablePanel: NSPanel {
 
 @MainActor
 final class ShelfPanelController: NSObject, NSWindowDelegate {
-    static let shelfHeight: CGFloat = 340
+    static let shelfHeight: CGFloat = 352
     /// Panel height while `SettingsStore.compactShelf` is on, sized to `Tokens.compactCardHeight`
     /// plus the same header/divider/padding chrome `shelfHeight` allows for above the
     /// (shorter) card row. `ShelfHeader` isn't shortened in compact mode, so the fixed

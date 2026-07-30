@@ -58,24 +58,24 @@ struct ItemCardView: View {
         QuickLookController.fileURLs(for: item, store: store)
     }
 
-    /// Whether the card shows the title row above the body — either the user-assigned
-    /// `item.title` as static text, or the inline edit field while renaming (which
-    /// also shows for a titleless item mid-rename, so it has somewhere to type). When
-    /// true, `bodyLineLimit(standard:compact:)` trims one line off the body's limit in
-    /// both layout modes, since that row eats into the same fixed-height card without
-    /// shrinking anything else.
-    private var hasCustomTitle: Bool {
-        if isInlineRenaming { return true }
-        guard let title = item.title else { return false }
-        return !title.isEmpty
+    /// The user-assigned title, if any. When set it takes the header's primary-label
+    /// slot in place of the app name (see `header`).
+    private var customTitle: String? {
+        guard let title = item.title, !title.isEmpty else { return nil }
+        return title
     }
 
-    /// Resolves a kind's body line limit for the current layout mode, then trims it by
-    /// one when a custom title row is showing (see `hasCustomTitle`) so the body never
-    /// clips against the card's fixed height.
+    /// The header's primary label: the custom title if the user set one, otherwise the
+    /// source app's name. Clicking it renames the card either way.
+    private var headerLabel: String {
+        customTitle ?? (item.appName ?? "Unknown")
+    }
+
+    /// A kind's body line limit for the current layout mode. The title now lives in the
+    /// header rather than a separate row above the body, so the body always gets its full
+    /// height regardless of whether a title is set.
     private func bodyLineLimit(standard: Int, compact compactValue: Int) -> Int {
-        let limit = compact ? compactValue : standard
-        return hasCustomTitle ? max(limit - 1, 1) : limit
+        compact ? compactValue : standard
     }
 
     var body: some View {
@@ -84,22 +84,6 @@ struct ItemCardView: View {
             Rectangle()
                 .fill(Color(nsColor: .separatorColor).opacity(0.6))
                 .frame(height: 1)
-            if isInlineRenaming {
-                InlineTitleField(
-                    initialText: item.title ?? "",
-                    onCommit: onCommitInlineRename,
-                    onCancel: onCancelInlineRename
-                )
-            } else if let title = item.title, !title.isEmpty {
-                Text(title)
-                    .font(Tokens.cardSubtitle)
-                    .lineLimit(1)
-                    // Scoped to the title text only, so it wins over `CardClickGesture`
-                    // on the card body below (SwiftUI resolves a tap to the deepest
-                    // view carrying a gesture) — clicking the title never also
-                    // selects/pastes the card.
-                    .onTapGesture { onBeginInlineRename() }
-            }
             body(for: item.kind)
             Spacer(minLength: 0)
             footer
@@ -222,18 +206,33 @@ struct ItemCardView: View {
 
     private var header: some View {
         HStack(spacing: 5) {
-            if let icon = AppIconCache.icon(forBundleID: item.appBundleID) {
+            // The icon steps aside while renaming so the inline field gets the full width.
+            if !isInlineRenaming, let icon = AppIconCache.icon(forBundleID: item.appBundleID) {
                 Image(nsImage: icon)
                     .resizable()
                     .frame(width: 16, height: 16)
             }
-            Text(item.appName ?? "Unknown")
-                .font(Tokens.cardTitle)
-                .lineLimit(1)
-            Spacer(minLength: 4)
-            Text(Tokens.relativeFormatter.localizedString(for: item.lastUsedAt, relativeTo: Date()))
-                .font(Tokens.caption)
-                .foregroundStyle(.secondary)
+            if isInlineRenaming {
+                InlineTitleField(
+                    initialText: item.title ?? "",
+                    onCommit: onCommitInlineRename,
+                    onCancel: onCancelInlineRename
+                )
+            } else {
+                // The card's name: the custom title if set, otherwise the source app.
+                // Clicking it begins an inline rename; scoped to this text so it wins over
+                // `CardClickGesture` (SwiftUI routes a tap to the deepest view with a
+                // gesture), and the click never also selects/pastes the card.
+                Text(headerLabel)
+                    .font(customTitle != nil ? Tokens.cardSubtitle : Tokens.cardTitle)
+                    .foregroundStyle(customTitle != nil ? .primary : .secondary)
+                    .lineLimit(1)
+                    .onTapGesture { onBeginInlineRename() }
+                Spacer(minLength: 4)
+                Text(Tokens.relativeFormatter.localizedString(for: item.lastUsedAt, relativeTo: Date()))
+                    .font(Tokens.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

@@ -476,6 +476,11 @@ private struct ShelfItemsRow: View {
                     }
                     .padding(.horizontal, Tokens.shelfPadding(compact: compact))
                     .padding(.vertical, compact ? 10 : 16)
+                    // Make the whole row (including the gaps between cards) hit-testable so
+                    // a scroll wheel over a gap still scrolls the shelf instead of passing
+                    // through to the panel behind. No tap gesture lives on the row, so this
+                    // never captures clicks meant for the cards.
+                    .contentShape(Rectangle())
                 }
                 .onChange(of: viewModel.selection.primary) { _, newPrimary in
                     if let newPrimary {
@@ -585,6 +590,7 @@ private struct KeyboardLegend: View {
             .accessibilityLabel("Hide keyboard tips")
         }
         .padding(.horizontal, Tokens.shelfPadding)
-        .padding(.vertical, 3)
+        .padding(.top, 4)
+        .padding(.bottom, 11)
     }
 }
