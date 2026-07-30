@@ -1,4 +1,5 @@
 import AppKit
+import CopyCore
 import SwiftUI
 
 /// Floating Paste Stack palette. Unlike `ShelfPanelController`, this panel must never
@@ -16,6 +17,11 @@ final class PasteStackController {
 
     private let model: PasteStackModel
     private var panel: KeyablePanel?
+    // Separate key-capable child window that hosts the rich `EditItemSheet` when a row's
+    // pencil is tapped. The palette panel itself must never become key (⌘V would then paste
+    // into Copy), so editing happens in this window, which can take keyboard focus — the
+    // same split the shelf uses (`ShelfPanelController.presentModal`).
+    private var modalPanel: KeyablePanel?
     private var hideDuringScreenSharing: Bool
     private var proDark: Bool
 
@@ -166,6 +172,7 @@ final class PasteStackController {
         let hosting = NSHostingView(rootView: PasteStackView(
             model: model,
             onClose: { [weak model] in model?.isActive = false },
+            onEdit: { [weak self] item in self?.presentEditor(for: item) },
             // Defer to the next runloop tick: the + button mutates the queue from inside a
             // SwiftUI update, and resizing the panel (setFrame) synchronously there would
             // re-enter SwiftUI's layout pass mid-update and corrupt the window. Adds from
@@ -210,5 +217,59 @@ final class PasteStackController {
         panel.contentView = container
         panel.hasShadow = true
         return panel
+    }
+
+    // MARK: Rich editor
+
+    /// Opens the rich `EditItemSheet` for `item` in a full-screen, dim-backed child window
+    /// centered on the palette's screen — the same modal-host approach as the shelf. The
+    /// palette panel can't host it (it must stay non-key), so this window becomes key and
+    /// Copy activates briefly so the editor's text view can take keyboard focus; both are
+    /// yielded back on dismiss.
+    private func presentEditor(for item: ClipItem) {
+        let host = modalPanel ?? makeModalPanel()
+        host.contentView = NSHostingView(rootView: PasteStackEditorHost(
+            item: item,
+            store: model.store,
+            proDark: proDark,
+            onCancel: { [weak self] in self?.dismissEditor() },
+            onSave: { [weak self] attributed in
+                self?.model.commitEdit(attributed, for: item)
+                self?.dismissEditor()
+            }
+        ))
+        if let screen = panel?.screen ?? NSScreen.main {
+            host.setFrame(screen.frame, display: true)
+        }
+        if let panel, host.parent !== panel {
+            panel.addChildWindow(host, ordered: .above)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        host.makeKeyAndOrderFront(nil)
+    }
+
+    /// Tears down the editor window and hands active status back to the app the user was
+    /// working in, so plain ⌘V resumes pasting there (the palette panel stays non-key).
+    private func dismissEditor() {
+        guard let host = modalPanel else { return }
+        panel?.removeChildWindow(host)
+        host.orderOut(nil)
+        NSApp.deactivate()
+    }
+
+    private func makeModalPanel() -> KeyablePanel {
+        let host = KeyablePanel(contentRect: .zero,
+                                styleMask: [.borderless, .nonactivatingPanel],
+                                backing: .buffered, defer: false)
+        host.level = .statusBar
+        host.isOpaque = false
+        host.backgroundColor = .clear
+        host.hasShadow = false
+        host.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        host.hidesOnDeactivate = false
+        host.appearance = proDark ? NSAppearance(named: .darkAqua) : nil
+        host.sharingType = hideDuringScreenSharing ? .none : .readOnly
+        modalPanel = host
+        return host
     }
 }

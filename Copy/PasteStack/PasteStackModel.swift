@@ -1,3 +1,4 @@
+import AppKit
 import CopyCore
 import Foundation
 import Observation
@@ -41,16 +42,27 @@ final class PasteStackModel {
         queue.enqueue(latest.uuid)
     }
 
-    /// CRUD "update": replaces a queued item's text in place. Editing the shared
-    /// `ClipItem` updates it everywhere (history too), which is the expected behavior for
-    /// the same item.
-    func updateText(_ item: ClipItem, to newText: String) {
+    /// CRUD "update": saves edited rich text from the `EditItemSheet` opened by the row's
+    /// pencil, mirroring `ShelfViewModel.commitEdit`. Writes both a `public.rtf`
+    /// representation and canonical plain text (RTF encoding happens here, the app layer;
+    /// CopyCore stays Foundation-only and takes pre-encoded `Data`). Editing the shared
+    /// `ClipItem` updates it everywhere (history too), the expected behavior for the same
+    /// item; the `revision` bump re-renders the palette since the queue's uuids don't change.
+    func commitEdit(_ attributed: NSAttributedString, for item: ClipItem) {
         guard let id = item.id else { return }
+        let plainText = attributed.string
+        guard let rtfData = attributed.rtf(
+            from: NSRange(location: 0, length: attributed.length),
+            documentAttributes: [:]
+        ) else {
+            NSLog("Copy: failed to RTF-encode edited paste-stack item")
+            return
+        }
         do {
-            _ = try store.replaceContent(itemID: id, with: newText)
+            try store.replaceContent(itemID: id, rtfData: rtfData, plainText: plainText)
             revision += 1
         } catch {
-            NSLog("Copy: failed to edit paste-stack item: \(error)")
+            NSLog("Copy: failed to save edited paste-stack item: \(error)")
         }
     }
 

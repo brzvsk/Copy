@@ -7,15 +7,15 @@ import SwiftUI
 /// its panel `contentView` is a real `NSVisualEffectView` that captures every click, so the
 /// SwiftUI here can stay simple. Rows are a fixed-height `ScrollView`; reorder is a direct
 /// drag gesture (no drag-and-drop system, which needs window focus). Entries can be added
-/// (header +, queues the latest copy), edited in place (double-click / pencil), removed
-/// (trash on hover / context menu), reordered by dragging, and cleared (header trash).
+/// (header +, queues the latest copy), edited in the rich `EditItemSheet` (double-click /
+/// pencil, via `onEdit` → `PasteStackController.presentEditor`), removed (trash on hover /
+/// context menu), reordered by dragging, and cleared (header trash).
 struct PasteStackView: View {
     @Bindable var model: PasteStackModel
     var onClose: () -> Void = {}
+    var onEdit: (ClipItem) -> Void = { _ in }
     var onContentChange: () -> Void = {}
 
-    @State private var editingUUID: String?
-    @State private var editText = ""
     @State private var draggingUUID: String?
     @State private var dragTranslation: CGFloat = 0
 
@@ -113,13 +113,9 @@ struct PasteStackView: View {
                         item: item,
                         number: order[item.uuid] ?? 0,
                         isNext: order[item.uuid] == 1,
-                        isEditing: editingUUID == item.uuid,
                         isDragging: draggingUUID == item.uuid,
                         isEditable: isEditable(item),
-                        editText: $editText,
-                        onBeginEdit: { beginEdit(item) },
-                        onCommitEdit: { commitEdit(item) },
-                        onCancelEdit: { editingUUID = nil },
+                        onEdit: { onEdit(item) },
                         onRemove: { model.queue.remove(item.uuid) }
                     )
                     .frame(height: Self.rowHeight)
@@ -128,7 +124,7 @@ struct PasteStackView: View {
                     .gesture(reorderGesture(item: item, items: items))
                     .contextMenu {
                         if isEditable(item) {
-                            Button("Edit…") { beginEdit(item) }
+                            Button("Edit…") { onEdit(item) }
                         }
                         Button("Remove", role: .destructive) { model.queue.remove(item.uuid) }
                     }
@@ -179,19 +175,6 @@ struct PasteStackView: View {
         }
     }
 
-    private func beginEdit(_ item: ClipItem) {
-        guard isEditable(item) else { return }
-        editText = item.plainText ?? ""
-        editingUUID = item.uuid
-    }
-
-    private func commitEdit(_ item: ClipItem) {
-        let text = editText
-        editingUUID = nil
-        guard !text.isEmpty, text != item.plainText else { return }
-        model.updateText(item, to: text)
-    }
-
     /// Maps each item's uuid to its 1-based paste position. Row 1 is whatever Command V
     /// pastes next: the first-added under "Oldest first" (FIFO) or the last-added under
     /// "Newest first" (LIFO). `model.items()` is in insertion order, so LIFO numbers from
@@ -231,17 +214,12 @@ private struct PasteStackRow: View {
     let item: ClipItem
     let number: Int
     let isNext: Bool
-    let isEditing: Bool
     var isDragging: Bool = false
     var isEditable: Bool = true
-    @Binding var editText: String
-    let onBeginEdit: () -> Void
-    let onCommitEdit: () -> Void
-    let onCancelEdit: () -> Void
+    let onEdit: () -> Void
     let onRemove: () -> Void
 
     @State private var isHovering = false
-    @FocusState private var fieldFocused: Bool
 
     var body: some View {
         HStack(spacing: 10) {
@@ -258,42 +236,29 @@ private struct PasteStackRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
 
-            if isEditing {
-                TextField("Edit", text: $editText)
-                    .textFieldStyle(.plain)
-                    .font(Tokens.bodyMono)
-                    .focused($fieldFocused)
-                    .onAppear { DispatchQueue.main.async { fieldFocused = true } }
-                    .onSubmit(onCommitEdit)
-                    .onExitCommand(perform: onCancelEdit)
-                    .onChange(of: fieldFocused) { _, focused in if !focused { onCommitEdit() } }
-            } else {
-                Text(item.displayTitle)
-                    .font(Tokens.bodyMono)
-                    .lineLimit(1)
-            }
+            Text(item.displayTitle)
+                .font(Tokens.bodyMono)
+                .lineLimit(1)
 
             Spacer(minLength: 0)
 
-            if !isEditing {
-                if isHovering {
-                    HStack(spacing: 1) {
-                        // Only text-like rows can be edited; images/files/colors show just Remove.
-                        if isEditable {
-                            IconButton(systemName: "pencil", fontSize: 10,
-                                       size: CGSize(width: 22, height: 22), help: "Edit", action: onBeginEdit)
-                        }
-                        IconButton(systemName: "trash", fontSize: 10,
-                                   size: CGSize(width: 22, height: 22), help: "Remove", action: onRemove)
+            if isHovering {
+                HStack(spacing: 1) {
+                    // Only text-like rows can be edited; images/files/colors show just Remove.
+                    if isEditable {
+                        IconButton(systemName: "pencil", fontSize: 10,
+                                   size: CGSize(width: 22, height: 22), help: "Edit", action: onEdit)
                     }
-                } else if isNext {
-                    Text("Next")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+                    IconButton(systemName: "trash", fontSize: 10,
+                               size: CGSize(width: 22, height: 22), help: "Remove", action: onRemove)
                 }
+            } else if isNext {
+                Text("Next")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.14)))
             }
         }
         .padding(.horizontal, 10)
@@ -306,7 +271,7 @@ private struct PasteStackRow: View {
         .padding(.horizontal, 6)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
-        .onTapGesture(count: 2) { if isEditable { onBeginEdit() } }
+        .onTapGesture(count: 2) { if isEditable { onEdit() } }
     }
 
     private var glyph: String {
@@ -317,5 +282,27 @@ private struct PasteStackRow: View {
         case .file: return "doc"
         case .color: return "paintpalette"
         }
+    }
+}
+
+/// Full-screen host for the paste-stack rich editor: a dim backdrop with the shared
+/// `EditItemSheet` centered on top, mirroring `ShelfModalHostView`. Lives in the
+/// controller's key-capable child window (`PasteStackController.presentEditor`) so the
+/// editor's text view can take focus without the palette panel ever becoming key.
+struct PasteStackEditorHost: View {
+    let item: ClipItem
+    let store: ItemStore
+    var proDark: Bool
+    let onCancel: () -> Void
+    let onSave: (NSAttributedString) -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.32)
+                .ignoresSafeArea()
+            EditItemSheet(item: item, store: store, onCancel: onCancel, onSave: onSave)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .tint(proDark ? Tokens.electricBlue : nil)
     }
 }
