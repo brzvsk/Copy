@@ -55,7 +55,7 @@ final class AppCoordinator {
             // app-wide and fires before the sheet's/field's responder chain would see
             // the event otherwise.
             guard viewModel.editingItem == nil, !viewModel.pinboardPopoverShown,
-                  !viewModel.creatingItem, viewModel.renamingItem == nil,
+                  !viewModel.creatingItem,
                   viewModel.adjustingColorItem == nil,
                   viewModel.inlineRenamingItemID == nil else { return false }
             // ⌘1 → history tab, ⌘2...⌘9 → nth pinboard. Checked before keyCode routing

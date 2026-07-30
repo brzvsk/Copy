@@ -42,13 +42,6 @@ struct ShelfRootView: View {
                 onCreate: { text, title in viewModel.commitCreate(text: text, title: title) }
             )
         }
-        .sheet(item: $viewModel.renamingItem) { item in
-            RenameItemSheet(
-                item: item,
-                onCancel: { viewModel.renamingItem = nil },
-                onRename: { viewModel.commitRename(item, to: $0) }
-            )
-        }
         .sheet(item: $viewModel.adjustingColorItem) { item in
             ColorAdjustSheet(
                 item: item,

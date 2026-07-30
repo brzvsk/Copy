@@ -45,13 +45,11 @@ final class ShelfViewModel {
     var editingItem: ClipItem?
     var pinboardPopoverShown = false
     var creatingItem = false
-    var renamingItem: ClipItem?
     var adjustingColorItem: ClipItem?
-    /// Drives the inline, click-to-edit title field on a card (`ItemCardView`) — the
-    /// primary rename entry point, distinct from the modal `renamingItem`/
-    /// `RenameItemSheet` so `AppCoordinator`'s app-wide key monitor guard can treat an
-    /// active inline field exactly like the other sheets (see that guard's doc
-    /// comment) without the two states being confused for one another.
+    /// Drives the inline, click-to-edit title field on a card (`ItemCardView`). The
+    /// app-wide key monitor guard treats an active inline field exactly like the other
+    /// sheets (see that guard's doc comment), so typing in it is never intercepted by
+    /// the shelf's global shortcuts.
     var inlineRenamingItemID: Int64?
 
     /// Mirror `AppCoordinator.isPaused`/`isPasteStackActive` for the in-drawer menu
@@ -164,7 +162,6 @@ final class ShelfViewModel {
         if let first = items.first { selection.click(first.uuid) } else { selection.reset() }
         editingItem = nil
         creatingItem = false
-        renamingItem = nil
         adjustingColorItem = nil
         inlineRenamingItemID = nil
         if !query.isEmpty { query = "" }
@@ -611,25 +608,10 @@ final class ShelfViewModel {
         }
     }
 
-    /// Opens `RenameItemSheet` from a card's "Rename…" context menu item, seeded
-    /// with `item.title`. No longer wired to any entry point now that rename is
-    /// inline-first (see `beginInlineRename(_:)`) — kept, along with `renamingItem`
-    /// and `RenameItemSheet` itself, in case a modal path is needed again.
-    func beginRename(_ item: ClipItem) {
-        renamingItem = item
-    }
-
-    /// Saves a new title from `RenameItemSheet`, then dismisses it either way. An
-    /// empty title clears the custom title, reverting display to the auto title.
-    func commitRename(_ item: ClipItem, to title: String) {
-        defer { renamingItem = nil }
-        saveTitle(item, to: title)
-    }
-
     /// Begins inline (click-to-edit) rename of `item`'s title in place on its card —
     /// the primary rename entry point (title tap, context-menu "Rename…", and ⌘R all
-    /// route here). Distinct from `renamingItem`/`beginRename` so the app-wide key
-    /// monitor guard in `AppCoordinator` can gate on this state on its own.
+    /// route here). The app-wide key monitor guard in `AppCoordinator` gates on this
+    /// state so typing in the field is never intercepted by the shelf's shortcuts.
     func beginInlineRename(_ item: ClipItem) {
         inlineRenamingItemID = item.id
     }
@@ -640,8 +622,8 @@ final class ShelfViewModel {
     /// `InlineTitleField`'s `.onDisappear`, which commits the outgoing card's edit
     /// when the user starts renaming a new one before the old one resolved); clearing
     /// unconditionally would stomp the new card's rename session back to nil right
-    /// after it started. Same save semantics as `commitRename` (empty title clears
-    /// back to the auto title).
+    /// after it started. An empty title clears the custom title, reverting to the
+    /// auto title.
     func commitInlineRename(_ item: ClipItem, to title: String) {
         defer { if inlineRenamingItemID == item.id { inlineRenamingItemID = nil } }
         saveTitle(item, to: title)
