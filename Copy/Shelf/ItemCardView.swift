@@ -68,10 +68,13 @@ struct ItemCardView: View {
         return title
     }
 
-    /// The header's primary label: the custom title if the user set one, otherwise the
-    /// source app's name. Clicking it renames the card either way.
+    /// The header's primary label: the custom title if the user set one; otherwise "Image"
+    /// for image cards (their source app is rarely meaningful), or the source app's name.
+    /// Clicking it renames the card either way.
     private var headerLabel: String {
-        customTitle ?? (item.appName ?? "Unknown")
+        if let customTitle { return customTitle }
+        if item.kind == .image { return "Image" }
+        return item.appName ?? "Unknown"
     }
 
     /// A kind's body line limit for the current layout mode. The title now lives in the
@@ -211,10 +214,19 @@ struct ItemCardView: View {
     private var header: some View {
         HStack(spacing: 5) {
             // The icon steps aside while renaming so the inline field gets the full width.
-            if !isInlineRenaming, let icon = AppIconCache.icon(forBundleID: item.appBundleID) {
-                Image(nsImage: icon)
-                    .resizable()
-                    .frame(width: 16, height: 16)
+            // Image cards show a photo glyph (their source app is rarely meaningful);
+            // everything else shows the source app's icon.
+            if !isInlineRenaming {
+                if item.kind == .image {
+                    Image(systemName: "photo")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16, height: 16)
+                } else if let icon = AppIconCache.icon(forBundleID: item.appBundleID) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 16, height: 16)
+                }
             }
             if isInlineRenaming {
                 InlineTitleField(
@@ -297,32 +309,22 @@ struct ItemCardView: View {
         }
     }
 
-    /// Image card body: a clean, centered "Image" placeholder (icon + label) rather than a
-    /// busy thumbnail, plus a highlighted OCR snippet when a search matched the image's
-    /// recognized text. Extracted from `body(for:)` so the switch there stays simple
-    /// enough for the Swift type checker.
+    /// Image card body: the thumbnail, plus a highlighted OCR snippet when a search
+    /// matched the image's recognized text. Extracted from `body(for:)` so the switch
+    /// there stays simple enough for the Swift type checker.
     @ViewBuilder
     private var imageBody: some View {
-        VStack(spacing: compact ? 4 : 6) {
-            Spacer(minLength: 0)
-            Image(systemName: "photo")
-                .font(.system(size: compact ? 22 : 30, weight: .regular))
-                .foregroundStyle(.secondary)
-            Text("Image")
-                .font(Tokens.cardSubtitle)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            CardThumbnail(item: item, store: store)
             if !searchQuery.isEmpty, let ocr = item.recognizedText,
                let snippet = OCRSnippet.make(recognizedText: ocr, query: searchQuery) {
                 highlightedSnippet(snippet, query: searchQuery)
                     .font(Tokens.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
     }
 
     /// Renders an OCR snippet with the matched query span tinted, so an image search
