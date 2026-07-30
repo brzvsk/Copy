@@ -432,6 +432,7 @@ private struct ShelfItemsRow: View {
                                 onCopyText: { viewModel.copyText(item) },
                                 onQuickLook: { viewModel.quickLook(item) },
                                 onOpen: { viewModel.open(item) },
+                                onRotate: { viewModel.rotateImage(item, clockwise: $0) },
                                 onDelete: { viewModel.delete(item) },
                                 dragProvider: { viewModel.dragProvider(for: item) }
                             )

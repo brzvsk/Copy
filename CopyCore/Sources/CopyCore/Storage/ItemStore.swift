@@ -245,6 +245,41 @@ public struct ItemStore {
         return ObservationToken(cancellable)
     }
 
+    /// Replaces an image item's representation with new bytes (e.g. a rotated copy),
+    /// recomputing the content hash and size and cleaning up the old blob. OCR text is
+    /// cleared because it no longer matches the transformed image; it can be re-run.
+    /// Mirrors `replaceContent`'s dedup-winner + orphan-blob handling.
+    @discardableResult
+    public func replaceImageRepresentation(itemID: Int64, data: Data, uti: String, now: Date = Date()) throws -> ClipItem {
+        let hash = BlobStore.key(for: data)
+        return try writer.write { db in
+            guard var item = try ClipItem.fetchOne(db, key: itemID) else {
+                throw DatabaseError(message: "item not found")
+            }
+            if var winner = try ClipItem
+                .filter(Column("contentHash") == hash && Column("id") != itemID)
+                .fetchOne(db) {
+                winner.lastUsedAt = now
+                try winner.update(db)
+                try deleteItems(ClipItem.filter(Column("id") == itemID), in: db)
+                return winner
+            }
+            let oldKeys = try String.fetchAll(db, sql:
+                "SELECT DISTINCT blobKey FROM representation WHERE itemId = ? AND blobKey IS NOT NULL",
+                arguments: [itemID])
+            try Representation.filter(Column("itemId") == itemID).deleteAll(db)
+            item.kind = .image
+            item.contentHash = hash
+            item.sizeBytes = data.count
+            item.recognizedText = nil
+            item.lastUsedAt = now
+            try item.update(db)
+            try insertRepresentations([CapturedRepresentation(uti: uti, data: data)], itemID: itemID, in: db)
+            try cleanOrphanBlobs(oldKeys, in: db)
+            return item
+        }
+    }
+
     @discardableResult
     public func replaceContent(itemID: Int64, with text: String, now: Date = Date()) throws -> ClipItem {
         let hash = BlobStore.key(for: Data(text.utf8))

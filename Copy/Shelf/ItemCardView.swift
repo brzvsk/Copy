@@ -33,6 +33,7 @@ struct ItemCardView: View {
     let onCopyText: () -> Void
     let onQuickLook: () -> Void
     let onOpen: () -> Void
+    let onRotate: (Bool) -> Void
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
 
@@ -144,6 +145,10 @@ struct ItemCardView: View {
             }
             if item.kind == .file, !quickLookURLs.isEmpty {
                 Button("Quick Look", action: onQuickLook)
+            }
+            if item.kind == .image {
+                Button("Rotate Left") { onRotate(false) }
+                Button("Rotate Right") { onRotate(true) }
             }
             Divider()
             if isEditable {

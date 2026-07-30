@@ -258,6 +258,26 @@ final class ShelfViewModel {
         return url
     }
 
+    /// Rotates an image item 90 degrees (clockwise or counter-clockwise) in place,
+    /// re-encoding as PNG, refreshing its thumbnail, and re-rendering the shelf.
+    func rotateImage(_ item: ClipItem, clockwise: Bool) {
+        guard item.kind == .image, let id = item.id else { return }
+        do {
+            let reps = try store.representations(forItemID: id)
+            guard let imageData = reps.first(where: { NSImage(data: $0.data) != nil })?.data,
+                  let rotated = ImageRotation.rotated(imageData, clockwise: clockwise) else {
+                HUD.show("Couldn't rotate that")
+                return
+            }
+            try store.replaceImageRepresentation(itemID: id, data: rotated, uti: "public.png")
+            ThumbnailCache.shared.invalidate(for: item)
+            refresh()
+        } catch {
+            NSLog("Copy: image rotate failed: \(error)")
+            HUD.show("Couldn't rotate that")
+        }
+    }
+
     func pasteSelection(plain: Bool) {
         let picked = orderedSelectedItems
         if picked.count <= 1 {

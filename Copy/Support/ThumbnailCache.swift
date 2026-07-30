@@ -11,6 +11,13 @@ final class ThumbnailCache {
         cache.object(forKey: item.uuid as NSString)
     }
 
+    /// Drops the cached thumbnail for an item so the next render regenerates it. The
+    /// cache is keyed by uuid (stable across edits), so an in-place image change like a
+    /// rotate must invalidate here or the card keeps showing the pre-rotation thumbnail.
+    func invalidate(for item: ClipItem) {
+        cache.removeObject(forKey: item.uuid as NSString)
+    }
+
     func thumbnail(for item: ClipItem, store: ItemStore, completion: @escaping (NSImage?) -> Void) {
         if let image = cached(for: item) {
             completion(image)
