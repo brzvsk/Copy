@@ -222,13 +222,20 @@ final class AppCoordinator {
             self?.shelfViewModel.commandHeld = event.modifierFlags.contains(.command)
         }
         controller.onForceClick = { [weak self] in
-            // Force-clicking a card opens its preview, like pressing Space. The pointer is
-            // over the force-clicked card, so preview whatever it's hovering: select that
-            // card (a force-click's own click hasn't resolved yet at this stage) and show
-            // the preview popover for it.
-            guard let self, let uuid = self.shelfViewModel.hoveredItemID else { return }
+            // Force-click acts on the card under the cursor: editable kinds (text/rich
+            // text/link) open the editor, everything else opens the preview. The click's
+            // own mouse-up hasn't resolved yet, so select the card here and set the
+            // suppress-paste guard so the release doesn't then paste it.
+            guard let self, let uuid = self.shelfViewModel.hoveredItemID,
+                  let item = self.shelfViewModel.items.first(where: { $0.uuid == uuid }) else { return }
             self.shelfViewModel.selection.click(uuid)
-            self.shelfViewModel.previewShown = true
+            self.shelfViewModel.suppressNextCardPaste = true
+            switch item.kind {
+            case .text, .richText, .link:
+                self.shelfViewModel.beginEdit(item)
+            case .image, .file, .color:
+                self.shelfViewModel.previewShown = true
+            }
         }
         return controller
     }()

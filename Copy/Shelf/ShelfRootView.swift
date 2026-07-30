@@ -174,43 +174,63 @@ private struct ShelfHeader: View {
 /// language (e.g. the "Add Pinboard" `+` in `ShelfTabs`).
 private struct DrawerMenu: View {
     let viewModel: ShelfViewModel
+    @State private var target = MenuActionTarget()
 
     var body: some View {
-        Menu {
-            Button("New Item…") { viewModel.onNewItem?() }
-            Toggle(isOn: Binding(
-                get: { viewModel.isPasteStackOn },
-                set: { _ in viewModel.onTogglePasteStack?() }
-            )) {
-                Text("Paste Stack")
-            }
-            Button(viewModel.isPrivacyModeOn ? "Resume Monitoring" : "Pause Monitoring") {
-                viewModel.onTogglePrivacyMode?()
-            }
-            Divider()
-            Button("Clear History…") { viewModel.onClearHistory?() }
-            Button("Export…") { viewModel.onExportHistory?() }
-            Button("Import…") { viewModel.onImportHistory?() }
-            Divider()
-            Button("Keyboard & Tips…") { viewModel.showingTips = true }
-            Button("Settings…") { viewModel.onOpenSettings?() }
-            Button("Check for Updates…") { viewModel.onCheckForUpdates?() }
-            Divider()
-            Button("Quit Copy") { viewModel.onQuit?() }
-        } label: {
+        // A plain Button that pops an NSMenu, rather than a SwiftUI `Menu`: the latter's
+        // `.borderlessButton` style only made the glyph pixels clickable, so the ⋯ was
+        // extremely hard to hit. A Button's frame + `contentShape` is a guaranteed target.
+        Button(action: showMenu) {
             Image(systemName: "ellipsis.circle")
                 .font(.system(size: 16))
                 .foregroundStyle(.secondary)
-                // A generous, fully-hittable target: the icon glyph itself is small, so
-                // pad it out to a comfortable click area and make the whole rect
-                // clickable (not just the opaque glyph pixels).
-                .frame(width: 32, height: 28)
+                .frame(width: 34, height: 30)
                 .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
+        .buttonStyle(.plain)
         .accessibilityLabel("More")
+    }
+
+    private func showMenu() {
+        let menu = NSMenu()
+        func add(_ title: String, checked: Bool = false, _ action: @escaping () -> Void) {
+            let item = NSMenuItem(title: title, action: #selector(MenuActionTarget.fire(_:)), keyEquivalent: "")
+            item.target = target
+            item.representedObject = MenuAction(run: action)
+            item.state = checked ? .on : .off
+            menu.addItem(item)
+        }
+        add("New Item…") { viewModel.onNewItem?() }
+        add("Paste Stack", checked: viewModel.isPasteStackOn) { viewModel.onTogglePasteStack?() }
+        add(viewModel.isPrivacyModeOn ? "Resume Monitoring" : "Pause Monitoring") { viewModel.onTogglePrivacyMode?() }
+        menu.addItem(.separator())
+        add("Clear History…") { viewModel.onClearHistory?() }
+        add("Export…") { viewModel.onExportHistory?() }
+        add("Import…") { viewModel.onImportHistory?() }
+        menu.addItem(.separator())
+        add("Keyboard & Tips…") { viewModel.showingTips = true }
+        add("Settings…") { viewModel.onOpenSettings?() }
+        add("Check for Updates…") { viewModel.onCheckForUpdates?() }
+        menu.addItem(.separator())
+        add("Quit Copy") { viewModel.onQuit?() }
+
+        guard let window = NSApp.keyWindow, let content = window.contentView else { return }
+        let windowPoint = window.convertPoint(fromScreen: NSEvent.mouseLocation)
+        let viewPoint = content.convert(windowPoint, from: nil)
+        menu.popUp(positioning: nil, at: viewPoint, in: content)
+    }
+}
+
+/// Wraps a Swift closure so it can ride an `NSMenuItem`'s `representedObject` and be
+/// invoked by `MenuActionTarget` — AppKit menu items are selector-based, not closure-based.
+private final class MenuAction {
+    let run: () -> Void
+    init(run: @escaping () -> Void) { self.run = run }
+}
+
+private final class MenuActionTarget: NSObject {
+    @objc func fire(_ sender: NSMenuItem) {
+        (sender.representedObject as? MenuAction)?.run()
     }
 }
 
@@ -236,6 +256,7 @@ private struct ShelfTabs: View {
                     symbol: pinboard.symbol,
                     emoji: pinboard.emoji,
                     tint: pinboard.tint,
+                    showsSymbol: false,
                     isSelected: pinboard.id.map { viewModel.tab == .pinboard($0) } ?? false,
                     isDropTargeted: pinboard.id != nil && dropTargetedPinboardID == pinboard.id,
                     // ⌘1 is History, so pinboards start at ⌘2; only the first eight get a
@@ -290,9 +311,8 @@ private struct ShelfTabs: View {
                 Image(systemName: "plus")
                     .font(Tokens.caption)
                     .foregroundStyle(.secondary)
-                    // Match the drawer menu's enlarged, fully-hittable target so this
-                    // small glyph isn't hard to click (see DrawerMenu).
-                    .frame(width: 30, height: 26)
+                    // A comfortable, fully-hittable target (the glyph alone is tiny).
+                    .frame(width: 34, height: 28)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -337,6 +357,9 @@ private struct TabPill: View {
     var emoji: String? = nil
     /// A user-chosen hex color (e.g. "FF3B30"); empty means no color identity.
     var tint: String = ""
+    /// Whether to draw the SF Symbol when no emoji is set. History uses it (a clock);
+    /// pinboards don't — their identity is the color dot and optional emoji.
+    var showsSymbol: Bool = true
     let isSelected: Bool
     var isDropTargeted: Bool = false
     /// The ⌘-number that jumps to this tab (e.g. "1"), shown as a badge while ⌘ is held.
@@ -353,7 +376,7 @@ private struct TabPill: View {
             HStack(spacing: 4) {
                 if let emoji, !emoji.isEmpty {
                     Text(emoji)
-                } else {
+                } else if showsSymbol {
                     Image(systemName: symbol)
                 }
                 Text(label)

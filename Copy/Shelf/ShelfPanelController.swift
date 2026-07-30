@@ -195,13 +195,29 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         hide(restoreFocus: false)
     }
 
-    /// SwiftUI's `.sheet()` (Edit/Create/Rename/Adjust Color) presents via AppKit's
+    /// SwiftUI's `.sheet()` (Edit/Create/Rename/Adjust Color/Tips) presents via AppKit's
     /// sheet mechanism rather than `addChildWindow`, so `KeyablePanel.childWindowSharingType`
     /// doesn't catch it — this documented `NSWindowDelegate` hook fires as the sheet is
     /// attached to `window` (the panel), before it's positioned/shown, giving a
-    /// deterministic point to apply the same policy.
+    /// deterministic point to apply the same policy AND to reposition the sheet.
+    ///
+    /// The shelf panel sits at the screen bottom, so a sheet dropped from its top edge
+    /// (the default) overflows off the bottom of the screen for anything tall. Raise the
+    /// sheet's top so the whole sheet sits *above* the panel instead, clamped to stay on
+    /// screen. The returned rect's top, in window coordinates, is where the sheet's top
+    /// edge is placed; the sheet then extends downward by its own height.
     func window(_ window: NSWindow, willPositionSheet sheet: NSWindow, using rect: NSRect) -> NSRect {
         sheet.sharingType = hideDuringScreenSharing ? .none : .readOnly
-        return rect
+        var positioned = rect
+        let margin: CGFloat = 16
+        let desiredTop = window.frame.height + sheet.frame.height + margin
+        if let screen = window.screen ?? NSScreen.main {
+            // Don't let the sheet's top go past the top of the usable screen.
+            let maxTopInWindow = (screen.visibleFrame.maxY - margin) - window.frame.origin.y
+            positioned.origin.y = min(desiredTop, maxTopInWindow)
+        } else {
+            positioned.origin.y = desiredTop
+        }
+        return positioned
     }
 }

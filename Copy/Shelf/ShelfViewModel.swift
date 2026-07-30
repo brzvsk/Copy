@@ -51,9 +51,12 @@ final class ShelfViewModel {
     /// the ⌘-number hints on pinboard tabs. Driven by a flags-changed monitor in
     /// `ShelfPanelController` (wired in `AppCoordinator`).
     var commandHeld = false
-    /// The uuid of the card the pointer is currently over, so a force-click can preview
+    /// The uuid of the card the pointer is currently over, so a force-click can act on
     /// exactly the card under the cursor (set by `ItemCardView`'s hover callback).
     var hoveredItemID: String?
+    /// Set by a force-click (which fires before the click's own mouse-up resolves) so the
+    /// release doesn't then paste the card. Consumed by the next `handleCardClick`.
+    @ObservationIgnored var suppressNextCardPaste = false
     var adjustingColorItem: ClipItem?
     /// Drives the inline, click-to-edit title field on a card (`ItemCardView`). The
     /// app-wide key monitor guard treats an active inline field exactly like the other
@@ -196,6 +199,14 @@ final class ShelfViewModel {
         } else if modifiers.contains(.command) {
             selection.commandClick(item.uuid, in: items.map(\.uuid))
         } else {
+            // A force-click already acted on this card (preview/editor) before this
+            // release resolved; consume the guard so the release only selects, never
+            // pastes.
+            if suppressNextCardPaste {
+                suppressNextCardPaste = false
+                selection.click(item.uuid)
+                return
+            }
             // Paste immediately on a single click when two-click-to-paste is off. When
             // it's on, paste only if this card was ALREADY the sole selection before this
             // click, i.e. this is the second click on an already-highlighted card. That

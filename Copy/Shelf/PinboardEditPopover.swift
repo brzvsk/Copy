@@ -152,7 +152,9 @@ struct PinboardEditPopover: View {
             _name = State(initialValue: "")
             _symbol = State(initialValue: "pin")
             _emoji = State(initialValue: nil)
-            _tint = State(initialValue: "")
+            // New pinboards get a color by default (Blue) since the color is now their
+            // primary identity on the tabs; the user can change or clear it below.
+            _tint = State(initialValue: "007AFF")
         case .rename(let pinboard):
             _name = State(initialValue: pinboard.name)
             _symbol = State(initialValue: pinboard.symbol)
@@ -202,19 +204,6 @@ struct PinboardEditPopover: View {
                 .textFieldStyle(.roundedBorder)
                 .focused($nameFocused)
                 .onSubmit(commit)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Symbol")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 6), spacing: 6) {
-                    ForEach(Self.symbols, id: \.self) { candidate in
-                        SymbolSwatch(symbol: candidate, isSelected: candidate == symbol) {
-                            symbol = candidate
-                        }
-                    }
-                }
-            }
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
