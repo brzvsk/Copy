@@ -321,6 +321,9 @@ final class AppCoordinator {
             self?.shelfController.setProDark(proDark)
             self?.pasteStackController.setProDark(proDark)
         }
+        settings.onShowOnboarding = { [weak self] in
+            self?.showOnboarding()
+        }
         // `self` is fully initialized past this point, so it's safe to capture weakly
         // in `onActiveChange` — the single fan-out point for palette visibility AND
         // engine activation, so the two can never drift out of lockstep (see the

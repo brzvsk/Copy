@@ -23,6 +23,10 @@ struct AboutSettings: View {
             Form {
                 Section {
                     Button("Check for Updates…") { settings.onCheckForUpdates?() }
+                    Button("View Onboarding Again") { settings.onShowOnboarding?() }
+                }
+
+                Section {
                     Button("View on GitHub") { NSWorkspace.shared.open(Self.repoURL) }
                     Button("Report an Issue") { NSWorkspace.shared.open(Self.issuesURL) }
                     Button("License (GPL-3.0)") { NSWorkspace.shared.open(Self.licenseURL) }

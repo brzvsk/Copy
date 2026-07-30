@@ -159,6 +159,9 @@ final class SettingsStore {
     /// `updaterController` in `AppDelegate` (which owns it), so this store — and the
     /// SwiftUI settings views — never depend on Sparkle directly.
     @ObservationIgnored var onCheckForUpdates: (() -> Void)?
+    /// Fired by the About pane's "View Onboarding Again" button. Wired to
+    /// `AppCoordinator.showOnboarding()`, which re-presents the welcome flow from step 0.
+    @ObservationIgnored var onShowOnboarding: (() -> Void)?
     @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
     @ObservationIgnored var onCompactShelfChange: ((Bool) -> Void)?
     @ObservationIgnored var onShelfProDarkChange: ((Bool) -> Void)?

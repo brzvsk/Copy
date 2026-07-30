@@ -37,9 +37,15 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     /// Hides rather than closes — `isReleasedWhenClosed = false` means the window
     /// survives either way, but `orderOut` sidesteps running the window's close
     /// animation for what's really just a one-time flow finishing. Since this doesn't
-    /// go through `close()`, it does NOT trigger `windowWillClose`.
+    /// go through `close()`, it does NOT trigger `windowWillClose`, so reset the root
+    /// view here too (the same fresh-`.id` swap `windowWillClose` uses) — otherwise
+    /// re-opening from Settings > About "View Onboarding Again" would resume on the
+    /// finished step instead of starting over at step 0.
     func hide() {
         window?.orderOut(nil)
+        if let hosting = window?.contentViewController as? NSHostingController<AnyView> {
+            hosting.rootView = Self.freshRootView(onFinish: { [weak self] in self?.hide() })
+        }
     }
 
     /// Closing via the titlebar mid-step (Accessibility or Clipboard access, both of
