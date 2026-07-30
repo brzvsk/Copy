@@ -121,6 +121,11 @@ final class AppCoordinator {
                 && !event.modifierFlags.contains(.option): // cmd-N — new item
                 viewModel.beginCreate()
                 return true
+            case 31 where event.modifierFlags.contains(.command)
+                && !event.modifierFlags.contains(.shift)
+                && !event.modifierFlags.contains(.option): // cmd-O — open selected link/file
+                viewModel.openSelected()
+                return true
             case 49 where viewModel.query.isEmpty: // space previews in browse mode
                 viewModel.previewShown.toggle()
                 return true
@@ -161,6 +166,10 @@ final class AppCoordinator {
         }
         shelfViewModel.onAddToPasteStack = { [weak self] item in
             self?.addToPasteStack(item)
+        }
+        shelfViewModel.onOpenURL = { [weak controller] url in
+            controller?.hide(restoreFocus: true)
+            NSWorkspace.shared.open(url)
         }
         shelfViewModel.onCopyText = { [weak self] text in
             self?.copyText(text)

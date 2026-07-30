@@ -32,6 +32,7 @@ struct ItemCardView: View {
     let onAddToPasteStack: () -> Void
     let onCopyText: () -> Void
     let onQuickLook: () -> Void
+    let onOpen: () -> Void
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
 
@@ -134,6 +135,10 @@ struct ItemCardView: View {
         .contextMenu {
             Button("Paste", action: onPaste)
             Button("Paste as Plain Text", action: onPastePlain)
+            if item.kind == .link || item.kind == .file {
+                Button("Open", action: onOpen)
+                    .keyboardShortcut("o", modifiers: .command)
+            }
             if item.recognizedText?.isEmpty == false {
                 Button("Copy Text", action: onCopyText)
             }

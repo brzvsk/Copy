@@ -76,6 +76,10 @@ final class ShelfViewModel {
     @ObservationIgnored var onAddToPasteStack: ((ClipItem) -> Void)?
     @ObservationIgnored var onCopyText: ((String) -> Void)?
     @ObservationIgnored var onAdjustColorCopy: ((String) -> Void)?
+    /// Opens a resolved link/file URL in its default app. `AppCoordinator` wires this to
+    /// hide the shelf (restoring focus to the previous app) and hand off to NSWorkspace,
+    /// matching how paste actions leave the shelf.
+    @ObservationIgnored var onOpenURL: ((URL) -> Void)?
 
     // MARK: - Drawer-menu actions (ShelfHeader's ellipsis menu)
     //
@@ -210,6 +214,48 @@ final class ShelfViewModel {
 
     func requestPaste(_ item: ClipItem, plain: Bool) {
         onPaste?(item, plain)
+    }
+
+    /// Opens the primary selection's link or file in its default app without pasting
+    /// (⌘O). No-ops with a gentle HUD for items that have nothing to open.
+    func openSelected() {
+        guard let item = primaryItem else { return }
+        open(item)
+    }
+
+    /// Opens a specific item's link or file (the card context menu's "Open"). Hides the
+    /// shelf via `onOpenURL` (set by `AppCoordinator`); shows a HUD when the item has no
+    /// openable target so the shortcut never feels silently dead.
+    func open(_ item: ClipItem) {
+        guard let url = openableURL(for: item) else {
+            HUD.show("Nothing to open")
+            return
+        }
+        onOpenURL?(url)
+    }
+
+    /// The link/file an item can open, or nil. Links open their URL; files open the
+    /// first representation still on disk; a plain-text item is openable only when it is
+    /// itself an http(s) URL. Other kinds (image, color, non-URL text) return nil.
+    private func openableURL(for item: ClipItem) -> URL? {
+        switch item.kind {
+        case .link:
+            return webURL(from: item.plainText)
+        case .file:
+            return QuickLookController.fileURLs(for: item, store: store)
+                .first { FileManager.default.fileExists(atPath: $0.path) }
+        case .text, .richText:
+            return webURL(from: item.plainText)
+        case .image, .color:
+            return nil
+        }
+    }
+
+    private func webURL(from text: String?) -> URL? {
+        guard let raw = text?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty,
+              let url = URL(string: raw), let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else { return nil }
+        return url
     }
 
     func pasteSelection(plain: Bool) {
