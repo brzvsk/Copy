@@ -47,6 +47,12 @@ final class ShelfViewModel {
     var creatingItem = false
     var renamingItem: ClipItem?
     var adjustingColorItem: ClipItem?
+    /// Drives the inline, click-to-edit title field on a card (`ItemCardView`) — the
+    /// primary rename entry point, distinct from the modal `renamingItem`/
+    /// `RenameItemSheet` so `AppCoordinator`'s app-wide key monitor guard can treat an
+    /// active inline field exactly like the other sheets (see that guard's doc
+    /// comment) without the two states being confused for one another.
+    var inlineRenamingItemID: Int64?
 
     /// Mirror `AppCoordinator.isPaused`/`isPasteStackActive` for the in-drawer menu
     /// (`ShelfHeader`'s ellipsis menu), which needs to show "Pause"/"Resume Monitoring"
@@ -149,6 +155,7 @@ final class ShelfViewModel {
         creatingItem = false
         renamingItem = nil
         adjustingColorItem = nil
+        inlineRenamingItemID = nil
         if !query.isEmpty { query = "" }
     }
 
@@ -452,7 +459,9 @@ final class ShelfViewModel {
     }
 
     /// Opens `RenameItemSheet` from a card's "Rename…" context menu item, seeded
-    /// with `item.title`.
+    /// with `item.title`. No longer wired to any entry point now that rename is
+    /// inline-first (see `beginInlineRename(_:)`) — kept, along with `renamingItem`
+    /// and `RenameItemSheet` itself, in case a modal path is needed again.
     func beginRename(_ item: ClipItem) {
         renamingItem = item
     }
@@ -461,6 +470,31 @@ final class ShelfViewModel {
     /// empty title clears the custom title, reverting display to the auto title.
     func commitRename(_ item: ClipItem, to title: String) {
         defer { renamingItem = nil }
+        saveTitle(item, to: title)
+    }
+
+    /// Begins inline (click-to-edit) rename of `item`'s title in place on its card —
+    /// the primary rename entry point (title tap, context-menu "Rename…", and ⌘R all
+    /// route here). Distinct from `renamingItem`/`beginRename` so the app-wide key
+    /// monitor guard in `AppCoordinator` can gate on this state on its own.
+    func beginInlineRename(_ item: ClipItem) {
+        inlineRenamingItemID = item.id
+    }
+
+    /// Saves a new title from the inline title field, then clears inline-rename state
+    /// either way. Same save semantics as `commitRename` (empty title clears back to
+    /// the auto title).
+    func commitInlineRename(_ item: ClipItem, to title: String) {
+        defer { inlineRenamingItemID = nil }
+        saveTitle(item, to: title)
+    }
+
+    /// Cancels an in-progress inline rename without saving (Escape).
+    func cancelInlineRename() {
+        inlineRenamingItemID = nil
+    }
+
+    private func saveTitle(_ item: ClipItem, to title: String) {
         guard let id = item.id else { return }
         do {
             try store.setTitle(itemID: id, title.isEmpty ? nil : title)

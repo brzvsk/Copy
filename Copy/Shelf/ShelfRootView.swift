@@ -394,6 +394,7 @@ private struct ShelfItemsRow: View {
                             ItemCardView(
                                 item: item,
                                 isSelected: viewModel.isSelected(item),
+                                isInlineRenaming: viewModel.inlineRenamingItemID == item.id,
                                 store: viewModel.store,
                                 pinboards: viewModel.pinboards,
                                 currentPinboardID: currentPinboardID,
@@ -405,7 +406,9 @@ private struct ShelfItemsRow: View {
                                 onPastePlain: { viewModel.requestPaste(item, plain: true) },
                                 onEdit: { viewModel.beginEdit(item) },
                                 onAdjustColor: { viewModel.beginAdjustColor(item) },
-                                onRename: { viewModel.beginRename(item) },
+                                onBeginInlineRename: { viewModel.beginInlineRename(item) },
+                                onCommitInlineRename: { viewModel.commitInlineRename(item, to: $0) },
+                                onCancelInlineRename: { viewModel.cancelInlineRename() },
                                 onToggleFavorite: { viewModel.toggleFavorite(item) },
                                 onAddToPinboard: { id in viewModel.addItem(item, toPinboard: id) },
                                 onRemoveFromPinboard: {

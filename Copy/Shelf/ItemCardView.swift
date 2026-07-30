@@ -4,6 +4,10 @@ import CopyCore
 struct ItemCardView: View {
     let item: ClipItem
     let isSelected: Bool
+    /// Whether this card's title is currently the inline click-to-edit field rather
+    /// than static `Text` — mirrors `ShelfViewModel.inlineRenamingItemID == item.id`,
+    /// computed by the caller since this view has no view-model access of its own.
+    let isInlineRenaming: Bool
     let store: ItemStore
     let pinboards: [Pinboard]
     let currentPinboardID: Int64?
@@ -17,7 +21,11 @@ struct ItemCardView: View {
     let onPastePlain: () -> Void
     let onEdit: () -> Void
     let onAdjustColor: () -> Void
-    let onRename: () -> Void
+    /// Enters inline title-editing (see `isInlineRenaming`) — wired from both the
+    /// title text's tap gesture and the context menu's "Rename…" item.
+    let onBeginInlineRename: () -> Void
+    let onCommitInlineRename: (String) -> Void
+    let onCancelInlineRename: () -> Void
     let onToggleFavorite: () -> Void
     let onAddToPinboard: (Int64) -> Void
     let onRemoveFromPinboard: () -> Void
@@ -40,11 +48,14 @@ struct ItemCardView: View {
         QuickLookController.fileURLs(for: item, store: store)
     }
 
-    /// Whether the card shows the user-assigned `item.title` row above the body. When
+    /// Whether the card shows the title row above the body — either the user-assigned
+    /// `item.title` as static text, or the inline edit field while renaming (which
+    /// also shows for a titleless item mid-rename, so it has somewhere to type). When
     /// true, `bodyLineLimit(standard:compact:)` trims one line off the body's limit in
     /// both layout modes, since that row eats into the same fixed-height card without
     /// shrinking anything else.
     private var hasCustomTitle: Bool {
+        if isInlineRenaming { return true }
         guard let title = item.title else { return false }
         return !title.isEmpty
     }
@@ -63,10 +74,21 @@ struct ItemCardView: View {
             Rectangle()
                 .fill(Color(nsColor: .separatorColor).opacity(0.6))
                 .frame(height: 1)
-            if let title = item.title, !title.isEmpty {
+            if isInlineRenaming {
+                InlineTitleField(
+                    initialText: item.title ?? "",
+                    onCommit: onCommitInlineRename,
+                    onCancel: onCancelInlineRename
+                )
+            } else if let title = item.title, !title.isEmpty {
                 Text(title)
                     .font(Tokens.cardSubtitle)
                     .lineLimit(1)
+                    // Scoped to the title text only, so it wins over `CardClickGesture`
+                    // on the card body below (SwiftUI resolves a tap to the deepest
+                    // view carrying a gesture) — clicking the title never also
+                    // selects/pastes the card.
+                    .onTapGesture { onBeginInlineRename() }
             }
             body(for: item.kind)
             Spacer(minLength: 0)
@@ -125,7 +147,7 @@ struct ItemCardView: View {
             } else if item.kind == .color {
                 Button("Adjust Color…", action: onAdjustColor)
             }
-            Button("Rename…", action: onRename)
+            Button("Rename…", action: onBeginInlineRename)
             Button(item.isFavorite ? "Unfavorite" : "Favorite", action: onToggleFavorite)
             Menu("Add to Pinboard") {
                 if pinboards.isEmpty {
@@ -317,6 +339,62 @@ struct LinkFaviconView: View {
                 }
             }
         }
+    }
+}
+
+/// Inline, click-to-edit title field shown in place of the title `Text` while a
+/// card is being renamed (`ItemCardView.isInlineRenaming`). Enter commits, Escape
+/// reverts without saving, and losing focus (clicking away) commits — the field
+/// is auto-focused on appear so typing can start immediately.
+private struct InlineTitleField: View {
+    let initialText: String
+    let onCommit: (String) -> Void
+    let onCancel: () -> Void
+
+    @State private var text: String
+    @FocusState private var isFocused: Bool
+    /// Guards `commit()`/`cancel()` against running twice for the same edit: Return
+    /// fires `.onSubmit` (commit), and Escape fires `.onExitCommand` (cancel) — either
+    /// one also drops focus as a side effect, which would otherwise re-trigger the
+    /// `onChange(of: isFocused)` focus-loss commit below on the same resolution.
+    @State private var isResolved = false
+
+    init(initialText: String, onCommit: @escaping (String) -> Void, onCancel: @escaping () -> Void) {
+        self.initialText = initialText
+        self.onCommit = onCommit
+        self.onCancel = onCancel
+        _text = State(initialValue: initialText)
+    }
+
+    var body: some View {
+        TextField("Title", text: $text)
+            .textFieldStyle(.plain)
+            .font(Tokens.cardSubtitle)
+            .lineLimit(1)
+            .focused($isFocused)
+            .onAppear {
+                // Dispatched async: this field lives inside a LazyHStack card row, and
+                // focusing synchronously on `.onAppear` can lose the race with SwiftUI
+                // still installing the view in the window's responder chain.
+                DispatchQueue.main.async { isFocused = true }
+            }
+            .onSubmit { commit() }
+            .onExitCommand { cancel() }
+            .onChange(of: isFocused) { _, focused in
+                if !focused { commit() }
+            }
+    }
+
+    private func commit() {
+        guard !isResolved else { return }
+        isResolved = true
+        onCommit(text)
+    }
+
+    private func cancel() {
+        guard !isResolved else { return }
+        isResolved = true
+        onCancel()
     }
 }
 
