@@ -184,25 +184,19 @@ final class ShelfViewModel {
         } else if modifiers.contains(.command) {
             selection.commandClick(item.uuid, in: items.map(\.uuid))
         } else {
+            // Paste immediately on a single click when two-click-to-paste is off. When
+            // it's on, paste only if this card was ALREADY the sole selection before this
+            // click, i.e. this is the second click on an already-highlighted card. That
+            // keeps a fast double-click pasting (first click selects, second pastes) while
+            // the first click always highlights instantly, with no double-click-timeout
+            // wait (see `CardClickGesture`).
+            let wasSoleSelection = selection.primary == item.uuid && selection.selected.count == 1
+            let pasteNow = !settings.doubleClickToPaste || wasSoleSelection
             selection.click(item.uuid)
-            if !settings.doubleClickToPaste {
+            if pasteNow {
                 requestPaste(item, plain: false)
             }
         }
-    }
-
-    /// A no-modifier double-click on a card. This is the paste gesture when
-    /// `settings.doubleClickToPaste` is on; with it off, a single click already pastes,
-    /// so this just re-selects and re-pastes the same item, which is harmless.
-    func handleCardDoubleClick(_ item: ClipItem) {
-        // A double-click pastes only as a plain (no-modifier) gesture. When a modifier
-        // is held the user is building a multi-selection with command/shift-clicks, so a
-        // fast second click on the same card must stay a selection toggle (handled by
-        // handleCardClick), never collapse the selection and paste.
-        let modifiers = NSEvent.modifierFlags
-        guard !modifiers.contains(.command), !modifiers.contains(.shift) else { return }
-        selection.click(item.uuid)
-        requestPaste(item, plain: false)
     }
 
     func moveSelection(_ delta: Int) {

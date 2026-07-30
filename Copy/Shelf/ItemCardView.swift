@@ -14,12 +14,13 @@ struct ItemCardView: View {
     /// Compact shelf mode (`SettingsStore.compactShelf`, threaded from `ShelfRootView`):
     /// smaller card frame + tighter line limits so more cards fit on screen at once.
     var compact: Bool = false
-    let doubleClickToPaste: Bool
     /// The active search text, used to show and highlight the matched OCR snippet under
     /// an image result. Empty when not searching.
     var searchQuery: String = ""
+    /// A card click always fires immediately here (select), and pasting-on-click is
+    /// decided in `ShelfViewModel.handleCardClick` from the selection state — see
+    /// `CardClickGesture` for why there is no separate double-click gesture.
     let onClick: (NSEvent.ModifierFlags) -> Void
-    let onDoubleClick: () -> Void
     let onPaste: () -> Void
     let onPastePlain: () -> Void
     let onEdit: () -> Void
@@ -194,8 +195,7 @@ struct ItemCardView: View {
             Button("Delete", role: .destructive, action: onDelete)
         }
         .onDrag(dragProvider)
-        .modifier(CardClickGesture(doubleClickToPaste: doubleClickToPaste,
-                                   onClick: onClick, onDoubleClick: onDoubleClick))
+        .modifier(CardClickGesture(onClick: onClick))
     }
 
     private var header: some View {
@@ -499,20 +499,20 @@ private struct InlineTitleField: View {
 /// count:2 recognizer would impose on every click. The count:2 gesture carries no
 /// modifier flags, which is fine: pasting on double-click is a no-modifier gesture, and
 /// modifier multi-select stays a single-click action (see ShelfViewModel.handleCardClick).
+/// A single `count: 1` tap so the click registers (and the card highlights) instantly.
+///
+/// Earlier this stacked a `count: 2` gesture for double-click-to-paste alongside the
+/// `count: 1` select gesture. SwiftUI then has to wait the full system double-click
+/// interval on every single click to rule out a second click, which showed up as a
+/// visible (up to ~2s on slow double-click settings) lag before a card would highlight.
+/// Double-click-to-paste is instead handled without a timed gesture: the first click
+/// selects, and a click on the already-sole-selected card pastes (see
+/// `ShelfViewModel.handleCardClick`), so a fast double-click still pastes with no delay.
 private struct CardClickGesture: ViewModifier {
-    let doubleClickToPaste: Bool
     let onClick: (NSEvent.ModifierFlags) -> Void
-    let onDoubleClick: () -> Void
 
     func body(content: Content) -> some View {
-        if doubleClickToPaste {
-            content
-                .onTapGesture(count: 2) { onDoubleClick() }
-                .onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
-        } else {
-            content
-                .onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
-        }
+        content.onTapGesture(count: 1) { onClick(NSEvent.modifierFlags) }
     }
 }
 
