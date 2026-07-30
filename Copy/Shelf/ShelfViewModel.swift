@@ -482,10 +482,15 @@ final class ShelfViewModel {
     }
 
     /// Saves a new title from the inline title field, then clears inline-rename state
-    /// either way. Same save semantics as `commitRename` (empty title clears back to
-    /// the auto title).
+    /// either way — but only if it still points at `item`. A stale commit can arrive
+    /// here after `inlineRenamingItemID` has already moved on to a different card (see
+    /// `InlineTitleField`'s `.onDisappear`, which commits the outgoing card's edit
+    /// when the user starts renaming a new one before the old one resolved); clearing
+    /// unconditionally would stomp the new card's rename session back to nil right
+    /// after it started. Same save semantics as `commitRename` (empty title clears
+    /// back to the auto title).
     func commitInlineRename(_ item: ClipItem, to title: String) {
-        defer { inlineRenamingItemID = nil }
+        defer { if inlineRenamingItemID == item.id { inlineRenamingItemID = nil } }
         saveTitle(item, to: title)
     }
 
