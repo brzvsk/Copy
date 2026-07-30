@@ -46,8 +46,8 @@ jobs:
           if [[ ${#missing[@]} -gt 0 ]]; then
             echo "::error::Missing required secret(s): ${missing[*]}" >&2
             echo "::error::This usually means the workflow is running on a fork, or the" >&2
-            echo "::error::repository secrets described in docs/RELEASING.md have not all" >&2
-            echo "::error::been added yet. See docs/RELEASING.md for the full list and how" >&2
+            echo "::error::repository secrets described in RELEASING.md have not all" >&2
+            echo "::error::been added yet. See RELEASING.md for the full list and how" >&2
             echo "::error::to produce each one." >&2
             exit 1
           fi

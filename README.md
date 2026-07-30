@@ -124,7 +124,7 @@ carries a test suite. UI lives in the app target; behavior lives in CopyCore.
 Pushing a version tag (`vX.Y.Z`) runs `.github/workflows/release.yml`, which builds,
 signs, notarizes, and publishes the full release: a Developer ID signed and notarized
 DMG, a signed Sparkle update zip, an updated `docs/appcast.xml` committed back to `main`,
-and a GitHub release with both artifacts attached. See `docs/RELEASING.md` for the
+and a GitHub release with both artifacts attached. See `RELEASING.md` for the
 required secrets and the release ritual, and `Scripts/release.sh` for the underlying
 pipeline (the same script CI runs).
 
