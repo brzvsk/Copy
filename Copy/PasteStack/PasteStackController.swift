@@ -171,21 +171,37 @@ final class PasteStackController {
         .tint(proDark ? Tokens.electricBlue : nil))
         hosting.translatesAutoresizingMaskIntoConstraints = false
 
-        let background = NSVisualEffectView()
-        background.material = .hudWindow
-        background.blendingMode = .behindWindow
-        background.state = .active
-        background.wantsLayer = true
-        background.layer?.cornerRadius = 12
-        background.layer?.masksToBounds = true
-        background.addSubview(hosting)
+        // The material view (a real NSView) makes every pixel non-transparent, so the
+        // window server stops passing clicks through the panel to the app behind — the
+        // actual root cause of the click-through under macOS 26's backing-view-less glass.
+        let effect = NSVisualEffectView()
+        effect.material = .hudWindow
+        effect.blendingMode = .behindWindow
+        effect.state = .active
+        effect.wantsLayer = true
+        effect.layer?.cornerRadius = 12
+        effect.layer?.masksToBounds = true
+        effect.translatesAutoresizingMaskIntoConstraints = false
+
+        // A plain container as the contentView, with the material behind and the SwiftUI
+        // content in front, both pinned to it. Pinning the hosting view to a plain view
+        // (not to the material view itself) keeps its layout correct — no clipped header.
+        let container = NSView()
+        container.wantsLayer = true
+        container.addSubview(effect)
+        container.addSubview(hosting)
         NSLayoutConstraint.activate([
-            hosting.leadingAnchor.constraint(equalTo: background.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: background.trailingAnchor),
-            hosting.topAnchor.constraint(equalTo: background.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: background.bottomAnchor),
+            effect.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            effect.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            effect.topAnchor.constraint(equalTo: container.topAnchor),
+            effect.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            hosting.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            hosting.topAnchor.constraint(equalTo: container.topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
-        panel.contentView = background
+        panel.contentView = container
+        panel.hasShadow = true
         return panel
     }
 }
