@@ -51,6 +51,14 @@ struct GeneralSettings: View {
             }
 
             Section {
+                Toggle("Always Use Dark Shelf", isOn: $settings.shelfProDark)
+            } footer: {
+                Text("Keeps the shelf and Paste Stack dark with a blue accent, even in Light Mode. Off by default, so they follow your system appearance.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Picker("Clicking a Card", selection: $settings.doubleClickToPaste) {
                     Text("Selects").tag(true)
                     Text("Pastes").tag(false)

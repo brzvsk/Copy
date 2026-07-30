@@ -49,6 +49,7 @@ final class SettingsStore {
     static let excludedBundleIDsKey = "excludedBundleIDs"
     static let hideDuringScreenSharingKey = "hideDuringScreenSharing"
     static let compactShelfKey = "compactShelf"
+    static let shelfProDarkKey = "shelfProDark"
     static let hideMenuBarIconKey = "hideMenuBarIcon"
     static let doubleClickToPasteKey = "doubleClickToPaste"
 
@@ -107,6 +108,20 @@ final class SettingsStore {
         }
     }
 
+    /// A fixed "pro dark" look for the shelf and paste stack: a forced dark appearance
+    /// plus an electric-blue accent, regardless of the system appearance or accent color
+    /// (so the app matches its own marketing look). Off by default, so the shelf follows
+    /// the system otherwise. `onShelfProDarkChange` pushes it to the panel controllers
+    /// (which set the window appearance live); `ShelfRootView` reads it via
+    /// `ShelfViewModel.settings` to apply the tint.
+    var shelfProDark: Bool {
+        didSet {
+            guard shelfProDark != oldValue else { return }
+            defaults.set(shelfProDark, forKey: Self.shelfProDarkKey)
+            onShelfProDarkChange?(shelfProDark)
+        }
+    }
+
     /// When true, `AppDelegate` removes the `NSStatusItem` so Copy runs with no menu
     /// bar icon at all, relying on the shelf's own drawer menu (and the shelf summon
     /// hotkey) instead. Defaults to false: the icon is shown out of the box, and
@@ -137,6 +152,7 @@ final class SettingsStore {
     @ObservationIgnored var onRulesChange: ((Set<String>) -> Void)?
     @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
     @ObservationIgnored var onCompactShelfChange: ((Bool) -> Void)?
+    @ObservationIgnored var onShelfProDarkChange: ((Bool) -> Void)?
     @ObservationIgnored var onHideMenuBarIconChange: ((Bool) -> Void)?
     /// Not backed by a stored property here — the shelf summon hotkey itself lives in
     /// `KeyboardShortcuts`' own storage (see `KeyboardShortcuts.Name.toggleShelf`), not
@@ -160,6 +176,7 @@ final class SettingsStore {
         recognizeImageText = (defaults.object(forKey: Self.recognizeImageTextKey) as? Bool) ?? true
         hideDuringScreenSharing = (defaults.object(forKey: Self.hideDuringScreenSharingKey) as? Bool) ?? false
         compactShelf = (defaults.object(forKey: Self.compactShelfKey) as? Bool) ?? false
+        shelfProDark = (defaults.object(forKey: Self.shelfProDarkKey) as? Bool) ?? false
         hideMenuBarIcon = (defaults.object(forKey: Self.hideMenuBarIconKey) as? Bool) ?? false
         doubleClickToPaste = (defaults.object(forKey: Self.doubleClickToPasteKey) as? Bool) ?? true
         if let data = defaults.data(forKey: Self.excludedBundleIDsKey),

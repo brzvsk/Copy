@@ -38,11 +38,21 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     private var keyMonitor: Any?
     private var hideDuringScreenSharing: Bool
     private var compactShelf: Bool
+    private var proDark: Bool
 
-    init(hideDuringScreenSharing: Bool, compactShelf: Bool, makeContent: @escaping () -> NSView) {
+    init(hideDuringScreenSharing: Bool, compactShelf: Bool, proDark: Bool, makeContent: @escaping () -> NSView) {
         self.hideDuringScreenSharing = hideDuringScreenSharing
         self.compactShelf = compactShelf
+        self.proDark = proDark
         self.makeContent = makeContent
+    }
+
+    /// Pushed live by `AppCoordinator` via `SettingsStore.onShelfProDarkChange`. Forces
+    /// the panel (and its hosted SwiftUI content) to a dark appearance so the whole shelf
+    /// matches the marketing "pro dark" look; `nil` returns to following the system.
+    func setProDark(_ on: Bool) {
+        proDark = on
+        panel?.appearance = on ? NSAppearance(named: .darkAqua) : nil
     }
 
     private var currentShelfHeight: CGFloat {
@@ -129,6 +139,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
+        panel.appearance = proDark ? NSAppearance(named: .darkAqua) : nil
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
         panel.isFloatingPanel = true

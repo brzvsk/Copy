@@ -32,6 +32,10 @@ enum Tokens {
     /// same size/weight instead of each carrying its own literal.
     static let cardSubtitle = Font.system(size: 12, weight: .semibold)
 
+    /// The marketing "electric blue" accent, used as the fixed tint in the pro-dark
+    /// shelf so the app matches its own brand look regardless of the system accent.
+    static let electricBlue = Color(red: 0.298, green: 0.616, blue: 1.0) // #4C9DFF
+
     static func color(fromHex hex: String) -> Color {
         var value: UInt64 = 0
         let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "# "))

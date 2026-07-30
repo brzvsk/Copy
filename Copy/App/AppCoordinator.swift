@@ -28,7 +28,8 @@ final class AppCoordinator {
     private let pasteStackModel: PasteStackModel
     private lazy var pasteStackController = PasteStackController(
         model: pasteStackModel,
-        hideDuringScreenSharing: settings.hideDuringScreenSharing)
+        hideDuringScreenSharing: settings.hideDuringScreenSharing,
+        proDark: settings.shelfProDark)
     private lazy var pasteStackEngine = PasteStackEngine(onIntercept: { [weak self] in
         self?.pasteNextViaEngine()
     })
@@ -39,7 +40,8 @@ final class AppCoordinator {
     private lazy var shelfController: ShelfPanelController = {
         let controller = ShelfPanelController(
             hideDuringScreenSharing: settings.hideDuringScreenSharing,
-            compactShelf: settings.compactShelf) { [weak self] in
+            compactShelf: settings.compactShelf,
+            proDark: settings.shelfProDark) { [weak self] in
             guard let self else { return NSView() }
             return NSHostingView(rootView: ShelfRootView(viewModel: self.shelfViewModel))
         }
@@ -274,6 +276,10 @@ final class AppCoordinator {
         }
         settings.onCompactShelfChange = { [weak self] compact in
             self?.shelfController.setCompactShelf(compact)
+        }
+        settings.onShelfProDarkChange = { [weak self] proDark in
+            self?.shelfController.setProDark(proDark)
+            self?.pasteStackController.setProDark(proDark)
         }
         // `self` is fully initialized past this point, so it's safe to capture weakly
         // in `onActiveChange` — the single fan-out point for palette visibility AND

@@ -17,10 +17,30 @@ final class PasteStackController {
     private let model: PasteStackModel
     private var panel: KeyablePanel?
     private var hideDuringScreenSharing: Bool
+    private var proDark: Bool
 
-    init(model: PasteStackModel, hideDuringScreenSharing: Bool) {
+    init(model: PasteStackModel, hideDuringScreenSharing: Bool, proDark: Bool) {
         self.model = model
         self.hideDuringScreenSharing = hideDuringScreenSharing
+        self.proDark = proDark
+    }
+
+    /// Pushed live by `AppCoordinator` via `SettingsStore.onShelfProDarkChange`. Forces
+    /// the palette (and its hosted SwiftUI content) to a dark appearance so it matches
+    /// the pro-dark shelf; `nil` returns to following the system, mirroring
+    /// `ShelfPanelController.setProDark`. The accent tint is baked into the hosted view at
+    /// `makePanel` time, so when the (cached) palette isn't on screen we drop it and let
+    /// the next `show()` rebuild it with both the appearance and the tint from the new
+    /// value; when it is on screen we can only update the window appearance live (the tint
+    /// refreshes on its next open).
+    func setProDark(_ on: Bool) {
+        proDark = on
+        if let panel, panel.isVisible {
+            panel.appearance = on ? NSAppearance(named: .darkAqua) : nil
+        } else {
+            panel?.orderOut(nil)
+            panel = nil
+        }
     }
 
     /// Applied at panel creation and pushed live here when the setting changes
@@ -123,6 +143,7 @@ final class PasteStackController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
+        panel.appearance = proDark ? NSAppearance(named: .darkAqua) : nil
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = true
         panel.isFloatingPanel = true
@@ -133,7 +154,8 @@ final class PasteStackController {
             model: model,
             onClose: { [weak model] in model?.isActive = false },
             onContentChange: { [weak self] in self?.resizeToFit() }
-        ))
+        )
+        .tint(proDark ? Tokens.electricBlue : nil))
         return panel
     }
 }

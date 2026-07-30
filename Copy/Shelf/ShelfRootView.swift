@@ -28,6 +28,10 @@ struct ShelfRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .glassSurface(corners: .top(12))
+        // Pro-dark: force the marketing electric-blue accent regardless of the system
+        // accent color. The forced dark appearance itself is set on the panel window in
+        // `ShelfPanelController`, which cascades to this hosted content.
+        .tint(viewModel.settings.shelfProDark ? Tokens.electricBlue : nil)
         .sheet(item: $viewModel.editingItem) { item in
             EditItemSheet(
                 item: item,
