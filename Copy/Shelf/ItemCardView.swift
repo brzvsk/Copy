@@ -354,9 +354,11 @@ private struct InlineTitleField: View {
     @State private var text: String
     @FocusState private var isFocused: Bool
     /// Guards `commit()`/`cancel()` against running twice for the same edit: Return
-    /// fires `.onSubmit` (commit), and Escape fires `.onExitCommand` (cancel) — either
-    /// one also drops focus as a side effect, which would otherwise re-trigger the
-    /// `onChange(of: isFocused)` focus-loss commit below on the same resolution.
+    /// fires `.onSubmit` (commit), Escape fires `.onExitCommand` (cancel), and
+    /// `.onDisappear` (below) commits as a catch-all when the field leaves the tree
+    /// for any other reason — each of those also drops focus as a side effect, which
+    /// would otherwise re-trigger the `onChange(of: isFocused)` focus-loss commit on
+    /// the same resolution.
     @State private var isResolved = false
 
     init(initialText: String, onCommit: @escaping (String) -> Void, onCancel: @escaping () -> Void) {
@@ -383,6 +385,15 @@ private struct InlineTitleField: View {
             .onChange(of: isFocused) { _, focused in
                 if !focused { commit() }
             }
+            // Catch-all for teardown paths `onChange(of: isFocused)` doesn't reliably
+            // cover — e.g. this card's `isInlineRenaming` flips to false because a
+            // DIFFERENT card started renaming (branch-swap back to the title `Text`,
+            // not a focus change on this view), or the row disappears from the shelf
+            // entirely mid-edit. `.onDisappear` always fires when a view leaves the
+            // render tree, so an in-progress edit is saved rather than silently
+            // dropped. `isResolved` keeps this a no-op after Enter/Esc already
+            // resolved the edit.
+            .onDisappear { commit() }
     }
 
     private func commit() {
