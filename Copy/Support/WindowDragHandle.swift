@@ -20,13 +20,16 @@ private final class MouseRegionView: NSView {
         }
         // Fixed region: absorb the event (do nothing) so it doesn't pass through.
     }
+}
 
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        // We have no subviews; capture any point in our bounds. SwiftUI content painted in
-        // front (buttons, row gestures) is hit-tested by the hosting view first, so this
-        // only catches the genuinely empty areas.
-        bounds.contains(convert(point, from: superview)) ? self : nil
-    }
+/// The panel's `contentView`, wrapping the SwiftUI hosting view. Because it sits at the
+/// top of the panel's view hierarchy, its default hit-testing returns *itself* for any
+/// point the hosting view leaves unhandled (the empty glass areas on macOS 26), which
+/// stops clicks from falling through the panel to the app behind — and accepting the
+/// first mouse makes those clicks register while Copy is inactive.
+final class ClickCapturingContainer: NSView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { /* absorb */ }
 }
 
 /// A window-draggable region, used behind the palette header.

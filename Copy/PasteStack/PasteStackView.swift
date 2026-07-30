@@ -49,10 +49,6 @@ struct PasteStackView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Capture clicks across the whole panel so nothing falls through to the app behind
-        // (the glass material on macOS 26 has no backing NSView of its own). The header's
-        // WindowMoveArea sits deeper in the tree, so it still wins for window-dragging.
-        .background(WindowFixedArea())
         .glassSurface(cornerRadius: 12)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onChange(of: model.queue.itemUUIDs) { _, _ in onContentChange() }
@@ -157,7 +153,7 @@ struct PasteStackView: View {
                       let source = items.firstIndex(where: { $0.uuid == dragging }) else { return }
                 let target = clampedTarget(source: source, count: items.count)
                 if target != source {
-                    withAnimation(.easeInOut(duration: 0.16)) { model.queue.move(from: source, to: target) }
+                    model.queue.move(from: source, to: target)
                 }
             }
     }

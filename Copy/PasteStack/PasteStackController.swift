@@ -157,12 +157,25 @@ final class PasteStackController {
         panel.isMovableByWindowBackground = false
         panel.sharingType = hideDuringScreenSharing ? .none : .readOnly
         panel.childWindowSharingType = hideDuringScreenSharing ? .none : .readOnly
-        panel.contentView = NSHostingView(rootView: PasteStackView(
+        // Wrap the SwiftUI content in a container that absorbs clicks the glass content
+        // leaves unhandled, so nothing falls through the (transparent, non-key) panel to
+        // the app behind. See ClickCapturingContainer.
+        let hosting = NSHostingView(rootView: PasteStackView(
             model: model,
             onClose: { [weak model] in model?.isActive = false },
             onContentChange: { [weak self] in self?.resizeToFit() }
         )
         .tint(proDark ? Tokens.electricBlue : nil))
+        let container = ClickCapturingContainer()
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(hosting)
+        NSLayoutConstraint.activate([
+            hosting.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            hosting.topAnchor.constraint(equalTo: container.topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        panel.contentView = container
         return panel
     }
 }
