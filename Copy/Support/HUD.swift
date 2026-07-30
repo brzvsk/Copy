@@ -50,8 +50,15 @@ enum HUD {
             panel.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - size.width / 2,
                                          y: screen.visibleFrame.minY + 120))
         }
+        // Fade in rather than hard-cutting on, matching the fade-out below so the toast
+        // reads as a considered element even for a 1.4s confirmation.
+        panel.alphaValue = 0
         panel.orderFrontRegardless()
         window = panel
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.18
+            panel.animator().alphaValue = 1
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
             NSAnimationContext.runAnimationGroup({ context in
