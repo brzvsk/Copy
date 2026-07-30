@@ -42,6 +42,12 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     private var modalPanel: KeyablePanel?
     private var previousApp: NSRunningApplication?
     private var keyMonitor: Any?
+    /// Guards the animated close: set before restoring focus (which can re-enter `hide`
+    /// via `windowDidResignKey`), and cleared once the panel is actually ordered out.
+    private var isHiding = false
+    /// Bumped by both `show()` and each `hide()` so a stale close animation's completion
+    /// handler doesn't order the panel out after a newer show/hide has superseded it.
+    private var closeToken = 0
     private var hideDuringScreenSharing: Bool
     private var compactShelf: Bool
     private var proDark: Bool
@@ -111,6 +117,11 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         let panel = self.panel ?? makePanel()
         self.panel = panel
 
+        // Cancel any in-flight close: invalidate its completion token and drop the guard so
+        // re-summoning mid-close animates straight back in.
+        closeToken += 1
+        isHiding = false
+
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         panel.setFrame(reduceMotion ? frame : frame.offsetBy(dx: 0, dy: -24), display: false)
         panel.alphaValue = 0
@@ -126,12 +137,44 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     }
 
     func hide(restoreFocus: Bool) {
-        guard isVisible else { return }
+        guard let panel, isVisible, !isHiding else { return }
+        // Set before restoring focus: activating the previous app resigns the panel's key
+        // status, which re-enters this method via `windowDidResignKey`; the guard above
+        // makes that second call a no-op.
+        isHiding = true
         removeKeyMonitor()
-        panel?.orderOut(nil)
         if restoreFocus {
             previousApp?.activate()
         }
+
+        // Mirror of `show()`'s entrance: fade out while sliding down 24pt, then order out.
+        // Reduce Motion skips straight to the orderOut, matching the entrance's own gate.
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            finishHide(panel)
+            return
+        }
+
+        closeToken += 1
+        let token = closeToken
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.16
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+            panel.animator().setFrame(panel.frame.offsetBy(dx: 0, dy: -24), display: true)
+        } completionHandler: { [weak self] in
+            guard let self, self.closeToken == token else { return }
+            self.finishHide(panel)
+        }
+    }
+
+    /// Orders the panel out and resets it so the next `show()` starts clean. `onDidHide`
+    /// (which clears the shelf's transient selection/preview state) fires here, at the end
+    /// of the close animation, so that content doesn't visibly reset while the panel is
+    /// still fading out.
+    private func finishHide(_ panel: KeyablePanel) {
+        panel.orderOut(nil)
+        panel.alphaValue = 1
+        isHiding = false
         onDidHide?()
     }
 
