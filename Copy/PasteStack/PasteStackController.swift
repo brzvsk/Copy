@@ -152,7 +152,9 @@ final class PasteStackController {
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = true
         panel.isFloatingPanel = true
-        panel.isMovableByWindowBackground = true
+        // Off, so dragging a list row reorders it instead of moving the whole window.
+        // The header is the drag handle instead (see PasteStackView / WindowDragHandle).
+        panel.isMovableByWindowBackground = false
         panel.sharingType = hideDuringScreenSharing ? .none : .readOnly
         panel.childWindowSharingType = hideDuringScreenSharing ? .none : .readOnly
         panel.contentView = NSHostingView(rootView: PasteStackView(

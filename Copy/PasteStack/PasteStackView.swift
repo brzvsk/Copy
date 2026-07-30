@@ -54,32 +54,39 @@ struct PasteStackView: View {
     // MARK: Header
 
     private func header(count: Int) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "square.stack.3d.up")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
-            Text("Paste Stack")
-                .font(.system(size: 13, weight: .semibold))
-            if count > 0 {
-                Text("\(count)")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5)))
+        // The whole header is the palette's drag handle: `WindowDragHandle` fills the back
+        // of the ZStack, the title group is non-hit-testing so clicks fall through to it,
+        // and only the buttons on top keep their own clicks. (`isMovableByWindowBackground`
+        // is off so the list rows stay draggable-to-reorder — see the controller.)
+        ZStack {
+            WindowDragHandle()
+            HStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "square.stack.3d.up")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Text("Paste Stack")
+                        .font(.system(size: 13, weight: .semibold))
+                    if count > 0 {
+                        Text("\(count)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5)))
+                    }
+                }
+                .allowsHitTesting(false)
+                Spacer()
+                if count > 0 {
+                    IconButton(systemName: "trash", help: "Clear the stack") { model.queue.clear() }
+                }
+                IconButton(systemName: "plus", help: "Add the latest copy") { model.addMostRecent() }
+                IconButton(systemName: "xmark", help: "Close") { onClose() }
             }
-            Spacer()
-            if count > 0 {
-                IconButton(systemName: "trash", help: "Clear the stack") { model.queue.clear() }
-            }
-            IconButton(systemName: "plus", help: "Add the latest copy") { model.addMostRecent() }
-            IconButton(systemName: "xmark", help: "Close") { onClose() }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        // The header is the palette's drag handle (see WindowDragHandle); the buttons on
-        // top still take their own clicks.
-        .background(WindowDragHandle())
     }
 
     // MARK: Empty state
