@@ -173,8 +173,13 @@ private struct DrawerMenu: View {
             Button("Quit Copy") { viewModel.onQuit?() }
         } label: {
             Image(systemName: "ellipsis.circle")
+                .font(.system(size: 16))
                 .foregroundStyle(.secondary)
-                .frame(width: 24, height: 24)
+                // A generous, fully-hittable target: the icon glyph itself is small, so
+                // pad it out to a comfortable click area and make the whole rect
+                // clickable (not just the opaque glyph pixels).
+                .frame(width: 32, height: 28)
+                .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
