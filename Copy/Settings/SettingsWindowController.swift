@@ -32,7 +32,14 @@ final class SettingsWindowController: NSWindowController {
         // intrinsic size resolves to near-zero and the window ends up a 1pt sliver.
         // An explicit floor here guarantees a real size regardless of that timing;
         // `.intrinsicContentSize` still keeps later tab-switch height changes working.
-        window.setContentSize(NSSize(width: 480, height: 360))
+        //
+        // `contentMinSize` is the load-bearing part: without it, `.intrinsicContentSize`
+        // can push the window *shorter* than the General tab's content once it has
+        // several grouped sections (hotkeys, shelf size, dark shelf, click behavior,
+        // launch at login, hide menu bar icon), clipping the lower toggles off the
+        // bottom. The floor keeps the whole tab visible; taller tabs still scroll.
+        window.contentMinSize = NSSize(width: 480, height: 620)
+        window.setContentSize(NSSize(width: 480, height: 620))
         self.init(window: window)
     }
 

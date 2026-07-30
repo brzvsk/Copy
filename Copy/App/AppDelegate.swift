@@ -182,11 +182,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(menuItem)
         }
 
+        // The management block below mirrors the shelf's drawer menu
+        // (`DrawerMenu` in `ShelfRootView`) one-for-one — same actions, same order,
+        // same grouping — so the two menus stay consistent. The only status-menu
+        // extras are "Open Copy" and the live recent-items list above, which are
+        // menu-bar-only by nature (the shelf is already open, and already shows items).
         menu.addItem(.separator())
+        let pasteStack = NSMenuItem(title: "Paste Stack", action: #selector(togglePasteStack), keyEquivalent: "c")
+        pasteStack.keyEquivalentModifierMask = [.command, .shift]
+        pasteStack.target = self
+        pasteStack.state = coordinator.isPasteStackActive ? .on : .off
+        menu.addItem(pasteStack)
         let pause = NSMenuItem(title: coordinator.isPaused ? "Resume Monitoring" : "Pause Monitoring",
                                action: #selector(togglePause), keyEquivalent: "")
         pause.target = self
         menu.addItem(pause)
+
+        menu.addItem(.separator())
         let clear = NSMenuItem(title: "Clear History…", action: #selector(clearHistory), keyEquivalent: "")
         clear.target = self
         menu.addItem(clear)
@@ -196,19 +208,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let importItem = NSMenuItem(title: "Import…", action: #selector(importHistory), keyEquivalent: "")
         importItem.target = self
         menu.addItem(importItem)
+
+        menu.addItem(.separator())
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        let pasteStack = NSMenuItem(title: "Paste Stack", action: #selector(togglePasteStack), keyEquivalent: "c")
-        pasteStack.keyEquivalentModifierMask = [.command, .shift]
-        pasteStack.target = self
-        pasteStack.state = coordinator.isPasteStackActive ? .on : .off
-        menu.addItem(pasteStack)
         let checkForUpdates = NSMenuItem(title: "Check for Updates…",
                                          action: #selector(checkForUpdates(_:)),
                                          keyEquivalent: "")
         checkForUpdates.target = self
         menu.addItem(checkForUpdates)
+
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Copy",
                                 action: #selector(NSApplication.terminate(_:)),
