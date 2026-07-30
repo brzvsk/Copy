@@ -57,39 +57,32 @@ struct PasteStackView: View {
     // MARK: Header
 
     private func header(count: Int) -> some View {
-        // The header is the window's drag handle: `WindowDragHandle` fills the back of the
-        // ZStack, the title group is non-hit-testing so clicks fall through to it, and the
-        // buttons on top keep their own clicks. (The panel's `isMovableByWindowBackground`
-        // is off so a drag on a list row reorders instead of moving the window.)
-        ZStack {
-            WindowDragHandle()
-            HStack(spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "square.stack.3d.up")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                    Text("Paste Stack")
-                        .font(.system(size: 13, weight: .semibold))
-                    if count > 0 {
-                        Text("\(count)")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5)))
-                    }
-                }
-                .allowsHitTesting(false)
-                Spacer(minLength: 8)
-                if count > 0 {
-                    IconButton(systemName: "trash", help: "Clear the stack") { model.queue.clear() }
-                }
-                IconButton(systemName: "plus", help: "Add the latest copy") { model.addMostRecent() }
-                IconButton(systemName: "xmark", help: "Close") { onClose() }
+        HStack(spacing: 8) {
+            Image(systemName: "square.stack.3d.up")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text("Paste Stack")
+                .font(.system(size: 13, weight: .semibold))
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5)))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
+            Spacer(minLength: 8)
+            if count > 0 {
+                IconButton(systemName: "trash", help: "Clear the stack") { model.queue.clear() }
+            }
+            IconButton(systemName: "plus", help: "Add the latest copy") { model.addMostRecent() }
+            IconButton(systemName: "xmark", help: "Close") { onClose() }
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        // The header is the window's drag handle (the buttons are controls, so they click
+        // rather than drag). `.background` sizes to the header, so it never grows the row.
+        .background(WindowMoveArea())
     }
 
     // MARK: Empty state
@@ -131,6 +124,9 @@ struct PasteStackView: View {
                         onRemove: { model.queue.remove(item.uuid) }
                     )
                     .frame(height: Self.rowHeight)
+                    // Rows aren't window-draggable, so a drag here reorders (below) instead
+                    // of moving the window.
+                    .background(WindowFixedArea())
                     .offset(y: dragYOffset(uuid: item.uuid, index: index, items: items))
                     .zIndex(draggingUUID == item.uuid ? 1 : 0)
                     .gesture(reorderGesture(item: item, items: items))

@@ -1,23 +1,27 @@
 import AppKit
 import SwiftUI
 
-/// A transparent region that drags its window when pressed, used as the background of a
-/// panel's header. `isMovableByWindowBackground` only lets you drag from truly empty
-/// (non-interactive) spots, so a dense SwiftUI header ends up draggable only from the
-/// gaps between text and controls. Placing this behind the header makes the whole header
-/// a reliable drag handle, while the buttons on top still receive their own clicks.
-struct WindowDragHandle: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { DragView() }
+/// Marks a region as window-draggable. With the panel's `isMovableByWindowBackground`
+/// on, AppKit moves the window when a drag begins on a view whose `mouseDownCanMoveWindow`
+/// is true. A dense SwiftUI header (glass material, labels) otherwise reports false in
+/// most spots, so only stray gaps drag; placing this behind the header makes the whole
+/// header a reliable drag handle. Sized as a `.background`, so it never expands the layout.
+struct WindowMoveArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { MoveView() }
     func updateNSView(_ nsView: NSView, context: Context) {}
 
-    private final class DragView: NSView {
-        override func mouseDown(with event: NSEvent) {
-            window?.performDrag(with: event)
-        }
-        // Let the region participate in hit-testing (so it receives mouseDown) even
-        // though it draws nothing.
-        override func hitTest(_ point: NSPoint) -> NSView? {
-            super.hitTest(point) === self ? self : super.hitTest(point)
-        }
+    private final class MoveView: NSView {
+        override var mouseDownCanMoveWindow: Bool { true }
+    }
+}
+
+/// Marks a region as NOT window-draggable, so a drag there reaches SwiftUI's own gesture
+/// (e.g. the paste-stack rows' drag-to-reorder) instead of moving the window.
+struct WindowFixedArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { FixedView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class FixedView: NSView {
+        override var mouseDownCanMoveWindow: Bool { false }
     }
 }
