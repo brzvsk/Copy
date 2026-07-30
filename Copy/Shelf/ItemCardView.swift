@@ -15,6 +15,9 @@ struct ItemCardView: View {
     /// smaller card frame + tighter line limits so more cards fit on screen at once.
     var compact: Bool = false
     let doubleClickToPaste: Bool
+    /// The active search text, used to show and highlight the matched OCR snippet under
+    /// an image result. Empty when not searching.
+    var searchQuery: String = ""
     let onClick: (NSEvent.ModifierFlags) -> Void
     let onDoubleClick: () -> Void
     let onPaste: () -> Void
@@ -218,6 +221,36 @@ struct ItemCardView: View {
         }
     }
 
+    /// Image card body: the thumbnail, plus a highlighted OCR snippet when a search
+    /// matched the image's recognized text. Extracted from `body(for:)` so the switch
+    /// there stays simple enough for the Swift type checker.
+    @ViewBuilder
+    private var imageBody: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            CardThumbnail(item: item, store: store)
+            if !searchQuery.isEmpty, let ocr = item.recognizedText,
+               let snippet = OCRSnippet.make(recognizedText: ocr, query: searchQuery) {
+                highlightedSnippet(snippet, query: searchQuery)
+                    .font(Tokens.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    /// Renders an OCR snippet with the matched query span tinted, so an image search
+    /// result shows why it matched. Content coloring only (no card stripe).
+    private func highlightedSnippet(_ snippet: String, query: String) -> Text {
+        guard let range = snippet.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) else {
+            return Text(snippet)
+        }
+        let before = String(snippet[snippet.startIndex..<range.lowerBound])
+        let match = String(snippet[range])
+        let after = String(snippet[range.upperBound..<snippet.endIndex])
+        return Text(before) + Text(match).foregroundColor(.accentColor).fontWeight(.semibold) + Text(after)
+    }
+
     @ViewBuilder
     private func body(for kind: ItemKind) -> some View {
         switch kind {
@@ -260,7 +293,7 @@ struct ItemCardView: View {
                 }
             }
         case .image:
-            CardThumbnail(item: item, store: store)
+            imageBody
         case .file:
             VStack(alignment: .leading, spacing: 6) {
                 Image(nsImage: NSWorkspace.shared.icon(for: Tokens.fileType(for: item)))
