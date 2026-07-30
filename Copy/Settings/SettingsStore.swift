@@ -35,6 +35,11 @@ enum RetentionPeriod: String, CaseIterable {
         case .threeMonths: return "3 Months"
         }
     }
+
+    /// Shortest-to-longest order for the History pane's `StepSlider`, ending in Unlimited
+    /// (the default) at the far right. The `enum`'s own declaration order leads with
+    /// `.unlimited`, which is the right default but the wrong slider position.
+    static let sliderOrder: [RetentionPeriod] = [.day, .week, .month, .threeMonths, .unlimited]
 }
 
 /// UserDefaults-backed app settings. Mutating `excludedBundleIDs` (directly or via

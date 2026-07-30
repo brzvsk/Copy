@@ -7,14 +7,13 @@ struct HistorySettings: View {
     var body: some View {
         Form {
             Section {
-                Picker("Keep History:", selection: $settings.retention) {
-                    ForEach(RetentionPeriod.allCases, id: \.self) { period in
-                        Text(period.title).tag(period)
-                    }
-                }
-                .pickerStyle(.menu)
+                StepSlider(labels: RetentionPeriod.sliderOrder.map(\.title), index: retentionIndex)
+                    .padding(.top, 4)
+                    .padding(.bottom, 2)
+            } header: {
+                Text("Keep History")
             } footer: {
-                Text("Favorites and pinboard items are always kept.")
+                Text(retentionFooter)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -36,5 +35,23 @@ struct HistorySettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// Bridges the `StepSlider`'s `Int` position to the stored `RetentionPeriod`, using the
+    /// shortest-to-longest `sliderOrder`. Falls back to the last stop (Unlimited) if the
+    /// stored value somehow isn't in the order.
+    private var retentionIndex: Binding<Int> {
+        let order = RetentionPeriod.sliderOrder
+        return Binding(
+            get: { order.firstIndex(of: settings.retention) ?? order.count - 1 },
+            set: { settings.retention = order[$0] }
+        )
+    }
+
+    private var retentionFooter: String {
+        if settings.retention == .unlimited {
+            return "Nothing is removed by age. Favorites and pinboard items are always kept."
+        }
+        return "Items you haven't used in \(settings.retention.title.lowercased()) are removed. Favorites and pinboard items are always kept."
     }
 }
