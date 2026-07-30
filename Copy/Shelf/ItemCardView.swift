@@ -297,22 +297,32 @@ struct ItemCardView: View {
         }
     }
 
-    /// Image card body: the thumbnail, plus a highlighted OCR snippet when a search
-    /// matched the image's recognized text. Extracted from `body(for:)` so the switch
-    /// there stays simple enough for the Swift type checker.
+    /// Image card body: a clean, centered "Image" placeholder (icon + label) rather than a
+    /// busy thumbnail, plus a highlighted OCR snippet when a search matched the image's
+    /// recognized text. Extracted from `body(for:)` so the switch there stays simple
+    /// enough for the Swift type checker.
     @ViewBuilder
     private var imageBody: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            CardThumbnail(item: item, store: store)
+        VStack(spacing: compact ? 4 : 6) {
+            Spacer(minLength: 0)
+            Image(systemName: "photo")
+                .font(.system(size: compact ? 22 : 30, weight: .regular))
+                .foregroundStyle(.secondary)
+            Text("Image")
+                .font(Tokens.cardSubtitle)
+                .foregroundStyle(.secondary)
             if !searchQuery.isEmpty, let ocr = item.recognizedText,
                let snippet = OCRSnippet.make(recognizedText: ocr, query: searchQuery) {
                 highlightedSnippet(snippet, query: searchQuery)
                     .font(Tokens.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 4)
             }
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity)
     }
 
     /// Renders an OCR snippet with the matched query span tinted, so an image search

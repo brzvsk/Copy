@@ -96,6 +96,9 @@ final class ShelfViewModel {
     // Mirror the status menu's actions so the shelf is fully usable with the menu bar
     // icon hidden. `AppCoordinator` wires these to its existing action methods — the
     // same ones the status menu calls — so there's exactly one implementation of each.
+    /// Fires when a modal (edit/create/color/tips) opens (`true`) or closes (`false`),
+    /// so `AppCoordinator` can show/hide the centered modal child window.
+    @ObservationIgnored var onModalPresent: ((Bool) -> Void)?
     @ObservationIgnored var onNewItem: (() -> Void)?
     @ObservationIgnored var onTogglePasteStack: (() -> Void)?
     @ObservationIgnored var onTogglePrivacyMode: (() -> Void)?

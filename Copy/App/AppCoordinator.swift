@@ -37,6 +37,11 @@ final class AppCoordinator {
     /// How often the retention pruner re-runs while the app stays open.
     private static let retentionInterval: TimeInterval = 12 * 60 * 60
 
+    /// The always-present SwiftUI host for the centered modal content (edit/create/color/
+    /// tips); shown in a child window by `ShelfPanelController.presentModal` when a modal
+    /// opens (driven by `shelfViewModel.onModalPresent`).
+    private lazy var modalHostView: NSView = NSHostingView(rootView: ShelfModalHostView(viewModel: shelfViewModel))
+
     private lazy var shelfController: ShelfPanelController = {
         let controller = ShelfPanelController(
             hideDuringScreenSharing: settings.hideDuringScreenSharing,
@@ -182,6 +187,14 @@ final class AppCoordinator {
         }
         shelfViewModel.onAdjustColorCopy = { [weak self] hex in
             self?.adjustColorCopy(hex)
+        }
+        shelfViewModel.onModalPresent = { [weak self] active in
+            guard let self else { return }
+            if active {
+                self.shelfController.presentModal(self.modalHostView)
+            } else {
+                self.shelfController.dismissModal()
+            }
         }
         shelfViewModel.onNewItem = { [weak self] in
             self?.newItem()

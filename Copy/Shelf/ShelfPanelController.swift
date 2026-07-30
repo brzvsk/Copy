@@ -39,6 +39,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
 
     private let makeContent: () -> NSView
     private var panel: KeyablePanel?
+    private var modalPanel: KeyablePanel?
     private var previousApp: NSRunningApplication?
     private var keyMonitor: Any?
     private var hideDuringScreenSharing: Bool
@@ -208,16 +209,44 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     /// edge is placed; the sheet then extends downward by its own height.
     func window(_ window: NSWindow, willPositionSheet sheet: NSWindow, using rect: NSRect) -> NSRect {
         sheet.sharingType = hideDuringScreenSharing ? .none : .readOnly
-        var positioned = rect
-        let margin: CGFloat = 16
-        let desiredTop = window.frame.height + sheet.frame.height + margin
-        if let screen = window.screen ?? NSScreen.main {
-            // Don't let the sheet's top go past the top of the usable screen.
-            let maxTopInWindow = (screen.visibleFrame.maxY - margin) - window.frame.origin.y
-            positioned.origin.y = min(desiredTop, maxTopInWindow)
-        } else {
-            positioned.origin.y = desiredTop
+        return rect
+    }
+
+    /// Shows the modal content (edit/create/color/tips) as a full-screen child window
+    /// centered on the shelf's screen, so it's fully visible above the shelf instead of
+    /// overflowing off the bottom as an attached sheet does. A *child* window (not a
+    /// separate panel) keeps `windowDidResignKey` from hiding the shelf underneath.
+    func presentModal(_ view: NSView) {
+        let host = modalPanel ?? makeModalPanel()
+        host.contentView = view
+        if let screen = panel?.screen ?? NSScreen.main {
+            host.setFrame(screen.frame, display: true)
         }
-        return positioned
+        if let panel, host.parent !== panel {
+            panel.addChildWindow(host, ordered: .above)
+        }
+        host.makeKeyAndOrderFront(nil)
+    }
+
+    func dismissModal() {
+        guard let host = modalPanel else { return }
+        panel?.removeChildWindow(host)
+        host.orderOut(nil)
+        panel?.makeKey()
+    }
+
+    private func makeModalPanel() -> KeyablePanel {
+        let host = KeyablePanel(contentRect: .zero,
+                                styleMask: [.borderless, .nonactivatingPanel],
+                                backing: .buffered, defer: false)
+        host.level = .statusBar
+        host.isOpaque = false
+        host.backgroundColor = .clear
+        host.hasShadow = false
+        host.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        host.hidesOnDeactivate = false
+        host.sharingType = hideDuringScreenSharing ? .none : .readOnly
+        modalPanel = host
+        return host
     }
 }

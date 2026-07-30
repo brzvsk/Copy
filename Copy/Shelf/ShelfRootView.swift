@@ -54,30 +54,16 @@ struct ShelfRootView: View {
         // accent color. The forced dark appearance itself is set on the panel window in
         // `ShelfPanelController`, which cascades to this hosted content.
         .tint(viewModel.settings.shelfProDark ? Tokens.electricBlue : nil)
-        .sheet(item: $viewModel.editingItem) { item in
-            EditItemSheet(
-                item: item,
-                store: viewModel.store,
-                onCancel: { viewModel.editingItem = nil },
-                onSave: { viewModel.commitEdit(attributed: $0) }
-            )
-        }
-        .sheet(isPresented: $viewModel.creatingItem) {
-            CreateItemSheet(
-                onCancel: { viewModel.creatingItem = false },
-                onCreate: { text, title in viewModel.commitCreate(text: text, title: title) }
-            )
-        }
-        .sheet(item: $viewModel.adjustingColorItem) { item in
-            ColorAdjustSheet(
-                item: item,
-                onCancel: { viewModel.adjustingColorItem = nil },
-                onCopy: { viewModel.commitAdjustColor($0) }
-            )
-        }
-        .sheet(isPresented: $viewModel.showingTips) {
-            TipsSheet(onDone: { viewModel.showingTips = false })
-        }
+        // Edit/Create/Adjust Color/Tips are shown as a centered child window over the
+        // shelf (see `ShelfModalHostView`), not as attached sheets that overflow off the
+        // bottom of the screen. This view is always on screen while the shelf is open, so
+        // it reliably drives the host window's show/hide as the modal state changes.
+        .onChange(of: hasActiveModal) { _, active in viewModel.onModalPresent?(active) }
+    }
+
+    private var hasActiveModal: Bool {
+        viewModel.editingItem != nil || viewModel.creatingItem
+            || viewModel.adjustingColorItem != nil || viewModel.showingTips
     }
 }
 
@@ -179,16 +165,9 @@ private struct DrawerMenu: View {
     var body: some View {
         // A plain Button that pops an NSMenu, rather than a SwiftUI `Menu`: the latter's
         // `.borderlessButton` style only made the glyph pixels clickable, so the ⋯ was
-        // extremely hard to hit. A Button's frame + `contentShape` is a guaranteed target.
-        Button(action: showMenu) {
-            Image(systemName: "ellipsis.circle")
-                .font(.system(size: 16))
-                .foregroundStyle(.secondary)
-                .frame(width: 34, height: 30)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("More")
+        // extremely hard to hit. `HeaderIconButton` gives a large, hover-highlighted,
+        // fully-hittable target.
+        HeaderIconButton(systemName: "ellipsis.circle", fontSize: 16, accessibilityLabel: "More", action: showMenu)
     }
 
     private func showMenu() {
@@ -231,6 +210,34 @@ private final class MenuAction {
 private final class MenuActionTarget: NSObject {
     @objc func fire(_ sender: NSMenuItem) {
         (sender.representedObject as? MenuAction)?.run()
+    }
+}
+
+/// A generously-sized, hover-highlighted icon button for the shelf header (the + and ⋯).
+/// The large frame plus `contentShape` make the whole area clickable, and the hover fill
+/// both gives feedback and makes the click target obvious.
+private struct HeaderIconButton: View {
+    let systemName: String
+    var fontSize: CGFloat = 13
+    var accessibilityLabel: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: fontSize, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 34, height: 30)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(hovering ? Color.primary.opacity(0.09) : .clear)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 
@@ -305,18 +312,9 @@ private struct ShelfTabs: View {
                     return true
                 }
             }
-            Button {
+            HeaderIconButton(systemName: "plus", fontSize: 12, accessibilityLabel: "Add Pinboard") {
                 createPresented = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(Tokens.caption)
-                    .foregroundStyle(.secondary)
-                    // A comfortable, fully-hittable target (the glyph alone is tiny).
-                    .frame(width: 34, height: 28)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Add Pinboard")
             .popover(isPresented: $createPresented) {
                 PinboardEditPopover(mode: .create) { name, symbol, emoji, tint in
                     viewModel.createPinboard(name: name, symbol: symbol, emoji: emoji, tint: tint)
@@ -522,11 +520,12 @@ private struct ShelfItemsRow: View {
                     }
                     .padding(.horizontal, Tokens.shelfPadding(compact: compact))
                     .padding(.vertical, compact ? 10 : 16)
-                    // Make the whole row (including the gaps between cards) hit-testable so
-                    // a scroll wheel over a gap still scrolls the shelf instead of passing
-                    // through to the panel behind. No tap gesture lives on the row, so this
-                    // never captures clicks meant for the cards.
-                    .contentShape(Rectangle())
+                    // Give the whole row (including the gaps between cards) a real backing
+                    // view so a scroll wheel over a gap routes to the scroll view instead
+                    // of passing through to the panel behind. A near-zero-opacity fill is
+                    // enough to create the hit-testable NSView; `contentShape` alone (which
+                    // affects gesture hit-testing, not AppKit scroll-wheel routing) wasn't.
+                    .background(Color.black.opacity(0.001))
                 }
                 .onChange(of: viewModel.selection.primary) { _, newPrimary in
                     if let newPrimary {
