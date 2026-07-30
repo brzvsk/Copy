@@ -229,6 +229,7 @@ kbd, .kbd {
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   padding: 9px; display: flex; flex-direction: column; gap: 7px;
   box-shadow: var(--shadow-card);
+  transition: border-color 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
 }
 .card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 10px 30px -12px var(--glow); background: linear-gradient(180deg, rgba(76,157,255,0.08), var(--surface)); }
 .card-h { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--mute); }
@@ -346,6 +347,12 @@ kbd, .kbd {
 @keyframes cardSettle { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
 .hero-visual .scene { animation: shelfUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .hero-visual .card { animation: cardSettle 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+/* Stagger the cards so the shelf fills in card-by-card after it rises. */
+.hero-visual .card:nth-child(1) { animation-delay: 0.20s; }
+.hero-visual .card:nth-child(2) { animation-delay: 0.28s; }
+.hero-visual .card:nth-child(3) { animation-delay: 0.36s; }
+.hero-visual .card:nth-child(4) { animation-delay: 0.44s; }
+.hero-visual .card:nth-child(5) { animation-delay: 0.52s; }
 .hero-visual .card:nth-child(1) { animation-delay: 0.18s; }
 .hero-visual .card:nth-child(2) { animation-delay: 0.28s; }
 .hero-visual .card:nth-child(3) { animation-delay: 0.38s; }

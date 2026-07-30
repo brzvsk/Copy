@@ -151,14 +151,19 @@ jobs:
 
           cp "$RUNNER_TEMP/appcast.xml" docs/appcast.xml
 
+          # Point the site's direct-download buttons (data-dmg-download) at this
+          # release's DMG so "Download" always fetches the newest signed build.
+          sed -i.bak "s|releases/download/v[0-9][0-9.]*/Copy-[0-9][0-9.]*\.dmg|releases/download/${GITHUB_REF_NAME}/Copy-${VERSION}.dmg|g" docs/index.html
+          rm -f docs/index.html.bak
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add docs/appcast.xml
+          git add docs/appcast.xml docs/index.html
           if git diff --cached --quiet; then
-            echo "No appcast changes to commit."
+            echo "No appcast or download-link changes to commit."
           else
-            git commit -m "chore: update appcast for $GITHUB_REF_NAME"
+            git commit -m "chore: update appcast + download links for $GITHUB_REF_NAME"
             git push origin main
           fi
 
