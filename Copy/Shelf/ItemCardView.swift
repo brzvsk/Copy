@@ -116,7 +116,11 @@ struct ItemCardView: View {
                     .fill(Color(nsColor: .controlBackgroundColor))
                 if isSelected {
                     RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.08))
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.accentColor.opacity(0.16), Color.accentColor.opacity(0.03)],
+                                startPoint: .top, endPoint: .bottom)
+                        )
                 }
             }
         )
