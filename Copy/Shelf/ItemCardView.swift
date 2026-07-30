@@ -221,6 +221,34 @@ struct ItemCardView: View {
         }
     }
 
+    /// Text/rich-text card body. When the whole item is a hex color (e.g. someone
+    /// copied "#4C9DFF"), show the actual color as a swatch instead of the raw string;
+    /// otherwise render the (optionally code-highlighted) text. Extracted from
+    /// `body(for:)` to keep that switch simple enough for the Swift type checker.
+    @ViewBuilder
+    private var textBody: some View {
+        if let hex = HexColor.normalized(item.plainText ?? "") {
+            colorSwatchBody(hex)
+        } else {
+            codeAwareBody(text: item.plainText ?? "", cap: 1_500)
+                .font(Tokens.bodyMono)
+                .lineLimit(bodyLineLimit(standard: 11, compact: 6))
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+    }
+
+    /// A color swatch plus its hex, matching the `.color` card, used for both real
+    /// color items and text items that are themselves a hex color.
+    private func colorSwatchBody(_ hex: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Tokens.color(fromHex: hex))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Text(hex).font(Tokens.bodyMono)
+        }
+    }
+
     /// Image card body: the thumbnail, plus a highlighted OCR snippet when a search
     /// matched the image's recognized text. Extracted from `body(for:)` so the switch
     /// there stays simple enough for the Swift type checker.
@@ -255,11 +283,7 @@ struct ItemCardView: View {
     private func body(for kind: ItemKind) -> some View {
         switch kind {
         case .text, .richText:
-            codeAwareBody(text: item.plainText ?? "", cap: 1_500)
-                .font(Tokens.bodyMono)
-                .lineLimit(bodyLineLimit(standard: 11, compact: 6))
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+            textBody
         case .link:
             if let linkTitle = item.linkTitle {
                 VStack(alignment: .leading, spacing: 4) {
