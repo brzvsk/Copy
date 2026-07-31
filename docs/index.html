@@ -128,39 +128,29 @@
       </div>
       <div class="feature">
         <div class="feature-copy">
-          <span class="eyebrow"><span class="num">→</span> Full-text search</span>
-          <h3>Find anything you've copied.</h3>
-          <p>Type to search across everything, with scope chips for text, images, links, and files. Even text inside images is searchable, recognized on device.</p>
+          <span class="eyebrow"><span class="num">→</span> Smart search</span>
+          <h3>Filter by app, type, and time. Then type.</h3>
+          <p>Start typing and Copy suggests the app you copied from, the kind of thing, a time range, favorites, or a pinboard. Pick a few and they stack as filters. Whatever you type after searches the content, including text recognized inside images.</p>
           <ul>
-            <li>Scope chips: All, Text, Images, Links, Files</li>
-            <li>On-device OCR makes screenshots searchable</li>
-            <li>Search a single pinboard, or your whole history</li>
+            <li>Filter tokens: app, type, time, favorites, pinboards</li>
+            <li>On-device OCR makes text inside images searchable</li>
+            <li>Right-click a result → Show in History to jump back to it</li>
           </ul>
         </div>
         <div class="feature-visual">
-          <div class="glass-panel" style="padding:12px">
-            <div class="shelf-top" style="padding-bottom:8px">
-              <span class="search" style="margin-left:0;min-width:150px;color:var(--text)">
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="5"/><path d="m11 11 3 3"/></svg>
-                invoice
-              </span>
-              <div class="tabs" style="margin-left:auto">
-                <span class="tab on">All</span><span class="tab">Text</span><span class="tab">Images</span>
-              </div>
+          <div class="glass-panel" style="padding:14px">
+            <div class="token-field">
+              <svg class="mag" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="5"/><path d="m11 11 3 3"/></svg>
+              <span class="pill"><span class="ic safari"></span> Safari</span>
+              <span class="typed">l</span><span class="caret"></span>
             </div>
-            <div class="shelf-rule"></div>
-            <div class="cards" style="flex-wrap:nowrap">
-              <div class="card" style="flex:0 0 150px">
-                <div class="card-h"><span class="app finder"></span> Preview <span class="time">3d</span></div>
-                <div class="card-rule"></div>
-                <div class="thumb" style="flex:0 0 60px"></div>
-                <div class="card-body">…total due <span class="hl-mark">invoice</span> #A-2214…</div>
+            <div class="suggest">
+              <div class="row on">
+                <svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6.5 9.5a2.6 2.6 0 0 0 3.7 0l2-2a2.6 2.6 0 0 0-3.7-3.7l-.7.7"/><path d="M9.5 6.5a2.6 2.6 0 0 0-3.7 0l-2 2a2.6 2.6 0 0 0 3.7 3.7l.7-.7"/></svg>
+                Link
               </div>
-              <div class="card" style="flex:0 0 150px">
-                <div class="card-h"><span class="app safari"></span> Mail <span class="time">1w</span></div>
-                <div class="card-rule"></div>
-                <div class="card-body">Please find the <span class="hl-mark">invoice</span> attached for last month's…</div>
-              </div>
+              <div class="row"><span class="ic" style="background:linear-gradient(135deg,#111,#333)"></span> Linear</div>
+              <div class="row"><svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2.5v2M10.5 2.5v2"/></svg> Last week</div>
             </div>
           </div>
         </div>

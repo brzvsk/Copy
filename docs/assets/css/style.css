@@ -252,6 +252,36 @@ kbd, .kbd {
 .tok-num { color: #57c8d4; } .tok-type { color: #6fb0ff; }
 .hl-mark { color: var(--accent-2); font-weight: 600; }
 
+/* Smart-search token field (mock) */
+.token-field {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 13px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--accent-dim);
+  border-radius: 10px; padding: 9px 11px; box-shadow: 0 0 0 3px rgba(76,157,255,0.12);
+}
+.token-field .mag { color: var(--mute); flex: none; }
+.token-field .typed { color: var(--text); }
+.token-field .caret { width: 1.5px; height: 15px; background: var(--accent); border-radius: 1px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-size: 12px; font-weight: 500; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 9px 3px 6px;
+}
+.pill .ic { width: 13px; height: 13px; border-radius: 3px; flex: none; color: var(--mute); }
+.pill .ic.safari { background: linear-gradient(135deg,#3a92ff,#1f6fd6); }
+.suggest {
+  margin-top: 9px; width: 214px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: 4px; box-shadow: var(--shadow-card);
+}
+.suggest .row {
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px;
+  color: var(--text); padding: 6px 8px; border-radius: 6px;
+}
+.suggest .row.on { background: var(--accent); color: #fff; }
+.suggest .row .ic { width: 14px; height: 14px; flex: none; border-radius: 3px; color: var(--mute); opacity: 0.85; }
+.suggest .row.on .ic { color: #fff; opacity: 1; }
+
 /* ---- Hero "free & open source" pill ------------------------------------- */
 .free-pill {
   display: inline-flex; align-items: center; gap: 7px;
