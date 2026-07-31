@@ -128,7 +128,13 @@ final class AppCoordinator {
                 viewModel.pasteSelection(plain: event.modifierFlags.contains(.option))
                 return true
             case 51 where event.modifierFlags.contains(.command): // cmd-delete
-                viewModel.deleteSelection()
+                // Clears the search (all pills + text) when one is active; otherwise deletes
+                // the selected card.
+                if !viewModel.searchQuery.isEmpty {
+                    viewModel.clearSearch()
+                } else {
+                    viewModel.deleteSelection()
+                }
                 return true
             case 14 where event.modifierFlags.contains(.command): // cmd-E — edit primary item
                 viewModel.beginEdit()

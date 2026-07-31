@@ -21,4 +21,14 @@ final class HexColorTests: XCTestCase {
         XCTAssertNil(HexColor.normalized("#GGGGGG"))
         XCTAssertNil(HexColor.normalized(""))
     }
+
+    func testIsColorTextClassification() {
+        XCTAssertTrue(HexColor.isColorText("#123456"))   // with # → color even if all digits
+        XCTAssertTrue(HexColor.isColorText("4C9DFF"))    // bare, has letters → color
+        XCTAssertTrue(HexColor.isColorText("abc"))       // bare shorthand, letters → color
+        XCTAssertTrue(HexColor.isColorText("  #FFFFFF "))
+        XCTAssertFalse(HexColor.isColorText("123456"))   // bare, all digits → stays text
+        XCTAssertFalse(HexColor.isColorText("hello"))
+        XCTAssertFalse(HexColor.isColorText("#4C9DFF is nice"))
+    }
 }

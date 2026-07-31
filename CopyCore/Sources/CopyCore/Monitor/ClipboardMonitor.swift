@@ -93,6 +93,9 @@ public final class ClipboardMonitor {
 
         guard let text = pasteboard.string(), !text.isEmpty else { return nil }
         var kind = ItemKind.forText(text)
+        // A standalone hex color copied as text ("#4C9DFF" or bare "4C9DFF") is a color, so
+        // it swatches and matches the Color filter — see `HexColor.isColorText`.
+        if HexColor.isColorText(text) { kind = .color }
         var representations: [CapturedRepresentation] = []
         if let rtf = pasteboard.data(forUTI: "public.rtf") {
             representations.append(CapturedRepresentation(uti: "public.rtf", data: rtf))
