@@ -223,11 +223,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         checkForUpdates.target = self
         menu.addItem(checkForUpdates)
 
+        #if DEBUG
+        menu.addItem(.separator())
+        let demo = NSMenuItem(title: coordinator.isDemoMode ? "Exit Demo Mode" : "Enter Demo Mode",
+                              action: #selector(toggleDemoMode), keyEquivalent: "")
+        demo.target = self
+        menu.addItem(demo)
+        #endif
+
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Copy",
                                 action: #selector(NSApplication.terminate(_:)),
                                 keyEquivalent: "q"))
     }
+
+    #if DEBUG
+    /// Flips the demo-mode flag and relaunches, so the app comes back up against the
+    /// isolated demo (or real) database. DEBUG-only — never compiled into release.
+    @objc private func toggleDemoMode() {
+        UserDefaults.standard.set(!coordinator.isDemoMode, forKey: AppCoordinator.demoModeKey)
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { _, _ in
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
+    }
+    #endif
 
     @objc private func openShelf() {
         coordinator.toggleShelf()

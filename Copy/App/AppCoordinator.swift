@@ -15,9 +15,12 @@ final class AppCoordinator {
     private let saveErrors = SaveErrorReporter()
     private var retentionTimer: DispatchSourceTimer?
     private(set) var isPaused = false
-    /// True when launched with `--demo`: runs against an isolated, reseeded demo database
-    /// with curated mock data, and never starts clipboard capture. See `DemoData`.
+    /// True in a DEBUG build when the demo-mode flag is set (toggled from the status menu):
+    /// runs against an isolated, reseeded demo database with curated mock data, and never
+    /// starts clipboard capture. Always false in release. See `DemoData`.
     let isDemoMode: Bool
+    /// `UserDefaults` key the status-menu toggle flips; read at launch to enter demo mode.
+    static let demoModeKey = "demoMode"
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore, settings: settings)
     private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
     private(set) lazy var ocrController = OCRController(store: store)
@@ -302,7 +305,11 @@ final class AppCoordinator {
     private lazy var onboardingWindowController = OnboardingWindowController()
 
     init() throws {
-        let isDemo = CommandLine.arguments.contains("--demo")
+        #if DEBUG
+        let isDemo = UserDefaults.standard.bool(forKey: Self.demoModeKey)
+        #else
+        let isDemo = false
+        #endif
         self.isDemoMode = isDemo
         let database = try isDemo ? Self.makeDemoDatabase() : DatabaseManager.makeDefault()
         let blobs = BlobStore(directory: database.blobsDirectory)
