@@ -147,6 +147,14 @@ private struct ShelfHeader: View {
             if requested {
                 searchFocused = true
                 viewModel.focusSearchRequested = false
+                // Focusing select-alls the field, so the letter that started the search
+                // would be replaced by the next keystroke. Move the caret to the end once
+                // focus lands (type-to-search only — a manual click keeps its position).
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+                    if let editor = NSApp.keyWindow?.firstResponder as? NSTextView {
+                        editor.selectedRange = NSRange(location: editor.string.count, length: 0)
+                    }
+                }
             }
         }
     }
