@@ -16,6 +16,16 @@ func makeText(_ s: String) -> CapturedItem {
     )
 }
 
+/// A text `CapturedItem` attributed to a specific source app. Distinct text keeps items
+/// from deduping (dedup keys on content hash = the text bytes here).
+func makeText(_ s: String, bundle: String, app: String) -> CapturedItem {
+    CapturedItem(
+        kind: .text, plainText: s, hashData: Data(s.utf8),
+        representations: [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(s.utf8))],
+        sourceBundleID: bundle, sourceAppName: app
+    )
+}
+
 /// An image `CapturedItem` of a given stored byte size and a distinct hash (so successive
 /// calls don't dedup into one item).
 func makeImage(bytes: Int, tag: String) -> CapturedItem {
@@ -86,6 +96,75 @@ final class ItemStoreTests: XCTestCase {
         try store.clearHistory(kind: .image)
 
         XCTAssertEqual(try store.recentItems(limit: 10).count, 1)  // favorite image survives
+    }
+
+    func testSearchFilterByApp() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("from safari", bundle: "com.apple.Safari", app: "Safari"))
+        _ = try store.save(makeText("from slack", bundle: "com.slack", app: "Slack"))
+        let results = try store.search(filter: SearchFilter(appBundleID: "com.apple.Safari"))
+        XCTAssertEqual(results.map(\.plainText), ["from safari"])
+    }
+
+    func testSearchFilterByKind() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("a note"))
+        _ = try store.save(makeImage(bytes: 50, tag: "img"))
+        let results = try store.search(filter: SearchFilter(kinds: [.image]))
+        XCTAssertEqual(results.map(\.kind), [.image])
+    }
+
+    func testSearchFilterByDateRange() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("old"), now: Date(timeIntervalSince1970: 1_000_000))
+        _ = try store.save(makeText("recent"), now: Date(timeIntervalSince1970: 2_000_000))
+        let range = DateInterval(start: Date(timeIntervalSince1970: 1_500_000),
+                                 end: Date(timeIntervalSince1970: 2_500_000))
+        let results = try store.search(filter: SearchFilter(dateRange: range))
+        XCTAssertEqual(results.map(\.plainText), ["recent"])
+    }
+
+    func testSearchFilterByFavorites() throws {
+        let store = try makeTempStore()
+        let fav = try store.save(makeText("keep"))
+        try store.setFavorite(itemID: fav.id!, true)
+        _ = try store.save(makeText("drop"))
+        let results = try store.search(filter: SearchFilter(favoritesOnly: true))
+        XCTAssertEqual(results.map(\.plainText), ["keep"])
+    }
+
+    func testSearchFilterCombinesTextAndFacets() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("movement safari", bundle: "com.apple.Safari", app: "Safari"))
+        _ = try store.save(makeText("movement slack", bundle: "com.slack", app: "Slack"))
+        _ = try store.save(makeText("other safari", bundle: "com.apple.Safari", app: "Safari"))
+        let results = try store.search(filter: SearchFilter(text: "movement", appBundleID: "com.apple.Safari"))
+        XCTAssertEqual(results.map(\.plainText), ["movement safari"])
+    }
+
+    func testSearchFilterByPinboard() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CopyTests-\(UUID().uuidString)")
+        let dbm = try DatabaseManager(directory: dir)
+        let store = ItemStore(writer: dbm.writer, blobs: BlobStore(directory: dbm.blobsDirectory))
+        let pinboards = PinboardStore(writer: dbm.writer)
+        let pinned = try store.save(makeText("pinned"))
+        _ = try store.save(makeText("loose"))
+        let board = try pinboards.create(name: "Work", symbol: "tray")
+        try pinboards.add(itemID: pinned.id!, to: board.id!)
+        let results = try store.search(filter: SearchFilter(pinboardIDs: [board.id!]))
+        XCTAssertEqual(results.map(\.plainText), ["pinned"])
+    }
+
+    func testDistinctAppsRanksByFrequency() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeText("a", bundle: "com.apple.Safari", app: "Safari"))
+        _ = try store.save(makeText("b", bundle: "com.apple.Safari", app: "Safari"))
+        _ = try store.save(makeText("c", bundle: "com.slack", app: "Slack"))
+        let apps = try store.distinctApps()
+        XCTAssertEqual(apps.map(\.bundleID), ["com.apple.Safari", "com.slack"])
+        XCTAssertEqual(apps.first?.count, 2)
+        XCTAssertEqual(apps.first?.name, "Safari")
     }
 
     func testRecentOrderedByLastUsedDescending() throws {

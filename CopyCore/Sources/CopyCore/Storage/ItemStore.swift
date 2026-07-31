@@ -181,6 +181,82 @@ public struct ItemStore {
         }
     }
 
+    /// Faceted search (see `SearchFilter`): FTS-matches `filter.text` when present, then
+    /// AND-applies the app/kind/date/favorites/pinboard facets. With no text it's a plain
+    /// `SELECT` (no FTS), so facet-only queries work without a text pattern.
+    public func search(filter: SearchFilter, limit: Int = 100) throws -> [ClipItem] {
+        var sql: String
+        var arguments: [any DatabaseValueConvertible] = []
+        if filter.hasText {
+            guard let pattern = FTS5Pattern(matchingAllPrefixesIn: filter.text) else { return [] }
+            sql = """
+                SELECT item.* FROM item
+                JOIN item_fts ON item_fts.rowid = item.id
+                WHERE item_fts MATCH ?
+                """
+            arguments.append(pattern)
+        } else {
+            sql = "SELECT item.* FROM item WHERE 1"
+        }
+        let facets = facetClauses(filter)
+        sql += facets.sql
+        arguments.append(contentsOf: facets.arguments)
+        sql += " ORDER BY item.lastUsedAt DESC LIMIT ?"
+        arguments.append(limit)
+        return try writer.read { db in
+            try ClipItem.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
+        }
+    }
+
+    /// The AND-ed WHERE fragment (leading `" AND …"`) and bound arguments for a filter's
+    /// non-text facets, shared by `search(filter:)` and `observeRecent(filter:)`.
+    private func facetClauses(_ filter: SearchFilter) -> (sql: String, arguments: [any DatabaseValueConvertible]) {
+        var sql = ""
+        var arguments: [any DatabaseValueConvertible] = []
+        if let appBundleID = filter.appBundleID {
+            sql += " AND item.appBundleID = ?"
+            arguments.append(appBundleID)
+        }
+        if !filter.kinds.isEmpty {
+            let names = filter.kinds.map(\.rawValue).sorted()
+            sql += " AND item.kind IN (\(names.map { _ in "?" }.joined(separator: ",")))"
+            arguments.append(contentsOf: names)
+        }
+        if let range = filter.dateRange {
+            sql += " AND item.lastUsedAt >= ? AND item.lastUsedAt < ?"
+            arguments.append(range.start)
+            arguments.append(range.end)
+        }
+        if filter.favoritesOnly {
+            sql += " AND item.isFavorite = 1"
+        }
+        if !filter.pinboardIDs.isEmpty {
+            let ids = filter.pinboardIDs.sorted()
+            sql += " AND item.id IN (SELECT itemId FROM pinboard_item WHERE pinboardId IN (\(ids.map { _ in "?" }.joined(separator: ","))))"
+            arguments.append(contentsOf: ids)
+        }
+        return (sql, arguments)
+    }
+
+    /// Distinct apps that appear in the history, most-copied first — the source for the
+    /// search field's app suggestions.
+    public func distinctApps() throws -> [AppUsage] {
+        try writer.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT appBundleID AS b, appName AS n, COUNT(*) AS c
+                FROM item
+                WHERE appBundleID IS NOT NULL AND appBundleID <> ''
+                GROUP BY appBundleID
+                ORDER BY c DESC, n ASC
+                """).compactMap { row in
+                guard let bundleID: String = row["b"] else { return nil }
+                let name: String = row["n"] ?? bundleID
+                let count: Int = row["c"]
+                return AppUsage(bundleID: bundleID, name: name, count: count)
+            }
+        }
+    }
+
     public func touch(itemID: Int64, now: Date = Date()) throws {
         try writer.write { db in
             try db.execute(
@@ -290,6 +366,46 @@ public struct ItemStore {
                 request = request.filter(kinds.map(\.rawValue).contains(Column("kind")))
             }
             return try request.fetchAll(db)
+        }
+        let cancellable = observation.start(in: writer,
+                                            scheduling: .async(onQueue: .main),
+                                            onError: onError,
+                                            onChange: onChange)
+        return ObservationToken(cancellable)
+    }
+
+    /// Live variant of `search(filter:)` for the text-empty case: observes the history
+    /// with the filter's non-text facets applied, so filter-only shelf views keep updating
+    /// as new items are captured. Free text (`filter.text`) is ignored here — the app layer
+    /// routes text queries to the one-shot `search(filter:)` instead.
+    public func observeRecent(filter: SearchFilter, limit: Int = 100,
+                              onError: @escaping (Error) -> Void,
+                              onChange: @escaping ([ClipItem]) -> Void) -> ObservationToken {
+        // Built with the query interface (not `facetClauses`' raw SQL) so the observation's
+        // @Sendable fetch closure captures only the Sendable `filter`/`limit`, not the
+        // existential-typed argument array.
+        let observation = ValueObservation.tracking { db -> [ClipItem] in
+            var request = ClipItem.all()
+            if let appBundleID = filter.appBundleID {
+                request = request.filter(Column("appBundleID") == appBundleID)
+            }
+            if !filter.kinds.isEmpty {
+                request = request.filter(filter.kinds.map(\.rawValue).contains(Column("kind")))
+            }
+            if let range = filter.dateRange {
+                request = request.filter(Column("lastUsedAt") >= range.start && Column("lastUsedAt") < range.end)
+            }
+            if filter.favoritesOnly {
+                request = request.filter(Column("isFavorite") == true)
+            }
+            if !filter.pinboardIDs.isEmpty {
+                let ids = filter.pinboardIDs.sorted()
+                let placeholders = ids.map { _ in "?" }.joined(separator: ",")
+                request = request.filter(sql:
+                    "id IN (SELECT itemId FROM pinboard_item WHERE pinboardId IN (\(placeholders)))",
+                    arguments: StatementArguments(ids))
+            }
+            return try request.order(Column("lastUsedAt").desc).limit(limit).fetchAll(db)
         }
         let cancellable = observation.start(in: writer,
                                             scheduling: .async(onQueue: .main),
