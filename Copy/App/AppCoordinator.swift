@@ -15,6 +15,9 @@ final class AppCoordinator {
     private let saveErrors = SaveErrorReporter()
     private var retentionTimer: DispatchSourceTimer?
     private(set) var isPaused = false
+    /// True when launched with `--demo`: runs against an isolated, reseeded demo database
+    /// with curated mock data, and never starts clipboard capture. See `DemoData`.
+    let isDemoMode: Bool
     private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore, settings: settings)
     private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
     private(set) lazy var ocrController = OCRController(store: store)
@@ -299,15 +302,21 @@ final class AppCoordinator {
     private lazy var onboardingWindowController = OnboardingWindowController()
 
     init() throws {
-        let database = try DatabaseManager.makeDefault()
+        let isDemo = CommandLine.arguments.contains("--demo")
+        self.isDemoMode = isDemo
+        let database = try isDemo ? Self.makeDemoDatabase() : DatabaseManager.makeDefault()
         let blobs = BlobStore(directory: database.blobsDirectory)
         let store = ItemStore(writer: database.writer, blobs: blobs)
         self.store = store
-        self.pinboardStore = PinboardStore(writer: database.writer)
+        let pinboardStore = PinboardStore(writer: database.writer)
+        self.pinboardStore = pinboardStore
         self.pasteService = PasteService(pasteboard: NSPasteboard.general,
                                          keyPoster: CGKeyEventPoster())
         let pasteStackModel = PasteStackModel(store: store)
         self.pasteStackModel = pasteStackModel
+        if isDemo {
+            DemoData.seed(store: store, pinboards: pinboardStore, pasteStack: pasteStackModel)
+        }
         let settings = SettingsStore()
         self.settings = settings
         let linkFetcher = LinkMetadataFetcher(store: store)
@@ -389,9 +398,22 @@ final class AppCoordinator {
     }
 
     func start() {
+        // Demo mode never captures the real clipboard (keeps the curated set pristine) and
+        // never prunes (its timestamps are backdated for the Time facets).
+        guard !isDemoMode else { return }
         monitor.start()
         runRetentionPrune()
         scheduleRetentionTimer()
+    }
+
+    /// Isolated, reset-every-launch demo database beside the real `Copy/copy.sqlite`, so
+    /// `--demo` never touches real history.
+    private static func makeDemoDatabase() throws -> DatabaseManager {
+        let demoDir = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Copy/DemoData", isDirectory: true)
+        try? FileManager.default.removeItem(at: demoDir)
+        return try DatabaseManager(directory: demoDir)
     }
 
     /// The one unguided moment in the whole journey: a fresh user has just copied their
