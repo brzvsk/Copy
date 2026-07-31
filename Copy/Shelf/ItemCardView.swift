@@ -297,11 +297,24 @@ struct ItemCardView: View {
     private func codeAwareBody(text: String, cap: Int) -> some View {
         let capped = String(text.prefix(cap))
         let highlight = CodeHighlightCache.shared.result(for: text, uuid: item.uuid, cap: cap)
+        let display = Self.preservingIndentation(capped)
         if highlight.language != nil {
-            highlightedText(capped, tokens: highlight.tokens)
+            highlightedText(display, tokens: highlight.tokens)
         } else {
-            Text(capped)
+            Text(display)
         }
+    }
+
+    /// Replaces each line's leading whitespace with non-breaking spaces so SwiftUI keeps
+    /// the code's indentation (`Text` otherwise collapses leading whitespace when a line
+    /// wraps). One-for-one (space/tab → one NBSP) so it never shifts the highlight token
+    /// ranges, which are computed against the original text.
+    private static func preservingIndentation(_ text: String) -> String {
+        text.split(separator: "\n", omittingEmptySubsequences: false).map { line -> String in
+            let indent = line.prefix { $0 == " " || $0 == "\t" }.count
+            guard indent > 0 else { return String(line) }
+            return String(repeating: "\u{00A0}", count: indent) + line.dropFirst(indent)
+        }.joined(separator: "\n")
     }
 
     /// Text/rich-text card body. When the whole item is a hex color (e.g. someone

@@ -270,13 +270,19 @@ private struct ShelfTabs: View {
                     shortcutHint: (viewModel.commandHeld && offset + 2 <= 9) ? "\(offset + 2)" : nil,
                     action: {
                         guard let id = pinboard.id else { return }
-                        viewModel.tab = .pinboard(id)
+                        // Clicking the already-selected pinboard opens its editor; otherwise
+                        // it just switches to it.
+                        if viewModel.tab == .pinboard(id) {
+                            renamingPinboard = pinboard
+                        } else {
+                            viewModel.tab = .pinboard(id)
+                        }
                     }
                 )
                 .contextMenu {
-                    // "Rename…" opens PinboardEditPopover in rename mode, which edits
-                    // name, symbol, emoji, and color in one place.
-                    Button("Rename…") { renamingPinboard = pinboard }
+                    // "Edit…" opens PinboardEditPopover, which edits name, symbol, emoji,
+                    // and color (including a custom color picker) in one place.
+                    Button("Edit…") { renamingPinboard = pinboard }
                     Button("Delete Pinboard", role: .destructive) { confirmDelete(pinboard) }
                 }
                 .popover(isPresented: Binding(

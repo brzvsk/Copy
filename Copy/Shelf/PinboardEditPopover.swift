@@ -264,13 +264,24 @@ struct PinboardEditPopover: View {
                             tint = option.hex
                         }
                     }
+                    // Custom color: the system picker, selected when the tint isn't a preset.
+                    ColorPicker("", selection: customColorBinding, supportsOpacity: false)
+                        .labelsHidden()
+                        .frame(width: 22, height: 22)
+                        .help("Custom color")
+                        .overlay(
+                            Circle()
+                                .strokeBorder(Color.accentColor, lineWidth: 2)
+                                .padding(-2)
+                                .opacity(isCustomTint ? 1 : 0)
+                        )
                 }
             }
 
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
-                Button(isCreate ? "Create" : "Rename", action: commit)
+                Button(isCreate ? "Create" : "Save", action: commit)
                     .keyboardShortcut(.defaultAction)
                     .disabled(trimmedName.isEmpty)
             }
@@ -278,6 +289,19 @@ struct PinboardEditPopover: View {
         .padding(14)
         .frame(width: 280)
         .onAppear { nameFocused = true }
+    }
+
+    /// True when the current tint isn't one of the presets — i.e. a custom color.
+    private var isCustomTint: Bool {
+        !tint.isEmpty && !Self.colorOptions.contains { $0.hex == tint }
+    }
+
+    /// Bridges the `tint` hex (stored without a leading `#`) to the system `ColorPicker`.
+    private var customColorBinding: Binding<Color> {
+        Binding(
+            get: { tint.isEmpty ? Color.accentColor : Tokens.color(fromHex: tint) },
+            set: { tint = Tokens.hex(from: $0).replacingOccurrences(of: "#", with: "") }
+        )
     }
 
     private func commit() {
