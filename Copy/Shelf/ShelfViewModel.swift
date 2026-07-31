@@ -33,12 +33,19 @@ final class ShelfViewModel {
     /// How many leading items in `items` are favorites; the shelf draws a divider after
     /// this many cards to separate starred copies from the rest.
     var favoritesCount = 0
-    var query = "" {
-        didSet { if query != oldValue { refresh() } }
-    }
-    var scope: ShelfScope = .all {
-        didSet { if scope != oldValue { refresh() } }
-    }
+    /// The faceted search: facet pill tokens + trailing free text. Driven through the
+    /// mutating helpers (`updateSearchText`, `acceptSuggestion`, …) rather than a `didSet`,
+    /// so a token-plus-text change refreshes once.
+    var searchQuery = SearchQuery()
+    /// Ranked facet suggestions for the current trailing text, and the highlighted row.
+    /// `suggestionsVisible` gates the shelf's global key handler (arrows/return drive the
+    /// dropdown while it's open) — see `AppCoordinator.onKeyEvent`.
+    var suggestions: [Suggestion] = []
+    var highlightedSuggestion = 0
+    var suggestionsVisible: Bool { !suggestions.isEmpty }
+    /// Distinct history apps for app suggestions, loaded once per search session and
+    /// cleared in `clearTransientState`.
+    @ObservationIgnored private var cachedApps: [AppUsage] = []
     var tab: ShelfTab = .history {
         didSet { if tab != oldValue { refresh() } }
     }
@@ -148,27 +155,90 @@ final class ShelfViewModel {
         token?.cancel()
         token = nil
         previewShown = false
-        if !query.isEmpty {
-            apply((try? store.search(query, kinds: scope.kinds, limit: 100, pinboardID: searchPinboardID)) ?? [])
-            return
+
+        var filter = searchQuery.toFilter()
+        // Scope to the active pinboard tab (AND-ed with any explicit facets).
+        if case .pinboard(let id) = tab {
+            filter.pinboardIDs.insert(id)
         }
-        switch tab {
-        case .history:
-            token = store.observeRecent(kinds: scope.kinds, limit: 100,
-                                        onError: { NSLog("Copy: observation failed: \($0)") },
-                                        onChange: { [weak self] in self?.apply($0) })
-        case .pinboard(let id):
+
+        if filter.hasText {
+            // Text search is one-shot (FTS); re-runs whenever the query changes.
+            apply((try? store.search(filter: filter, limit: 100)) ?? [])
+        } else if searchQuery.tokens.isEmpty, case .pinboard(let id) = tab {
+            // Plain pinboard browse: keep the dedicated observation (preserves manual order).
             token = pinboardStore.observeItems(in: id,
                                                onError: { NSLog("Copy: observation failed: \($0)") },
                                                onChange: { [weak self] in self?.apply($0) })
+        } else {
+            // History browse or facet-only: stays live as new items are captured.
+            token = store.observeRecent(filter: filter, limit: 100,
+                                        onError: { NSLog("Copy: observation failed: \($0)") },
+                                        onChange: { [weak self] in self?.apply($0) })
         }
     }
 
-    /// Scopes shelf search (`refresh()`) to the active pinboard tab; `nil` on the
-    /// History tab searches globally, same as before pinboard scoping existed.
-    private var searchPinboardID: Int64? {
-        if case .pinboard(let id) = tab { return id }
-        return nil
+    // MARK: Smart search
+
+    /// Sets the trailing free text and recomputes suggestions + results. Bound to the token
+    /// field's `TextField`.
+    func updateSearchText(_ text: String) {
+        searchQuery.text = text
+        recomputeSuggestions()
+        refresh()
+    }
+
+    /// Commits a suggestion as a pill, clearing the typed prefix.
+    func acceptSuggestion(_ suggestion: Suggestion) {
+        searchQuery.add(suggestion.token)
+        searchQuery.text = ""
+        suggestions = []
+        refresh()
+    }
+
+    func acceptHighlightedSuggestion() {
+        guard suggestions.indices.contains(highlightedSuggestion) else { return }
+        acceptSuggestion(suggestions[highlightedSuggestion])
+    }
+
+    func moveSuggestion(by delta: Int) {
+        guard !suggestions.isEmpty else { return }
+        highlightedSuggestion = (highlightedSuggestion + delta + suggestions.count) % suggestions.count
+    }
+
+    /// Hides the dropdown without changing the query (Escape). It reappears on the next
+    /// keystroke.
+    func dismissSuggestions() {
+        suggestions = []
+    }
+
+    /// Backspace on an empty field removes the last pill.
+    func removeLastToken() {
+        guard searchQuery.text.isEmpty, !searchQuery.tokens.isEmpty else { return }
+        searchQuery.removeLast()
+        recomputeSuggestions()
+        refresh()
+    }
+
+    func removeToken(_ token: SearchToken) {
+        searchQuery.remove(token)
+        recomputeSuggestions()
+        refresh()
+    }
+
+    func clearSearch() {
+        searchQuery = SearchQuery()
+        suggestions = []
+        refresh()
+    }
+
+    private func recomputeSuggestions() {
+        if cachedApps.isEmpty, !searchQuery.text.isEmpty {
+            cachedApps = (try? store.distinctApps()) ?? []
+        }
+        suggestions = searchSuggestions(prefix: searchQuery.text, apps: cachedApps,
+                                        pinboards: pinboards, query: searchQuery)
+        highlightedSuggestion = 0
     }
 
     /// Reset search/selection when the shelf closes. Anchors selection to the newest
@@ -185,7 +255,9 @@ final class ShelfViewModel {
         showingTips = false
         commandHeld = false
         hoveredItemID = nil
-        if !query.isEmpty { query = "" }
+        if !searchQuery.isEmpty { searchQuery = SearchQuery() }
+        suggestions = []
+        cachedApps = []
     }
 
     /// Called by `AppCoordinator.toggleShelf()` right before showing the panel — see
@@ -331,7 +403,7 @@ final class ShelfViewModel {
             }
         }
         if !snapshots.isEmpty { pushUndo(.deleted(snapshots)) }
-        if !query.isEmpty { refresh() }
+        if !searchQuery.isEmpty { refresh() }
     }
 
     func toggleFavoritePrimary() {
@@ -342,7 +414,7 @@ final class ShelfViewModel {
             NSLog("Copy: failed to toggle favorite: \(error)")
             HUD.show("Couldn't complete that")
         }
-        if !query.isEmpty { refresh() }
+        if !searchQuery.isEmpty { refresh() }
     }
 
     func addSelection(toPinboard id: Int64) {
@@ -388,7 +460,7 @@ final class ShelfViewModel {
             NSLog("Copy: failed to delete item: \(error)")
             HUD.show("Couldn't complete that")
         }
-        if !query.isEmpty { refresh() }
+        if !searchQuery.isEmpty { refresh() }
     }
 
     func toggleFavorite(_ item: ClipItem) {
@@ -399,7 +471,7 @@ final class ShelfViewModel {
             NSLog("Copy: failed to toggle favorite: \(error)")
             HUD.show("Couldn't complete that")
         }
-        if !query.isEmpty { refresh() }
+        if !searchQuery.isEmpty { refresh() }
     }
 
     // MARK: - Pinboard actions passthrough
@@ -665,7 +737,7 @@ final class ShelfViewModel {
             NSLog("Copy: failed to rename item: \(error)")
             HUD.show("Couldn't rename item")
         }
-        if !query.isEmpty { refresh() }
+        if !searchQuery.isEmpty { refresh() }
     }
 
     /// Opens `ColorAdjustSheet` from a color card's "Adjust Color…" context menu item,

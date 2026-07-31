@@ -130,27 +130,15 @@ private struct ShelfHeader: View {
         HStack(spacing: 10) {
             ShelfTabs(viewModel: viewModel)
             Spacer(minLength: 12)
-            if !viewModel.query.isEmpty {
-                ForEach(ShelfScope.allCases, id: \.self) { scope in
-                    ScopeChip(title: scope.title, isOn: viewModel.scope == scope) {
-                        viewModel.scope = scope
-                    }
-                }
-                .transition(.opacity)
-            }
-            HStack(spacing: 5) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField(searchPlaceholder, text: $viewModel.query)
-                    .textFieldStyle(.plain)
-                    .focused($searchFocused)
-            }
-            .frame(maxWidth: 220)
+            SearchTokenField(viewModel: viewModel, placeholder: searchPlaceholder, focused: $searchFocused)
+                .frame(maxWidth: 360)
             PasteStackButton(viewModel: viewModel)
             DrawerMenu(viewModel: viewModel)
         }
         .padding(.horizontal, Tokens.shelfPadding)
         .padding(.vertical, 8)
-        .animation(.easeOut(duration: 0.12), value: viewModel.query.isEmpty)
+        // Float above the cards so the search suggestions dropdown isn't clipped by them.
+        .zIndex(1)
         .onAppear { searchFocused = true }
     }
 }
@@ -427,34 +415,6 @@ private struct TabPill: View {
     }
 }
 
-private struct ScopeChip: View {
-    let title: String
-    let isOn: Bool
-    let action: () -> Void
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(Tokens.caption)
-                .foregroundStyle(isOn ? .primary : .secondary)
-                .padding(.horizontal, 10)
-                .frame(height: 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(backgroundFill)
-                )
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
-    }
-
-    private var backgroundFill: Color {
-        if isOn { return Color.primary.opacity(0.08) }
-        return isHovering ? Color.primary.opacity(0.05) : .clear
-    }
-}
-
 private struct ShelfItemsRow: View {
     @Bindable var viewModel: ShelfViewModel
 
@@ -490,7 +450,7 @@ private struct ShelfItemsRow: View {
                                 pinboards: viewModel.pinboards,
                                 currentPinboardID: currentPinboardID,
                                 compact: compact,
-                                searchQuery: viewModel.query,
+                                searchQuery: viewModel.searchQuery.text,
                                 onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
                                 onHoverChanged: { hovering in
                                     if hovering {
@@ -589,8 +549,9 @@ private struct ShelfEmptyState: View {
     }
 
     private var headline: String {
-        if !viewModel.query.isEmpty {
-            return "No matches for \"\(viewModel.query)\""
+        if !viewModel.searchQuery.isEmpty {
+            let text = viewModel.searchQuery.text.trimmingCharacters(in: .whitespaces)
+            return text.isEmpty ? "No matches for these filters" : "No matches for \"\(text)\""
         }
         switch viewModel.tab {
         case .history: return "Copy something to get started"
@@ -599,7 +560,7 @@ private struct ShelfEmptyState: View {
     }
 
     private var caption: String? {
-        guard viewModel.query.isEmpty, case .pinboard = viewModel.tab else { return nil }
+        guard viewModel.searchQuery.isEmpty, case .pinboard = viewModel.tab else { return nil }
         return "Drag a card here or use Add to Pinboard"
     }
 
@@ -607,7 +568,7 @@ private struct ShelfEmptyState: View {
     /// captured yet" moment, where a short first-run primer earns its space. Search and
     /// pinboard empties stay minimal.
     private var isFirstRun: Bool {
-        guard viewModel.query.isEmpty else { return false }
+        guard viewModel.searchQuery.isEmpty else { return false }
         if case .history = viewModel.tab { return true }
         return false
     }

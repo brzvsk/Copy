@@ -65,6 +65,22 @@ final class AppCoordinator {
                   !viewModel.creatingItem, !viewModel.showingTips,
                   viewModel.adjustingColorItem == nil,
                   viewModel.inlineRenamingItemID == nil else { return false }
+            // Smart-search dropdown: while it's open its keys drive the dropdown, not the
+            // cards. Backspace on an empty field removes the last pill (dropdown open or not).
+            if viewModel.suggestionsVisible {
+                switch event.keyCode {
+                case 125: viewModel.moveSuggestion(by: 1); return true   // down
+                case 126: viewModel.moveSuggestion(by: -1); return true  // up
+                case 36, 48: viewModel.acceptHighlightedSuggestion(); return true  // return / tab
+                case 53: viewModel.dismissSuggestions(); return true     // escape closes the dropdown
+                default: break
+                }
+            }
+            if event.keyCode == 51,
+               viewModel.searchQuery.text.isEmpty, !viewModel.searchQuery.tokens.isEmpty {
+                viewModel.removeLastToken()
+                return true
+            }
             // ⌘1 → history tab, ⌘2...⌘9 → nth pinboard. Checked before keyCode routing
             // so the digit keys never fall through to other handlers.
             if event.modifierFlags.contains(.command),
@@ -85,7 +101,7 @@ final class AppCoordinator {
             // only while browsing (query empty) — mirrors the space-preview gate below
             // so it never fights type-to-search. ⌘-digit tab switching is handled above
             // and already returns before reaching this point, so it never collides.
-            let allowsDigitQuickPaste = viewModel.query.isEmpty
+            let allowsDigitQuickPaste = viewModel.searchQuery.text.isEmpty
                 && event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
             let pasteVisible: (Int) -> Void = { index in
                 guard viewModel.items.indices.contains(index) else { return }
@@ -101,8 +117,8 @@ final class AppCoordinator {
             case 53: // escape
                 if viewModel.previewShown {
                     viewModel.previewShown = false
-                } else if !viewModel.query.isEmpty {
-                    viewModel.query = ""
+                } else if !viewModel.searchQuery.isEmpty {
+                    viewModel.clearSearch()
                 } else {
                     controller.hide(restoreFocus: true)
                 }
@@ -137,7 +153,7 @@ final class AppCoordinator {
                 && !event.modifierFlags.contains(.shift): // cmd-Z — undo last delete/removal
                 viewModel.undoLast()
                 return true
-            case 49 where viewModel.query.isEmpty: // space previews in browse mode
+            case 49 where viewModel.searchQuery.text.isEmpty: // space previews in browse mode
                 viewModel.previewShown.toggle()
                 return true
             case 18 where allowsDigitQuickPaste: // 1
