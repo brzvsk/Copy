@@ -5,6 +5,29 @@ All notable changes to Copy are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-07-30
+
+Smart search lands, plus a rounder shelf and some paper-cut fixes.
+
+### Added
+
+- Smart search: start typing in the shelf to filter by app, type, time range, favorites, or pinboard. Each pick becomes a filter pill, and you can stack several and add free text, which searches content including text recognized inside images. Right-click a result and choose Show in History to jump straight to it.
+- A Paste Stack button in the shelf header, with its shortcut shown when you hold Command.
+- "View Onboarding Again" in Settings, under About.
+
+### Changed
+
+- The shelf opens ready to browse: the search field no longer grabs focus, and you can just start typing to search.
+- Quick-pasting a card by number moved to Option and a number, so plain numbers type into search. Hold Option to see each card's number.
+- The shelf now animates closed with a gentle fade and slide.
+- Pinboards: click the pinboard you're already on to edit it, and choose any custom color.
+
+### Fixed
+
+- Copied hex colors, with or without a leading #, now show as a color swatch and match the Color filter.
+- Code snippets keep their indentation, and more Swift snippets get syntax colors.
+- Command-Delete clears an active search.
+
 ## [0.1.2] - 2026-07-30
 
 A settings overhaul, plus finer control over what Copy keeps.
