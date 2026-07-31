@@ -71,6 +71,20 @@ final class SyntaxHighlightingTests: XCTestCase {
         XCTAssertEqual(CodeDetector.detect("func add(a: Int, b: Int) -> Int { a + b }"), .swift)
     }
 
+    /// A control-flow snippet with no declaration keyword beyond `let` — the `let`
+    /// binding, an `[.enumCase]` array, and `return true` together must clear the bar.
+    func testControlFlowSnippetDetectsAsSwift() {
+        let code = [
+            "if !viewModel.isSearchFieldFocused,",
+            "   event.modifierFlags.intersection([.command, .option, .control]).isEmpty,",
+            "   let chars = event.charactersIgnoringModifiers, chars.count == 1 {",
+            "    viewModel.updateSearchText(chars)",
+            "    return true",
+            "}",
+        ].joined(separator: "\n")
+        XCTAssertEqual(CodeDetector.detect(code), .swift)
+    }
+
     /// Fix round 2 regression: same shape as above, with a `return` inside the braces
     /// (`return` itself isn't a tracked signal — `func` + `->` alone must be enough).
     func testOneLineFunctionWithReturnDetectsAsSwift() {

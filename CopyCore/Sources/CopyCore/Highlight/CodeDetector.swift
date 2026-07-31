@@ -189,6 +189,11 @@ public enum CodeDetector {
         #"->\s*\w"#,
         #"\bimport\s+(Foundation|SwiftUI|AppKit|UIKit|CopyCore)\b"#,
         #"\b(private|public|internal|fileprivate|open)\s+(func|let|var|struct|enum|class|static)\b"#,
+        // `return true/false/nil` — a return of a literal, common in code and rare in prose.
+        #"\breturn\s+(true|false|nil)\b"#,
+        // An array of leading-dot enum cases, e.g. `[.command, .option]` — Swift-specific
+        // shorthand that essentially never appears in ordinary text.
+        #"\[\s*\.[A-Za-z]"#,
     ]
 
     private static let javascriptSignals = [
