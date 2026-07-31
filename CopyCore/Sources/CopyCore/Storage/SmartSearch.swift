@@ -46,8 +46,8 @@ public enum SearchDate: String, CaseIterable, Equatable, Sendable {
         switch self {
         case .today: return "Today"
         case .yesterday: return "Yesterday"
-        case .last7: return "Last 7 days"
-        case .last30: return "Last 30 days"
+        case .last7: return "Last week"
+        case .last30: return "Last month"
         case .last90: return "Last 3 months"
         }
     }
@@ -227,24 +227,24 @@ public func searchSuggestions(prefix rawPrefix: String,
 
     var out: [Suggestion] = []
 
-    for type in SearchType.allCases where type.label.lowercased().hasPrefix(prefix) && !query.tokens.contains(.type(type)) {
+    for type in SearchType.allCases where matchesPrefix(type.label, prefix) && !query.tokens.contains(.type(type)) {
         out.append(.type(type))
     }
-    if "favorites".hasPrefix(prefix) && !hasFavorites {
+    if matchesPrefix("Favorites", prefix) && !hasFavorites {
         out.append(.favorites)
     }
     for pinboard in pinboards {
-        guard let id = pinboard.id, pinboard.name.lowercased().hasPrefix(prefix),
+        guard let id = pinboard.id, matchesPrefix(pinboard.name, prefix),
               !query.tokens.contains(.pinboard(id: id, name: pinboard.name)) else { continue }
         out.append(.pinboard(id: id, name: pinboard.name))
     }
     if !hasApp {
-        for app in apps where app.name.lowercased().hasPrefix(prefix) {
+        for app in apps where matchesPrefix(app.name, prefix) {
             out.append(.app(bundleID: app.bundleID, name: app.name))
         }
     }
     if !hasDate {
-        for date in SearchDate.allCases where date.label.lowercased().hasPrefix(prefix) {
+        for date in SearchDate.allCases where matchesPrefix(date.label, prefix) {
             out.append(.date(date))
         }
     }
@@ -253,4 +253,12 @@ public func searchSuggestions(prefix rawPrefix: String,
         .sorted { ($0.element.priority, $0.offset) < ($1.element.priority, $1.offset) }
         .map(\.element)
     return Array(ranked.prefix(limit))
+}
+
+/// Case-insensitive prefix match on the whole label OR on any of its words, so "week" finds
+/// "Last week" and "safari" finds "Safari" — not just matches anchored at the very start.
+private func matchesPrefix(_ label: String, _ prefix: String) -> Bool {
+    let lowered = label.lowercased()
+    if lowered.hasPrefix(prefix) { return true }
+    return lowered.split(separator: " ").contains { $0.hasPrefix(prefix) }
 }

@@ -57,6 +57,15 @@ final class SmartSearchTests: XCTestCase {
         XCTAssertFalse(suggestions.contains { $0.appBundleID != nil })
     }
 
+    func testWordPrefixMatchesInteriorWords() {
+        // "week"/"month" should find the Last-week/Last-month filters, not just "last …".
+        XCTAssertTrue(searchSuggestions(prefix: "week", apps: [], pinboards: [], query: SearchQuery())
+            .contains(.date(.last7)))
+        XCTAssertTrue(searchSuggestions(prefix: "month", apps: [], pinboards: [], query: SearchQuery())
+            .contains(.date(.last30)))
+        XCTAssertEqual(SearchDate.last7.label, "Last week")
+    }
+
     func testEmptyPrefixYieldsNoSuggestions() {
         let apps = [AppUsage(bundleID: "com.safari", name: "Safari", count: 9)]
         XCTAssertTrue(searchSuggestions(prefix: "  ", apps: apps, pinboards: [], query: SearchQuery()).isEmpty)

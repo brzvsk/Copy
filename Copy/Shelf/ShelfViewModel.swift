@@ -192,7 +192,12 @@ final class ShelfViewModel {
     /// Sets the trailing free text and recomputes suggestions + results. Bound to the token
     /// field's `TextField`.
     func updateSearchText(_ text: String) {
+        let wasEmpty = searchQuery.text.isEmpty
         searchQuery.text = text
+        // Refresh the app list at the start of each search so a just-copied app appears.
+        if wasEmpty, !text.isEmpty {
+            cachedApps = (try? store.distinctApps()) ?? []
+        }
         recomputeSuggestions()
         refresh()
     }
@@ -263,9 +268,6 @@ final class ShelfViewModel {
     }
 
     private func recomputeSuggestions() {
-        if cachedApps.isEmpty, !searchQuery.text.isEmpty {
-            cachedApps = (try? store.distinctApps()) ?? []
-        }
         suggestions = searchSuggestions(prefix: searchQuery.text, apps: cachedApps,
                                         pinboards: pinboards, query: searchQuery)
         highlightedSuggestion = 0
