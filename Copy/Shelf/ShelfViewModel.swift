@@ -67,6 +67,9 @@ final class ShelfViewModel {
     /// the ⌘-number hints on pinboard tabs. Driven by a flags-changed monitor in
     /// `ShelfPanelController` (wired in `AppCoordinator`).
     var commandHeld = false
+    /// True while ⌥ is held with the shelf open; reveals the ⌥-digit paste number on each
+    /// card. Driven by the same flags-changed monitor as `commandHeld`.
+    var optionHeld = false
     /// The uuid of the card the pointer is currently over, so a force-click can act on
     /// exactly the card under the cursor (set by `ItemCardView`'s hover callback).
     var hoveredItemID: String?

@@ -19,7 +19,7 @@ struct ShortcutsSettings: View {
                 KeyboardShortcuts.Recorder("Quick Paste Latest:", name: .quickPasteLatest)
                 KeyboardShortcuts.Recorder("Next Pinboard:", name: .nextPinboard)
             } footer: {
-                Text("Quick Paste Latest pastes your most recent item into the current app without opening Copy. While the shelf is open, press a number key to paste that card.")
+                Text("Quick Paste Latest pastes your most recent item into the current app without opening Copy. While the shelf is open, hold Option and press a number to paste that card.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

@@ -41,7 +41,57 @@ struct SearchTokenField: View {
             if viewModel.suggestionsVisible {
                 SuggestionsDropdown(viewModel: viewModel)
                     .offset(y: 36)
+            } else if focused && viewModel.searchQuery.text.isEmpty {
+                // Discovery: what you can type. Informational only (no keyboard capture), so
+                // ⏎ still pastes the selected card while this is showing.
+                SearchHintPanel()
+                    .offset(y: 36)
             }
+        }
+    }
+}
+
+/// Shown when the empty search field is focused: a compact legend of the filter categories
+/// so users discover they can filter by app, type, time, favorites, and pinboards, not just
+/// search text.
+private struct SearchHintPanel: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("SEARCH OR FILTER")
+                .font(.system(size: 9.5, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .tracking(0.5)
+            row("textformat", "Type", "Text, Link, Image, File, Color")
+            row("calendar", "Time", "Today, Last week, Last month…")
+            row("star", "Favorites", "Only starred items")
+            row("app.dashed", "App", "Name an app you copied from")
+            row("pin", "Pinboard", "Name one of your boards")
+        }
+        .padding(11)
+        .frame(width: 274, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.regularMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
+    }
+
+    private func row(_ icon: String, _ label: String, _ examples: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 62, alignment: .leading)
+            Text(examples)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 }

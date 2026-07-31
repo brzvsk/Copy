@@ -97,12 +97,13 @@ final class AppCoordinator {
                 }
                 return true
             }
-            // Bare digit 1-9 (no modifiers) pastes the Nth visible card directly, but
-            // only while browsing (query empty) — mirrors the space-preview gate below
-            // so it never fights type-to-search. ⌘-digit tab switching is handled above
-            // and already returns before reaching this point, so it never collides.
-            let allowsDigitQuickPaste = viewModel.searchQuery.text.isEmpty
-                && event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
+            // ⌥-digit 1-9 pastes the Nth visible card directly. It's on Option (not a bare
+            // digit) so plain numbers type into the always-focused search field; holding
+            // Option reveals the paste number on each card (`optionHeld`). ⌘-digit tab
+            // switching is handled above and returns before here, so it never collides.
+            let allowsDigitQuickPaste = event.modifierFlags.contains(.option)
+                && !event.modifierFlags.contains(.command)
+                && !event.modifierFlags.contains(.control)
             let pasteVisible: (Int) -> Void = { index in
                 guard viewModel.items.indices.contains(index) else { return }
                 viewModel.requestPaste(viewModel.items[index], plain: false)
@@ -257,6 +258,7 @@ final class AppCoordinator {
         }
         controller.onFlagsChanged = { [weak self] event in
             self?.shelfViewModel.commandHeld = event.modifierFlags.contains(.command)
+            self?.shelfViewModel.optionHeld = event.modifierFlags.contains(.option)
         }
         controller.onForceClick = { [weak self] in
             // Force-click acts on the card under the cursor: editable kinds (text/rich

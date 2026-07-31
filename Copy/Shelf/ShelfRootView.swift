@@ -123,7 +123,7 @@ private struct ShelfHeader: View {
            let name = viewModel.pinboards.first(where: { $0.id == id })?.name {
             return "Search \(name)"
         }
-        return "Search"
+        return "Search or filter…"
     }
 
     var body: some View {
@@ -452,6 +452,7 @@ private struct ShelfItemsRow: View {
                                 compact: compact,
                                 searchQuery: viewModel.searchQuery.text,
                                 isFlashing: viewModel.flashItemID == item.uuid,
+                                pasteNumber: (viewModel.optionHeld && index < 9) ? index + 1 : nil,
                                 canShowInHistory: !viewModel.searchQuery.isEmpty || currentPinboardID != nil,
                                 onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
                                 onHoverChanged: { hovering in
