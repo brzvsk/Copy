@@ -42,6 +42,8 @@ struct ShelfRootView: View {
                 PermissionBanner(onDismiss: { permissionBannerDismissed = true })
             }
             ShelfHeader(viewModel: viewModel)
+                // Above the cards so the search suggestions dropdown floats over them.
+                .zIndex(1)
             Divider()
             ShelfItemsRow(viewModel: viewModel)
             if showsLegend {
@@ -137,8 +139,6 @@ private struct ShelfHeader: View {
         }
         .padding(.horizontal, Tokens.shelfPadding)
         .padding(.vertical, 8)
-        // Float above the cards so the search suggestions dropdown isn't clipped by them.
-        .zIndex(1)
         .onAppear { searchFocused = true }
     }
 }

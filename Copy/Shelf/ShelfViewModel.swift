@@ -268,6 +268,11 @@ final class ShelfViewModel {
     }
 
     private func recomputeSuggestions() {
+        // Guarantee the app list is loaded before matching (the search-start reload can be
+        // missed, e.g. if the field wasn't empty first), so app suggestions always appear.
+        if cachedApps.isEmpty {
+            cachedApps = (try? store.distinctApps()) ?? []
+        }
         suggestions = searchSuggestions(prefix: searchQuery.text, apps: cachedApps,
                                         pinboards: pinboards, query: searchQuery)
         highlightedSuggestion = 0
