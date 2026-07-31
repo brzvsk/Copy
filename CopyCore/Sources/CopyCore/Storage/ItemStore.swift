@@ -250,9 +250,10 @@ public struct ItemStore {
                 ORDER BY c DESC, n ASC
                 """).compactMap { row in
                 guard let bundleID: String = row["b"] else { return nil }
-                let name: String = row["n"] ?? bundleID
+                let rawName: String = row["n"] ?? bundleID
+                let cleaned = cleanedName(rawName)
                 let count: Int = row["c"]
-                return AppUsage(bundleID: bundleID, name: name, count: count)
+                return AppUsage(bundleID: bundleID, name: cleaned.isEmpty ? bundleID : cleaned, count: count)
             }
         }
     }

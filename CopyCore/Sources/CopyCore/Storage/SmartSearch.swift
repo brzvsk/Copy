@@ -257,8 +257,17 @@ public func searchSuggestions(prefix rawPrefix: String,
 
 /// Case-insensitive prefix match on the whole label OR on any of its words, so "week" finds
 /// "Last week" and "safari" finds "Safari" — not just matches anchored at the very start.
+/// The label is cleaned first, so an invisible leading mark (e.g. the U+200E macOS prepends
+/// to "WhatsApp") doesn't break the match.
 private func matchesPrefix(_ label: String, _ prefix: String) -> Bool {
-    let lowered = label.lowercased()
+    let lowered = cleanedName(label).lowercased()
     if lowered.hasPrefix(prefix) { return true }
     return lowered.split(separator: " ").contains { $0.hasPrefix(prefix) }
+}
+
+/// Strips Unicode format characters (macOS prepends the U+200E left-to-right mark to some
+/// app names, e.g. WhatsApp) and trims whitespace, so names match and display cleanly.
+func cleanedName(_ text: String) -> String {
+    let scalars = text.unicodeScalars.filter { $0.properties.generalCategory != .format }
+    return String(String.UnicodeScalarView(scalars)).trimmingCharacters(in: .whitespacesAndNewlines)
 }

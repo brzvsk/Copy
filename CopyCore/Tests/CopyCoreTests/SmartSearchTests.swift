@@ -66,6 +66,14 @@ final class SmartSearchTests: XCTestCase {
         XCTAssertEqual(SearchDate.last7.label, "Last week")
     }
 
+    func testMatchesAppNameWithLeadingFormatMark() {
+        // macOS prepends U+200E to some app names (e.g. WhatsApp); it must not break matching.
+        XCTAssertEqual(cleanedName("\u{200E}WhatsApp"), "WhatsApp")
+        let apps = [AppUsage(bundleID: "net.whatsapp.WhatsApp", name: "\u{200E}WhatsApp", count: 3)]
+        let suggestions = searchSuggestions(prefix: "whats", apps: apps, pinboards: [], query: SearchQuery())
+        XCTAssertTrue(suggestions.contains { $0.appBundleID == "net.whatsapp.WhatsApp" })
+    }
+
     func testEmptyPrefixYieldsNoSuggestions() {
         let apps = [AppUsage(bundleID: "com.safari", name: "Safari", count: 9)]
         XCTAssertTrue(searchSuggestions(prefix: "  ", apps: apps, pinboards: [], query: SearchQuery()).isEmpty)
