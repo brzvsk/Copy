@@ -43,6 +43,12 @@ final class ShelfViewModel {
     var suggestions: [Suggestion] = []
     var highlightedSuggestion = 0
     var suggestionsVisible: Bool { !suggestions.isEmpty }
+    /// Mirrors the search field's focus (synced by `ShelfHeader`). The global key handler
+    /// reads it to route type-to-search: a letter typed while this is false begins a search.
+    var isSearchFieldFocused = false
+    /// Set by the key handler to ask `ShelfHeader` to move focus into the search field;
+    /// the view flips it back to false after applying.
+    var focusSearchRequested = false
     /// Distinct history apps for app suggestions, loaded once per search session and
     /// cleared in `clearTransientState`.
     @ObservationIgnored private var cachedApps: [AppUsage] = []
@@ -295,6 +301,8 @@ final class ShelfViewModel {
         if !searchQuery.isEmpty { searchQuery = SearchQuery() }
         suggestions = []
         cachedApps = []
+        isSearchFieldFocused = false
+        focusSearchRequested = false
     }
 
     /// Called by `AppCoordinator.toggleShelf()` right before showing the panel — see

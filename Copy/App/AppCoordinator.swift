@@ -65,6 +65,16 @@ final class AppCoordinator {
                   !viewModel.creatingItem, !viewModel.showingTips,
                   viewModel.adjustingColorItem == nil,
                   viewModel.inlineRenamingItemID == nil else { return false }
+            // Type-to-search: the search field isn't auto-focused, so a letter typed while
+            // browsing begins a search and moves focus into the field.
+            if !viewModel.isSearchFieldFocused,
+               event.modifierFlags.intersection([.command, .option, .control]).isEmpty,
+               let chars = event.charactersIgnoringModifiers, chars.count == 1,
+               let first = chars.first, first.isLetter {
+                viewModel.updateSearchText(viewModel.searchQuery.text + (event.characters ?? chars))
+                viewModel.focusSearchRequested = true
+                return true
+            }
             // Smart-search dropdown: while it's open its keys drive the dropdown, not the
             // cards. Backspace on an empty field removes the last pill (dropdown open or not).
             if viewModel.suggestionsVisible {

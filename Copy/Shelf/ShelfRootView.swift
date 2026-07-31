@@ -139,7 +139,16 @@ private struct ShelfHeader: View {
         }
         .padding(.horizontal, Tokens.shelfPadding)
         .padding(.vertical, 8)
-        .onAppear { searchFocused = true }
+        // Not auto-focused on open — the shelf opens in browse mode. Keep the view model in
+        // sync with the field's focus, and honor a focus request from the key handler
+        // (type-to-search).
+        .onChange(of: searchFocused) { _, focused in viewModel.isSearchFieldFocused = focused }
+        .onChange(of: viewModel.focusSearchRequested) { _, requested in
+            if requested {
+                searchFocused = true
+                viewModel.focusSearchRequested = false
+            }
+        }
     }
 }
 
