@@ -134,6 +134,12 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
             panel.animator().setFrame(frame, display: true)
         }
         installKeyMonitor()
+        // The shelf opens in browse mode: keep the search field from auto-becoming first
+        // responder when the panel keys up (AppKit picks the first text field otherwise).
+        // Clear it now and again after SwiftUI's first layout pass, which can set it late.
+        // Type-to-search (the global key monitor) still works with nothing focused.
+        panel.makeFirstResponder(nil)
+        DispatchQueue.main.async { [weak panel] in panel?.makeFirstResponder(nil) }
     }
 
     func hide(restoreFocus: Bool) {
