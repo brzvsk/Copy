@@ -451,6 +451,8 @@ private struct ShelfItemsRow: View {
                                 currentPinboardID: currentPinboardID,
                                 compact: compact,
                                 searchQuery: viewModel.searchQuery.text,
+                                isFlashing: viewModel.flashItemID == item.uuid,
+                                canShowInHistory: !viewModel.searchQuery.isEmpty || currentPinboardID != nil,
                                 onClick: { modifiers in viewModel.handleCardClick(item, modifiers: modifiers) },
                                 onHoverChanged: { hovering in
                                     if hovering {
@@ -477,6 +479,7 @@ private struct ShelfItemsRow: View {
                                 onCopyText: { viewModel.copyText(item) },
                                 onQuickLook: { viewModel.quickLook(item) },
                                 onOpen: { viewModel.open(item) },
+                                onShowInHistory: { viewModel.showInHistory(item) },
                                 onRotate: { viewModel.rotateImage(item, clockwise: $0) },
                                 onDelete: { viewModel.delete(item) },
                                 dragProvider: { viewModel.dragProvider(for: item) }

@@ -46,6 +46,12 @@ final class ShelfViewModel {
     /// Distinct history apps for app suggestions, loaded once per search session and
     /// cleared in `clearTransientState`.
     @ObservationIgnored private var cachedApps: [AppUsage] = []
+    /// The uuid of a card to briefly flash after a "Show in History" jump (`ItemCardView`
+    /// reads it). Cleared ~1s later.
+    var flashItemID: String?
+    /// Set by `showInHistory` before `refresh()`; consumed by `apply(_:)` once the History
+    /// observation delivers the item, so the select-and-scroll happens after the card exists.
+    @ObservationIgnored private var pendingJumpItemID: String?
     var tab: ShelfTab = .history {
         didSet { if tab != oldValue { refresh() } }
     }
@@ -230,6 +236,27 @@ final class ShelfViewModel {
         searchQuery = SearchQuery()
         suggestions = []
         refresh()
+    }
+
+    /// "Show in History": clears the search, switches to the History tab, and (once the
+    /// observation delivers) selects the item so the existing scroll-to animation centers
+    /// on it, with a brief flash. Only reaches items within the recent History window.
+    func showInHistory(_ item: ClipItem) {
+        searchQuery = SearchQuery()
+        suggestions = []
+        pendingJumpItemID = item.uuid
+        if tab != .history {
+            tab = .history          // didSet → refresh()
+        } else {
+            refresh()
+        }
+    }
+
+    private func flashItem(_ uuid: String) {
+        flashItemID = uuid
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { [weak self] in
+            if self?.flashItemID == uuid { self?.flashItemID = nil }
+        }
     }
 
     private func recomputeSuggestions() {
@@ -771,6 +798,14 @@ final class ShelfViewModel {
         favoritesCount = favorites.count
         let order = items.map(\.uuid)
         selection.prune(existing: Set(order), order: order)
+        if let jump = pendingJumpItemID {
+            pendingJumpItemID = nil
+            if order.contains(jump) {
+                selection.click(jump)   // sets primary → ShelfRootView's onChange animates the scroll
+                flashItem(jump)
+                return
+            }
+        }
         if selection.selected.isEmpty, let first = items.first { selection.click(first.uuid) }
     }
 

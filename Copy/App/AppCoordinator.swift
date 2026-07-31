@@ -153,6 +153,14 @@ final class AppCoordinator {
                 && !event.modifierFlags.contains(.shift): // cmd-Z — undo last delete/removal
                 viewModel.undoLast()
                 return true
+            case 5 where event.modifierFlags.contains(.command)
+                && !event.modifierFlags.contains(.shift)
+                && !event.modifierFlags.contains(.option): // cmd-G — show selected item in history
+                let onPinboard = { if case .pinboard = viewModel.tab { return true } else { return false } }()
+                if (!viewModel.searchQuery.isEmpty || onPinboard), let item = viewModel.primaryItem {
+                    viewModel.showInHistory(item)
+                }
+                return true
             case 49 where viewModel.searchQuery.text.isEmpty: // space previews in browse mode
                 viewModel.previewShown.toggle()
                 return true

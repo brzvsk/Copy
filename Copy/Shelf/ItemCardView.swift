@@ -17,6 +17,11 @@ struct ItemCardView: View {
     /// The active search text, used to show and highlight the matched OCR snippet under
     /// an image result. Empty when not searching.
     var searchQuery: String = ""
+    /// Briefly true after a "Show in History" jump lands on this card — draws an accent ring.
+    var isFlashing: Bool = false
+    /// Whether the "Show in History" context item applies (a search/filter is active, or the
+    /// card is on a pinboard tab) — hidden in the plain History browse where it's a no-op.
+    var canShowInHistory: Bool = false
     /// A card click always fires immediately here (select), and pasting-on-click is
     /// decided in `ShelfViewModel.handleCardClick` from the selection state — see
     /// `CardClickGesture` for why there is no separate double-click gesture.
@@ -40,6 +45,7 @@ struct ItemCardView: View {
     let onCopyText: () -> Void
     let onQuickLook: () -> Void
     let onOpen: () -> Void
+    let onShowInHistory: () -> Void
     let onRotate: (Bool) -> Void
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
@@ -125,6 +131,14 @@ struct ItemCardView: View {
                 .stroke(isSelected ? Color.accentColor : Color(nsColor: .separatorColor),
                         lineWidth: isSelected ? 2 : 1)
         )
+        // "Show in History" flash: an accent ring that fades in then out as `isFlashing`
+        // toggles (set on jump, cleared ~1s later by the view model).
+        .overlay(
+            RoundedRectangle(cornerRadius: Tokens.cardRadius, style: .continuous)
+                .stroke(Color.accentColor, lineWidth: 3)
+                .opacity(isFlashing ? 1 : 0)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.4), value: isFlashing)
+        )
         .overlay(alignment: .topTrailing) {
             // On hover, surface the two most-buried card actions (favorite, delete) as a
             // floating pill so they're discoverable without opening the context menu.
@@ -162,6 +176,11 @@ struct ItemCardView: View {
         // never animates content changes; skipped under Reduce Motion.
         .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.72), value: isSelected)
         .contextMenu {
+            if canShowInHistory {
+                Button("Show in History", action: onShowInHistory)
+                    .keyboardShortcut("g", modifiers: .command)
+                Divider()
+            }
             Button("Paste", action: onPaste)
             Button("Paste as Plain Text", action: onPastePlain)
             if item.kind == .link || item.kind == .file {
