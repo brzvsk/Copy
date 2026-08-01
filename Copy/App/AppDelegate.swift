@@ -241,12 +241,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Flips the demo-mode flag and relaunches, so the app comes back up against the
     /// isolated demo (or real) database. DEBUG-only — never compiled into release.
     @objc private func toggleDemoMode() {
-        UserDefaults.standard.set(!coordinator.isDemoMode, forKey: AppCoordinator.demoModeKey)
-        let config = NSWorkspace.OpenConfiguration()
-        config.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { _, _ in
-            DispatchQueue.main.async { NSApp.terminate(nil) }
-        }
+        let defaults = UserDefaults.standard
+        defaults.set(!coordinator.isDemoMode, forKey: AppCoordinator.demoModeKey)
+        defaults.synchronize()   // flush the flag before the fresh instance reads it back
+        // Relaunch via a detached shell that first waits for THIS process to exit, then
+        // reopens the app. `openApplication(createsNewApplicationInstance:)` races the
+        // terminate — macOS keeps the still-running instance in front, so the mode never
+        // actually changes. Waiting for our PID to die guarantees one clean new instance.
+        let path = Bundle.main.bundlePath
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.1; done; open \"\(path)\""]
+        try? task.run()
+        NSApp.terminate(nil)
     }
     #endif
 
