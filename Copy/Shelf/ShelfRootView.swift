@@ -387,44 +387,49 @@ private struct TabPill: View {
     }
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                if let emoji, !emoji.isEmpty {
-                    Text(emoji)
-                } else if showsSymbol {
-                    Image(systemName: symbol)
-                }
-                Text(label)
-                if let tintColor {
-                    Circle()
-                        .fill(tintColor)
-                        .frame(width: 6, height: 6)
-                        .accessibilityHidden(true)
-                }
-                if let shortcutHint {
-                    Text("⌘\(shortcutHint)")
-                        .font(.system(size: 9, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 1)
-                        .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.6)))
-                        .accessibilityHidden(true)
-                }
+        HStack(spacing: 4) {
+            if let emoji, !emoji.isEmpty {
+                Text(emoji)
+            } else if showsSymbol {
+                Image(systemName: symbol)
             }
-            .font(Tokens.caption)
-            .foregroundStyle(isSelected ? .primary : .secondary)
-            .padding(.horizontal, 8)
-            .frame(height: 24)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(backgroundFill)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 1.5)
-            )
+            Text(label)
+            if let tintColor {
+                Circle()
+                    .fill(tintColor)
+                    .frame(width: 6, height: 6)
+                    .accessibilityHidden(true)
+            }
+            if let shortcutHint {
+                Text("⌘\(shortcutHint)")
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color(nsColor: .quaternaryLabelColor).opacity(0.6)))
+                    .accessibilityHidden(true)
+            }
         }
-        .buttonStyle(.plain)
+        .font(Tokens.caption)
+        .foregroundStyle(isSelected ? .primary : .secondary)
+        .padding(.horizontal, 8)
+        .frame(height: 24)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(backgroundFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 1.5)
+        )
+        // A plain tappable surface, NOT a Button, so the `.onDrop` each tab carries in
+        // `ShelfTabs` is a reliable drop target. A SwiftUI `Button` on macOS fights the
+        // drag session for the mouse-up, so dragging a card onto a pinboard landed only
+        // intermittently; a tap gesture on a plain view coexists with `.onDrop` cleanly.
+        .contentShape(Rectangle())
+        .onTapGesture { action() }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
         .onHover { isHovering = $0 }
     }
 
