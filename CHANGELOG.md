@@ -5,6 +5,23 @@ All notable changes to Copy are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-08-01
+
+Drag a card onto a pinboard and it just works now, plus a fix so updates install.
+
+### Added
+
+- An unpin button appears on card hover while you're viewing a pinboard, to remove the card from that pinboard without opening the menu.
+
+### Changed
+
+- Dragging a card now shows a compact chip under the cursor instead of a full-size card, so the pinboard tabs you're aiming for stay visible, and the target tab highlights clearly.
+
+### Fixed
+
+- Dragging a card onto a pinboard reliably files it there now. It previously did nothing, or dropped the text into whatever app was behind the shelf.
+- Automatic updates install correctly again. The update feed pointed at the wrong download, so the app reported new versions as improperly signed.
+
 ## [0.1.3] - 2026-07-30
 
 Smart search lands, plus a rounder shelf and some paper-cut fixes.

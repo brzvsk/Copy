@@ -165,6 +165,9 @@ struct ItemCardView: View {
             if isHovering && !isInlineRenaming {
                 CardHoverActions(isFavorite: item.isFavorite,
                                  onToggleFavorite: onToggleFavorite,
+                                 // Only offer unpin while viewing a pinboard, where the card
+                                 // actually belongs to one it can be removed from.
+                                 onUnpin: currentPinboardID != nil ? onRemoveFromPinboard : nil,
                                  onDelete: onDelete)
                     .padding(5)
                     .transition(.opacity)
@@ -649,11 +652,14 @@ private struct CardClickGesture: ViewModifier {
 
 /// The floating action pill shown on card hover (see `ItemCardView`'s top-trailing
 /// overlay). Surfaces favorite and delete, the two high-value actions otherwise hidden
-/// in the right-click menu. Kept to two buttons so it stays a quiet affordance rather
-/// than a toolbar; pinboards and the rest remain in the context menu and via drag.
+/// in the right-click menu, plus unpin while viewing a pinboard. Stays a quiet affordance
+/// rather than a toolbar; the rest remains in the context menu and via drag.
 private struct CardHoverActions: View {
     let isFavorite: Bool
     let onToggleFavorite: () -> Void
+    /// Removes the card from the pinboard currently being viewed. `nil` (and so hidden)
+    /// outside a pinboard, where there's nothing to unpin from.
+    let onUnpin: (() -> Void)?
     let onDelete: () -> Void
 
     var body: some View {
@@ -663,6 +669,11 @@ private struct CardHoverActions: View {
                        tint: isFavorite ? .yellow : .secondary,
                        help: isFavorite ? "Remove from favorites" : "Favorite",
                        action: onToggleFavorite)
+            if let onUnpin {
+                IconButton(systemName: "pin.slash",
+                           fontSize: 11, size: CGSize(width: 22, height: 22),
+                           help: "Remove from pinboard", action: onUnpin)
+            }
             IconButton(systemName: "trash",
                        fontSize: 11, size: CGSize(width: 22, height: 22),
                        help: "Delete", action: onDelete)
