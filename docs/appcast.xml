@@ -8,7 +8,7 @@
             <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure
-                url="https://github.com/tarikbc/Copy/releases/download/v0.1.3/Copy-0.1.3.dmg"
+                url="https://github.com/tarikbc/Copy/releases/download/v0.1.3/Copy-0.1.3.zip"
                 sparkle:edSignature="bllxTvSov9CrXK2gr+AE3BLrzmgMBTYSt/WqcKZDIQX7AIyLRLNrueOeVNqC06v9SH5B9res7QNtBjwYeFpMBA=="
                 length="5107226"
                 type="application/octet-stream"
@@ -21,7 +21,7 @@
             <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure
-                url="https://github.com/tarikbc/Copy/releases/download/v0.1.2/Copy-0.1.2.dmg"
+                url="https://github.com/tarikbc/Copy/releases/download/v0.1.2/Copy-0.1.2.zip"
                 sparkle:edSignature="vjKWVIBuvzK064OIkGbg+ur2vUqrFRWYksvTQE/LRJMuE3uOfqjPI1aR/9BUdJ4vpyDvoOtGPp/CFlFKd2JoCA=="
                 length="4982923"
                 type="application/octet-stream"
@@ -34,7 +34,7 @@
             <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure
-                url="https://github.com/tarikbc/Copy/releases/download/v0.1.1/Copy-0.1.1.dmg"
+                url="https://github.com/tarikbc/Copy/releases/download/v0.1.1/Copy-0.1.1.zip"
                 sparkle:edSignature="6LfRFi3q3W5g1UKRrIG2ourb3T4SHHWI+NWuzhl7lQxwtqZzOC4unyiUb+vImc0hu3bzE1bIFl7C2sDEUhpHAQ=="
                 length="4885693"
                 type="application/octet-stream"
@@ -47,7 +47,7 @@
             <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure
-                url="https://github.com/tarikbc/Copy/releases/download/v0.1.0/Copy-0.1.0.dmg"
+                url="https://github.com/tarikbc/Copy/releases/download/v0.1.0/Copy-0.1.0.zip"
                 sparkle:edSignature="nZ0n6aFJMv+OoBm2GL0nfhmQognVBUW5byAXbC/LGTlyMbWEuyRr0sxfGvDvgK6nrisvfsfCvbsRbZIRREEeCg=="
                 length="4795179"
                 type="application/octet-stream"

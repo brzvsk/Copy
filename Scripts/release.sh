@@ -366,7 +366,12 @@ fi
 
 BUILD_NUMBER="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP_PATH/Contents/Info.plist")"
 PUB_DATE="$(date -u "+%a, %d %b %Y %H:%M:%S +0000")"
-DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/Copy-${VERSION}.dmg"
+# The Sparkle enclosure MUST be the .zip we just signed with sign_update, NOT the
+# .dmg. sign_update's edSignature/length are computed over the zip; pointing the
+# enclosure at the dmg makes Sparkle validate the zip's signature against the dmg's
+# bytes and fail with "The update is improperly signed." The dmg stays the human
+# download link on the website (docs/index.html), not the auto-update enclosure.
+DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/Copy-${VERSION}.zip"
 
 APPCAST_ITEM="$(cat <<ITEM
         <item>
