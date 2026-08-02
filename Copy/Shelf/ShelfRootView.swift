@@ -338,6 +338,13 @@ private struct ShelfTabs: View {
                 }
             }
         }
+        // A real (near-invisible) backing view across the whole tab strip so a card
+        // dropped onto a pinboard tab routes to THIS panel's drop handlers instead of
+        // passing through the glass surface to the window behind — which was delivering
+        // the card's text to the app underneath and pasting it there. Mirrors the same
+        // fix on the card row; a `contentShape`/`.onDrop` alone doesn't create the
+        // hit-testable NSView that AppKit's drag-destination routing needs.
+        .background(Color.black.opacity(0.001))
         .onChange(of: createPresented) { _, isPresented in
             viewModel.pinboardPopoverShown = isPresented || renamingPinboard != nil
         }
