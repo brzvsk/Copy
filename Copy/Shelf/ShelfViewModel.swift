@@ -79,6 +79,10 @@ final class ShelfViewModel {
     /// The uuid of the card the pointer is currently over, so a force-click can act on
     /// exactly the card under the cursor (set by `ItemCardView`'s hover callback).
     var hoveredItemID: String?
+    /// The pinboard tab currently under an in-flight card drag, so that tab highlights.
+    /// Driven by the shelf-level drop delegate (see `PinboardDropDelegate`) rather than a
+    /// per-tab `.onDrop`, which never established a working drop region on the small pills.
+    var dropTargetedPinboardID: Int64?
     /// Set by a force-click (which fires before the click's own mouse-up resolves) so the
     /// release doesn't then paste the card. Consumed by the next `handleCardClick`.
     @ObservationIgnored var suppressNextCardPaste = false

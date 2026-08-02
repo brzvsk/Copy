@@ -7,6 +7,9 @@ import UniformTypeIdentifiers
 struct ShelfRootView: View {
     @Bindable var viewModel: ShelfViewModel
     @State private var permissionBannerDismissed = false
+    /// Pinboard tab frames (id → frame in the "shelfRoot" space), published by each tab and
+    /// consumed by the shelf-level `PinboardDropDelegate` to route a drop to the right tab.
+    @State private var pinboardTabFrames: [Int64: CGRect] = [:]
     /// Persisted so the keyboard legend, once dismissed, stays gone. Read once here;
     /// `dismissLegend()` writes it back. Defaults to shown (false) for new users.
     @State private var legendDismissed = UserDefaults.standard.bool(forKey: Self.legendDismissedKey)
@@ -53,6 +56,23 @@ struct ShelfRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .glassSurface(corners: .top(12))
+        // Card → pinboard filing is handled here, at the shelf root, because a per-tab
+        // `.onDrop` never establishes a working drop region on the small pills inside this
+        // borderless non-activating glass panel (a shelf-level drop, by contrast, fires
+        // reliably). The delegate maps the drop location to the tab under it using each
+        // tab's frame, collected via PinboardTabFramesKey below.
+        .coordinateSpace(name: "shelfRoot")
+        .onPreferenceChange(PinboardTabFramesKey.self) { pinboardTabFrames = $0 }
+        .onDrop(of: [UTType.copyItem], delegate: PinboardDropDelegate(
+            tabFrames: { pinboardTabFrames },
+            onTargetChange: { viewModel.dropTargetedPinboardID = $0 },
+            onFile: { id, uuids in
+                guard let pinboard = viewModel.pinboards.first(where: { $0.id == id }) else { return }
+                viewModel.dropItems(uuids: uuids, toPinboard: pinboard)
+                // Open the pinboard we just filed into, so the drop's result shows at once.
+                viewModel.tab = .pinboard(id)
+            }
+        ))
         // Pro-dark: force the marketing electric-blue accent regardless of the system
         // accent color. The forced dark appearance itself is set on the panel window in
         // `ShelfPanelController`, which cascades to this hosted content.
@@ -253,7 +273,6 @@ private struct ShelfTabs: View {
     @Bindable var viewModel: ShelfViewModel
     @State private var createPresented = false
     @State private var renamingPinboard: Pinboard?
-    @State private var dropTargetedPinboardID: Int64?
 
     var body: some View {
         HStack(spacing: 4) {
@@ -272,7 +291,7 @@ private struct ShelfTabs: View {
                     tint: pinboard.tint,
                     showsSymbol: false,
                     isSelected: pinboard.id.map { viewModel.tab == .pinboard($0) } ?? false,
-                    isDropTargeted: pinboard.id != nil && dropTargetedPinboardID == pinboard.id,
+                    isDropTargeted: pinboard.id != nil && viewModel.dropTargetedPinboardID == pinboard.id,
                     // ⌘1 is History, so pinboards start at ⌘2; only the first eight get a
                     // hint (⌘9 is the ceiling of the number-key routing).
                     shortcutHint: (viewModel.commandHeld && offset + 2 <= 9) ? "\(offset + 2)" : nil,
@@ -307,26 +326,18 @@ private struct ShelfTabs: View {
                         renamingPinboard = nil
                     }
                 }
-                .onDrop(of: [UTType.copyItem], isTargeted: Binding(
-                    get: { pinboard.id != nil && dropTargetedPinboardID == pinboard.id },
-                    set: { dropTargetedPinboardID = $0 ? pinboard.id : nil }
-                )) { providers in
-                    guard let provider = providers.first else { return false }
-                    provider.loadDataRepresentation(forTypeIdentifier: UTType.copyItem.identifier) { data, _ in
-                        guard let data, let payload = String(data: data, encoding: .utf8) else { return }
-                        // Single-card drags carry one uuid; multi-selection drags carry
-                        // every selected uuid newline-joined (see `ShelfViewModel.multiDragProvider()`).
-                        let uuids = payload.split(separator: "\n").map(String.init)
-                        guard !uuids.isEmpty else { return }
-                        DispatchQueue.main.async {
-                            viewModel.dropItems(uuids: uuids, toPinboard: pinboard)
-                            // Open the pinboard we just filed into, so the drop's result is
-                            // visible right away.
-                            if let id = pinboard.id { viewModel.tab = .pinboard(id) }
-                        }
+                // Publish this tab's frame (in the shelf's "shelfRoot" space) so the
+                // shelf-level PinboardDropDelegate can map a drop location back to this
+                // pinboard. Drops are handled at the shelf root, not per-tab — see
+                // PinboardDropDelegate for why.
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: PinboardTabFramesKey.self,
+                            value: pinboard.id.map { [$0: geo.frame(in: .named("shelfRoot"))] } ?? [:]
+                        )
                     }
-                    return true
-                }
+                )
             }
             IconButton(systemName: "plus", fontSize: 12,
                        size: CGSize(width: 34, height: 30), help: "New pinboard") {
@@ -338,13 +349,13 @@ private struct ShelfTabs: View {
                 }
             }
         }
-        // A real (near-invisible) backing view across the whole tab strip so a card
-        // dropped onto a pinboard tab routes to THIS panel's drop handlers instead of
-        // passing through the glass surface to the window behind — which was delivering
-        // the card's text to the app underneath and pasting it there. Mirrors the same
-        // fix on the card row; a `contentShape`/`.onDrop` alone doesn't create the
-        // hit-testable NSView that AppKit's drag-destination routing needs.
-        .background(Color.black.opacity(0.001))
+        // A near-invisible but real backing across the whole tab strip so a card dropped
+        // onto a pinboard tab routes to THIS panel instead of passing through the glass
+        // surface to the window behind (which pasted the card's text into the app
+        // underneath). The window server treats a pixel as pass-through only when its
+        // composited alpha rounds to zero, so this needs alpha above 1/255 (0.001 rounds
+        // to 0 and still passed drags through); 0.02 is ~2% and imperceptible over glass.
+        .background(Color.black.opacity(0.02))
         .onChange(of: createPresented) { _, isPresented in
             viewModel.pinboardPopoverShown = isPresented || renamingPinboard != nil
         }
