@@ -51,6 +51,9 @@ struct ItemCardView: View {
     let onRotate: (Bool) -> Void
     let onDelete: () -> Void
     let dragProvider: () -> NSItemProvider
+    /// How many cards this drag carries. >1 when the card is part of a multi-selection,
+    /// so the compact drag preview can show a "+N" badge. Defaults to a single card.
+    var dragBadgeCount: Int = 1
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -242,8 +245,51 @@ struct ItemCardView: View {
             Divider()
             Button("Delete", role: .destructive, action: onDelete)
         }
-        .onDrag(dragProvider)
+        .onDrag(dragProvider) { dragPreview }
         .modifier(CardClickGesture(onClick: onClick))
+    }
+
+    /// A small chip shown under the cursor while dragging, instead of SwiftUI's default
+    /// full-size snapshot of the card. The full card covered the little pinboard tabs,
+    /// making it impossible to tell which one you were about to drop onto; this keeps the
+    /// tabs (and their drop highlight) visible.
+    private var dragPreview: some View {
+        HStack(spacing: 6) {
+            dragPreviewGlyph
+            Text(item.displayTitle)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if dragBadgeCount > 1 {
+                Text("+\(dragBadgeCount - 1)")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.accentColor))
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(maxWidth: 240)
+        .background(Capsule().fill(Color(nsColor: .windowBackgroundColor)))
+        .overlay(Capsule().stroke(Color.primary.opacity(0.15), lineWidth: 1))
+    }
+
+    @ViewBuilder private var dragPreviewGlyph: some View {
+        Group {
+            if item.kind == .image {
+                Image(systemName: "photo").foregroundStyle(.secondary)
+            } else if item.kind == .color {
+                Circle().fill(Tokens.color(fromHex: item.plainText ?? ""))
+            } else if let icon = AppIconCache.icon(forBundleID: item.appBundleID) {
+                Image(nsImage: icon).resizable()
+            } else {
+                Image(systemName: "doc.on.clipboard").foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(size: 13))
+        .frame(width: 16, height: 16)
     }
 
     private var header: some View {

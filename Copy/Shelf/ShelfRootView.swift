@@ -420,8 +420,12 @@ private struct TabPill: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 1.5)
+                .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 2)
         )
+        // A drop-targeted tab visibly pops so it's unmistakable which pinboard a dragged
+        // card will land in, even when the cursor's drag chip sits near it.
+        .scaleEffect(isDropTargeted ? 1.08 : 1)
+        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isDropTargeted)
         // A plain tappable surface, NOT a Button, so the `.onDrop` each tab carries in
         // `ShelfTabs` is a reliable drop target. A SwiftUI `Button` on macOS fights the
         // drag session for the mouse-up, so dragging a card onto a pinboard landed only
@@ -434,7 +438,7 @@ private struct TabPill: View {
     }
 
     private var backgroundFill: Color {
-        if isDropTargeted { return Color.accentColor.opacity(0.16) }
+        if isDropTargeted { return Color.accentColor.opacity(0.24) }
         if isSelected {
             if let tintColor { return tintColor.opacity(0.18) }
             return Color.primary.opacity(0.08)
@@ -511,7 +515,8 @@ private struct ShelfItemsRow: View {
                                 onShowInHistory: { viewModel.showInHistory(item) },
                                 onRotate: { viewModel.rotateImage(item, clockwise: $0) },
                                 onDelete: { viewModel.delete(item) },
-                                dragProvider: { viewModel.dragProvider(for: item) }
+                                dragProvider: { viewModel.dragProvider(for: item) },
+                                dragBadgeCount: viewModel.isSelected(item) ? viewModel.selection.selected.count : 1
                             )
                             .id(item.uuid)
                             .popover(isPresented: Binding(
