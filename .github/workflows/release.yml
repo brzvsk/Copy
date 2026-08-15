@@ -174,8 +174,69 @@ jobs:
             git push origin main
           fi
 
+      # Runs AFTER the appcast commit on purpose. The appcast is what delivers the
+      # update to people who already have Copy installed; the tap only affects new
+      # `brew install` runs. If the tap push ever breaks, it must not take the
+      # appcast down with it.
+      #
+      # Pushes with a deploy key rather than github.token, which is scoped to this
+      # repo and cannot write to tarikbc/homebrew-tap. The key is write-enabled on
+      # the tap only, so it is narrower than a personal access token.
+      - name: Update Homebrew tap
+        env:
+          TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: |
+          if [ -z "$TAP_DEPLOY_KEY" ]; then
+            echo "HOMEBREW_TAP_DEPLOY_KEY is not set; skipping the tap bump."
+            echo "The tap stays on its previous version until someone bumps it by hand."
+            exit 0
+          fi
+
+          # The DMG is the cask's artifact; the appcast's enclosure is the zip.
+          # Checksum the same file the cask's url resolves to, or brew aborts the
+          # install on a mismatch.
+          DMG="build/Copy-${VERSION}.dmg"
+          if [ ! -f "$DMG" ]; then
+            echo "error: $DMG missing; cannot compute the cask checksum." >&2
+            exit 1
+          fi
+          DMG_SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"
+
+          KEY_FILE="$RUNNER_TEMP/tap-deploy-key"
+          install -m 600 /dev/null "$KEY_FILE"
+          printf '%s\n' "$TAP_DEPLOY_KEY" > "$KEY_FILE"
+          export GIT_SSH_COMMAND="ssh -i $KEY_FILE -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+
+          git clone --depth 1 git@github.com:tarikbc/homebrew-tap.git "$RUNNER_TEMP/tap"
+
+          # Rewrite only the two lines that change per release, so the cask's
+          # livecheck, caveats, and zap block survive untouched.
+          CASK="$RUNNER_TEMP/tap/Casks/copy.rb"
+          sed -i.bak \
+            -e "s|^  version \".*\"$|  version \"${VERSION}\"|" \
+            -e "s|^  sha256 \".*\"$|  sha256 \"${DMG_SHA}\"|" \
+            "$CASK"
+          rm -f "$CASK.bak"
+
+          grep -q "version \"${VERSION}\"" "$CASK" && grep -q "sha256 \"${DMG_SHA}\"" "$CASK" || {
+            echo "error: cask rewrite did not take; leaving the tap untouched." >&2
+            exit 1
+          }
+
+          cd "$RUNNER_TEMP/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/copy.rb
+          if git diff --cached --quiet; then
+            echo "Tap already on ${VERSION}."
+          else
+            git commit -m "copy ${VERSION}"
+            git push origin HEAD:main
+          fi
+
       - name: Clean up signing credentials
         if: always()
         run: |
           security delete-keychain "$RUNNER_TEMP/copy-release-signing.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/sparkle-private-key.txt" "$RUNNER_TEMP/notary-api-key.p8" "$RUNNER_TEMP/developer-id.p12"
+          rm -f "$RUNNER_TEMP/tap-deploy-key"
