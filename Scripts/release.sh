@@ -97,6 +97,21 @@ step() {
 step "1/9 Regenerating the Xcode project (xcodegen generate)"
 xcodegen generate
 
+# The tag drives $VERSION, but the bundle's version comes from project.yml via
+# xcodegen. If they disagree, everything still builds and publishes: the appcast
+# advertises the tag's version while the app inside carries project.yml's. Sparkle
+# compares CFBundleVersion, so a build number that didn't increase means the
+# update is silently never offered -- the same invisible failure mode as the
+# v0.1.3 appcast bug, and just as hard to spot after the fact. Fail loudly here
+# instead, right after generate has written the plist.
+PLIST_SHORT_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$ROOT_DIR/Copy/Info.plist")"
+if [[ "$PLIST_SHORT_VERSION" != "$VERSION" ]]; then
+  echo "error: version mismatch -- releasing $VERSION but project.yml builds $PLIST_SHORT_VERSION." >&2
+  echo "       Bump CFBundleShortVersionString (and CFBundleVersion) in project.yml to $VERSION," >&2
+  echo "       commit that to main, and re-tag. See RELEASING.md." >&2
+  exit 1
+fi
+
 mkdir -p "$BUILD_DIR"
 
 step "2/9 Archiving Copy.app (Release, Developer ID signing) -> $ARCHIVE_PATH"
