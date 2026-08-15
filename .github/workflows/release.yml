@@ -146,8 +146,15 @@ jobs:
           cp docs/appcast.xml "$RUNNER_TEMP/appcast.xml"
 
           git fetch origin main
-          git checkout main
-          git reset --hard origin/main
+          # -f discards the working-tree changes release.sh made to
+          # docs/appcast.xml in this detached-at-tag checkout. A plain
+          # `git checkout main` aborts ("local changes would be overwritten")
+          # whenever docs/appcast.xml differs between the tag and main, which
+          # is the normal case: main carries the PREVIOUS release's appcast
+          # commit, and a tag cut before that commit does not. -B pins the
+          # branch to origin/main, so this also replaces the `reset --hard`
+          # that used to run too late to help.
+          git checkout -f -B main origin/main
 
           cp "$RUNNER_TEMP/appcast.xml" docs/appcast.xml
 
