@@ -537,6 +537,10 @@ private struct ShelfItemsRow: View {
                                 dragBadgeCount: viewModel.isSelected(item) ? viewModel.selection.selected.count : 1
                             )
                             .id(item.uuid)
+                            // The LazyHStack only builds a card once it scrolls into view,
+                            // so this fires as the user nears the oldest card and widens the
+                            // fetch window. Without it the shelf stopped at the first page.
+                            .onAppear { viewModel.loadMoreIfNeeded(at: index) }
                             .popover(isPresented: Binding(
                                 get: { viewModel.isSelected(item) && item.uuid == viewModel.selection.primary && viewModel.previewShown },
                                 set: { viewModel.previewShown = $0 }

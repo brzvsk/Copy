@@ -146,6 +146,16 @@ final class ShelfViewModel {
     @ObservationIgnored private var token: ObservationToken?
     @ObservationIgnored private var pinboardsToken: ObservationToken?
 
+    /// How many rows the active history/search query fetches. The shelf opens on one page
+    /// and widens the window as scrolling approaches the oldest card (`loadMoreIfNeeded`),
+    /// so browsing reaches the whole history instead of stopping at the first page. A fixed
+    /// window here — not the retention setting — is what used to bound how far back the
+    /// shelf could scroll.
+    @ObservationIgnored private var page = PageWindow()
+    /// Whether the active observation is a windowed one. The plain pinboard browse fetches
+    /// every item on the board, so there's nothing to page there.
+    @ObservationIgnored private var isPaged = true
+
     init(store: ItemStore, pinboardStore: PinboardStore, settings: SettingsStore) {
         self.store = store
         self.pinboardStore = pinboardStore
@@ -170,10 +180,24 @@ final class ShelfViewModel {
         return ordered.compactMap { uuid in items.first(where: { $0.uuid == uuid }) }
     }
 
+    /// Restarts the query after the search, tab, or facets changed. A new query starts back
+    /// at the first page, so the window never carries over from the previous one.
     func refresh() {
+        page.reset()
+        previewShown = false
+        startObservation()
+    }
+
+    /// Re-runs the current query with the scrolled-to window (and the preview) intact. Used
+    /// after an edit that changes a row rather than the query — collapsing back to page one
+    /// there would yank the shelf away from wherever the user had scrolled.
+    private func reload() {
+        startObservation()
+    }
+
+    private func startObservation() {
         token?.cancel()
         token = nil
-        previewShown = false
 
         var filter = searchQuery.toFilter()
         // Scope to the active pinboard tab (AND-ed with any explicit facets).
@@ -183,18 +207,30 @@ final class ShelfViewModel {
 
         if filter.hasText {
             // Text search is one-shot (FTS); re-runs whenever the query changes.
-            apply((try? store.search(filter: filter, limit: 100)) ?? [])
+            isPaged = true
+            apply((try? store.search(filter: filter, limit: page.limit)) ?? [])
         } else if searchQuery.tokens.isEmpty, case .pinboard(let id) = tab {
             // Plain pinboard browse: keep the dedicated observation (preserves manual order).
+            isPaged = false
             token = pinboardStore.observeItems(in: id,
                                                onError: { NSLog("Copy: observation failed: \($0)") },
                                                onChange: { [weak self] in self?.apply($0) })
         } else {
             // History browse or facet-only: stays live as new items are captured.
-            token = store.observeRecent(filter: filter, limit: 100,
+            isPaged = true
+            token = store.observeRecent(filter: filter, limit: page.limit,
                                         onError: { NSLog("Copy: observation failed: \($0)") },
                                         onChange: { [weak self] in self?.apply($0) })
         }
+    }
+
+    /// Widens the fetch window as the shelf scrolls toward its oldest card, then re-runs the
+    /// query against it. Each card calls this from `.onAppear`; `PageWindow` decides when a
+    /// wider fetch is actually warranted (and when the history has run out).
+    func loadMoreIfNeeded(at index: Int) {
+        guard isPaged,
+              page.growIfNeeded(visibleIndex: index, loadedCount: items.count) else { return }
+        startObservation()
     }
 
     // MARK: Smart search
@@ -412,7 +448,7 @@ final class ShelfViewModel {
             }
             try store.replaceImageRepresentation(itemID: id, data: rotated, uti: "public.png")
             ThumbnailCache.shared.invalidate(for: item)
-            refresh()
+            reload()
         } catch {
             NSLog("Copy: image rotate failed: \(error)")
             HUD.show("Couldn't rotate that")
@@ -667,7 +703,7 @@ final class ShelfViewModel {
                 try pinboardStore.add(itemID: itemID, to: pinboardID)
                 HUD.show("Restored to pinboard")
             }
-            refresh()
+            reload()
         } catch {
             NSLog("Copy: undo failed: \(error)")
             HUD.show("Couldn't undo that")
