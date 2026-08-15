@@ -5,6 +5,14 @@ All notable changes to Copy are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-08-15
+
+The shelf scrolls through your whole history now, not just the last couple of days.
+
+### Fixed
+
+- The shelf stopped roughly 100 cards back, about two days of normal use, whatever you had set under Keep History. It now loads older cards as you scroll toward the end, so you can reach everything your retention setting keeps. Text search does the same instead of capping at the first 100 matches.
+
 ## [0.1.4] - 2026-08-01
 
 Drag a card onto a pinboard and it just works now, plus a fix so updates install.
