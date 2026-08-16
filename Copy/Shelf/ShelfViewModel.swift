@@ -228,8 +228,15 @@ final class ShelfViewModel {
     /// query against it. Each card calls this from `.onAppear`; `PageWindow` decides when a
     /// wider fetch is actually warranted (and when the history has run out).
     func loadMoreIfNeeded(at index: Int) {
+        // `items` is favorites-then-recents, but the window only bounds the recents — the
+        // store returns every matching favorite regardless of `limit`. Measure in
+        // recents-space so a big favorites block can't read as "this page came back full"
+        // and keep growing the window against an already-exhausted history. A favorite's
+        // own card yields a negative index here and never trips the lookahead, which is
+        // right: favorites sit at the front, nowhere near the oldest card.
         guard isPaged,
-              page.growIfNeeded(visibleIndex: index, loadedCount: items.count) else { return }
+              page.growIfNeeded(visibleIndex: index - favoritesCount,
+                                loadedCount: items.count - favoritesCount) else { return }
         startObservation()
     }
 

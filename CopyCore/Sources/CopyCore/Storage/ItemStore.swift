@@ -184,11 +184,29 @@ public struct ItemStore {
     /// Faceted search (see `SearchFilter`): FTS-matches `filter.text` when present, then
     /// AND-applies the app/kind/date/favorites/pinboard facets. With no text it's a plain
     /// `SELECT` (no FTS), so facet-only queries work without a text pattern.
+    /// Results page the same way history does, so favorites get the same exemption from
+    /// `limit` for the same reason — see `fetchRecentPage`. Matching favorites come first
+    /// and in full; everything else is bounded.
     public func search(filter: SearchFilter, limit: Int = 100) throws -> [ClipItem] {
+        guard let favorites = searchQuery(filter, isFavorite: true, limit: nil),
+              let rest = searchQuery(filter, isFavorite: false, limit: limit) else { return [] }
+        return try writer.read { db in
+            try ClipItem.fetchAll(db, sql: favorites.sql,
+                                  arguments: StatementArguments(favorites.arguments))
+                + ClipItem.fetchAll(db, sql: rest.sql,
+                                    arguments: StatementArguments(rest.arguments))
+        }
+    }
+
+    /// Builds one half of `search(filter:)`: the matching rows on one side of the favorite
+    /// split, newest first, optionally bounded. Returns nil when the free text can't compile
+    /// to an FTS pattern, which the caller treats as "no results".
+    private func searchQuery(_ filter: SearchFilter, isFavorite: Bool, limit: Int?)
+        -> (sql: String, arguments: [any DatabaseValueConvertible])? {
         var sql: String
         var arguments: [any DatabaseValueConvertible] = []
         if filter.hasText {
-            guard let pattern = FTS5Pattern(matchingAllPrefixesIn: filter.text) else { return [] }
+            guard let pattern = FTS5Pattern(matchingAllPrefixesIn: filter.text) else { return nil }
             sql = """
                 SELECT item.* FROM item
                 JOIN item_fts ON item_fts.rowid = item.id
@@ -201,11 +219,14 @@ public struct ItemStore {
         let facets = facetClauses(filter)
         sql += facets.sql
         arguments.append(contentsOf: facets.arguments)
-        sql += " ORDER BY item.lastUsedAt DESC LIMIT ?"
-        arguments.append(limit)
-        return try writer.read { db in
-            try ClipItem.fetchAll(db, sql: sql, arguments: StatementArguments(arguments))
+        // A literal 0/1 from a Bool, not caller text, so there's nothing to bind or escape.
+        sql += " AND item.isFavorite = \(isFavorite ? 1 : 0)"
+        sql += " ORDER BY item.lastUsedAt DESC"
+        if let limit {
+            sql += " LIMIT ?"
+            arguments.append(limit)
         }
+        return (sql, arguments)
     }
 
     /// The AND-ed WHERE fragment (leading `" AND …"`) and bound arguments for a filter's
@@ -358,6 +379,65 @@ public struct ItemStore {
         }
     }
 
+    /// AND-applies the filter's non-text facets using the query interface. Shared by the live
+    /// observation and the synchronous `recentPage`, so both see exactly the same rows.
+    /// A free-standing function (not a method) so the observation's `@Sendable` fetch closure
+    /// doesn't capture `self`.
+    private func applyFacets(_ filter: SearchFilter,
+                             to request: QueryInterfaceRequest<ClipItem>) -> QueryInterfaceRequest<ClipItem> {
+        var request = request
+        if let appBundleID = filter.appBundleID {
+            request = request.filter(Column("appBundleID") == appBundleID)
+        }
+        if !filter.kinds.isEmpty {
+            request = request.filter(filter.kinds.map(\.rawValue).contains(Column("kind")))
+        }
+        if let range = filter.dateRange {
+            request = request.filter(Column("lastUsedAt") >= range.start && Column("lastUsedAt") < range.end)
+        }
+        if filter.favoritesOnly {
+            request = request.filter(Column("isFavorite") == true)
+        }
+        if !filter.pinboardIDs.isEmpty {
+            let ids = filter.pinboardIDs.sorted()
+            let placeholders = ids.map { _ in "?" }.joined(separator: ",")
+            request = request.filter(sql:
+                "id IN (SELECT itemId FROM pinboard_item WHERE pinboardId IN (\(placeholders)))",
+                arguments: StatementArguments(ids))
+        }
+        return request
+    }
+
+    /// One page of shelf history: every favorite matching `filter`, plus the `limit` most
+    /// recent non-favorites, favorites first.
+    ///
+    /// Favorites are deliberately exempt from `limit`. The shelf floats them to the front of
+    /// its row, so bounding them by the same recency window would hide a favorite as soon as
+    /// `limit` newer items existed, then drop it into the first position once scrolling grew
+    /// the window — shifting every visible card sideways mid-scroll. Favorites are a small
+    /// curated set that retention never deletes (see `RetentionPeriod`), so fetching all of
+    /// them keeps the front of the row fixed for one extra indexed read.
+    ///
+    /// The two queries can't overlap: one asks for `isFavorite = true` and the other for
+    /// `isFavorite = false`, so concatenating them never duplicates a row.
+    func fetchRecentPage(_ db: Database, filter: SearchFilter, limit: Int) throws -> [ClipItem] {
+        let base = applyFacets(filter, to: ClipItem.all())
+        let favorites = try base.filter(Column("isFavorite") == true)
+            .order(Column("lastUsedAt").desc)
+            .fetchAll(db)
+        let rest = try base.filter(Column("isFavorite") == false)
+            .order(Column("lastUsedAt").desc)
+            .limit(limit)
+            .fetchAll(db)
+        return favorites + rest
+    }
+
+    /// Synchronous counterpart to `observeRecent(filter:limit:)`, for callers that want one
+    /// page rather than a live feed. Same rows, same order.
+    public func recentPage(filter: SearchFilter, limit: Int = 100) throws -> [ClipItem] {
+        try writer.read { db in try fetchRecentPage(db, filter: filter, limit: limit) }
+    }
+
     public func observeRecent(kinds: Set<ItemKind>? = nil, limit: Int = 100,
                               onError: @escaping (Error) -> Void,
                               onChange: @escaping ([ClipItem]) -> Void) -> ObservationToken {
@@ -386,27 +466,7 @@ public struct ItemStore {
         // @Sendable fetch closure captures only the Sendable `filter`/`limit`, not the
         // existential-typed argument array.
         let observation = ValueObservation.tracking { db -> [ClipItem] in
-            var request = ClipItem.all()
-            if let appBundleID = filter.appBundleID {
-                request = request.filter(Column("appBundleID") == appBundleID)
-            }
-            if !filter.kinds.isEmpty {
-                request = request.filter(filter.kinds.map(\.rawValue).contains(Column("kind")))
-            }
-            if let range = filter.dateRange {
-                request = request.filter(Column("lastUsedAt") >= range.start && Column("lastUsedAt") < range.end)
-            }
-            if filter.favoritesOnly {
-                request = request.filter(Column("isFavorite") == true)
-            }
-            if !filter.pinboardIDs.isEmpty {
-                let ids = filter.pinboardIDs.sorted()
-                let placeholders = ids.map { _ in "?" }.joined(separator: ",")
-                request = request.filter(sql:
-                    "id IN (SELECT itemId FROM pinboard_item WHERE pinboardId IN (\(placeholders)))",
-                    arguments: StatementArguments(ids))
-            }
-            return try request.order(Column("lastUsedAt").desc).limit(limit).fetchAll(db)
+            try fetchRecentPage(db, filter: filter, limit: limit)
         }
         let cancellable = observation.start(in: writer,
                                             scheduling: .async(onQueue: .main),
