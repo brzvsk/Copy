@@ -5,6 +5,14 @@ All notable changes to Copy are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-08-15
+
+Favorites hold their place while you scroll back through history.
+
+### Fixed
+
+- Starred items no longer appeared from nowhere and pushed the row sideways as you scrolled into older history. Every favorite now loads alongside the newest cards, however old it is, so the front of the shelf stays where you left it. Search results behave the same way.
+
 ## [0.1.5] - 2026-08-15
 
 The shelf scrolls through your whole history now, not just the last couple of days.
