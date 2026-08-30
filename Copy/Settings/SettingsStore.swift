@@ -1,6 +1,32 @@
 import Foundation
 import Observation
 
+/// Optional feedback played after Copy successfully records a clipboard change.
+/// Raw values are persisted in UserDefaults, so keep them stable across releases.
+enum CopySound: String, CaseIterable, Identifiable {
+    case off
+    case bubblePop
+    case clickTone
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .off: return "Off"
+        case .bubblePop: return "Bubble"
+        case .clickTone: return "Click"
+        }
+    }
+
+    var resourceName: String? {
+        switch self {
+        case .off: return nil
+        case .bubblePop: return "copy-bubble-pop"
+        case .clickTone: return "copy-click-tone"
+        }
+    }
+}
+
 /// How long unfavorited, unpinned history items are kept before pruning.
 enum RetentionPeriod: String, CaseIterable {
     case unlimited
@@ -57,6 +83,7 @@ final class SettingsStore {
     static let shelfProDarkKey = "shelfProDark"
     static let hideMenuBarIconKey = "hideMenuBarIcon"
     static let doubleClickToPasteKey = "doubleClickToPaste"
+    static let copySoundKey = "copySound"
 
     var retention: RetentionPeriod {
         didSet {
@@ -154,6 +181,15 @@ final class SettingsStore {
         }
     }
 
+    /// Sound feedback for successful clipboard captures. Off is the intentional
+    /// default so installing or updating Copy never adds noise without consent.
+    var copySound: CopySound {
+        didSet {
+            guard copySound != oldValue else { return }
+            defaults.set(copySound.rawValue, forKey: Self.copySoundKey)
+        }
+    }
+
     @ObservationIgnored var onRulesChange: ((Set<String>) -> Void)?
     /// Fired by the About pane's "Check for Updates…" button. Bridged to Sparkle's
     /// `updaterController` in `AppDelegate` (which owns it), so this store — and the
@@ -191,6 +227,8 @@ final class SettingsStore {
         shelfProDark = (defaults.object(forKey: Self.shelfProDarkKey) as? Bool) ?? false
         hideMenuBarIcon = (defaults.object(forKey: Self.hideMenuBarIconKey) as? Bool) ?? false
         doubleClickToPaste = (defaults.object(forKey: Self.doubleClickToPasteKey) as? Bool) ?? true
+        copySound = defaults.string(forKey: Self.copySoundKey)
+            .flatMap(CopySound.init(rawValue:)) ?? .off
         if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             excludedBundleIDs = decoded.sorted()
