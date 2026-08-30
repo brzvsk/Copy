@@ -332,6 +332,8 @@ struct ItemCardView: View {
                 Text(Tokens.relativeFormatter.localizedString(for: item.lastUsedAt, relativeTo: Date()))
                     .font(Tokens.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
         }
     }
