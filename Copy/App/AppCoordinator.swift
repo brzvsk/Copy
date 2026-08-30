@@ -124,6 +124,10 @@ final class AppCoordinator {
                 guard viewModel.items.indices.contains(index) else { return }
                 viewModel.requestPaste(viewModel.items[index], plain: false)
             }
+            // Ignore caps lock and device-specific flags when matching shortcuts, but
+            // keep Shift/Option/Control significant so e.g. the shelf's ⇧⌘V hotkey
+            // never falls through to the plain ⌘V paste action below.
+            let shortcutModifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
             switch event.keyCode {
             case 123: // left arrow
                 viewModel.moveSelection(-1)
@@ -143,6 +147,14 @@ final class AppCoordinator {
             case 36: // return
                 viewModel.pasteSelection(plain: event.modifierFlags.contains(.option))
                 return true
+            case 8 where shortcutModifiers == .command: // cmd-C — copy primary card
+                if let item = viewModel.primaryItem, self.copyToClipboard(item) {
+                    controller.hide(restoreFocus: true)
+                }
+                return true
+            case 9 where shortcutModifiers == .command: // cmd-V — paste selected card
+                viewModel.pasteSelection(plain: false)
+                return true
             case 51 where event.modifierFlags.contains(.command): // cmd-delete
                 // Clears the search (all pills + text) when one is active; otherwise deletes
                 // the selected card.
@@ -152,6 +164,14 @@ final class AppCoordinator {
                     viewModel.deleteSelection()
                 }
                 return true
+            case 51 where shortcutModifiers.isEmpty: // backspace — delete selected card
+                // Search text and pills are handled above/by the field; only an empty
+                // search lets Backspace act on the card selection.
+                if viewModel.searchQuery.isEmpty {
+                    viewModel.deleteSelection()
+                    return true
+                }
+                return false
             case 14 where event.modifierFlags.contains(.command): // cmd-E — edit primary item
                 viewModel.beginEdit()
                 return true
@@ -570,6 +590,23 @@ final class AppCoordinator {
     func addToPasteStack(_ item: ClipItem) {
         pasteStackModel.enqueue(item)
         HUD.show("Added to Paste Stack")
+    }
+
+    /// Places the primary shelf card on the system clipboard without synthesizing a
+    /// paste. The self marker keeps the monitor from ingesting a duplicate; touching
+    /// the existing item makes it the current entry in history too. Returns whether the
+    /// caller should close the shelf after the copy completed successfully.
+    @discardableResult
+    func copyToClipboard(_ item: ClipItem) -> Bool {
+        guard let id = item.id,
+              let reps = try? store.representations(forItemID: id),
+              !reps.isEmpty else {
+            HUD.show("Item unavailable")
+            return false
+        }
+        pasteService.place(reps, plainTextOnly: false)
+        try? store.touch(itemID: id)
+        return true
     }
 
     /// Places OCR-recognized text from an image card's "Copy Text" action on the
