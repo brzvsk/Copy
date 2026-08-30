@@ -606,6 +606,12 @@ final class AppCoordinator {
         }
         pasteService.place(reps, plainTextOnly: false)
         try? store.touch(itemID: id)
+        // Optional feedback is owned by the separate copy-sound feature. Posting this
+        // event is harmless without it and avoids re-ingesting our marked pasteboard
+        // write just to detect a successful shelf copy.
+        NotificationCenter.default.post(
+            name: Notification.Name("com.tarikbc.copy.didCompleteInternalCopy"),
+            object: nil)
         return true
     }
 
