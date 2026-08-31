@@ -34,6 +34,37 @@ final class ShelfQueryTests: XCTestCase {
         XCTAssertEqual(try store.search("example", kinds: nil).count, 2)
     }
 
+    func testImageFacetIncludesImageFilesButNotOtherFiles() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeImage(bytes: 10, tag: "native-image"))
+        _ = try store.save(makeFileItem(names: "photo.HEIC", tag: "heic"))
+        _ = try store.save(makeFileItem(names: "notes.txt\npreview.webp", tag: "mixed"))
+        _ = try store.save(makeFileItem(names: "photo.jpg.backup", tag: "backup"))
+        _ = try store.save(makeFileItem(names: "notes.txt", tag: "text-file"))
+
+        let filter = SearchQuery(tokens: [.type(.images)]).toFilter()
+        let results = try store.recentPage(filter: filter)
+
+        XCTAssertEqual(Set(results.compactMap(\.plainText)), ["Image", "photo.HEIC", "notes.txt\npreview.webp"])
+
+        var textFilter = filter
+        textFilter.text = "photo"
+        XCTAssertEqual(try store.search(filter: textFilter).compactMap(\.plainText), ["photo.HEIC"])
+    }
+
+    func testImageAndFileFacetsStillReturnEveryFileWithoutDuplicates() throws {
+        let store = try makeTempStore()
+        _ = try store.save(makeImage(bytes: 10, tag: "native-image"))
+        _ = try store.save(makeFileItem(names: "photo.png", tag: "png"))
+        _ = try store.save(makeFileItem(names: "notes.txt", tag: "text-file"))
+
+        let filter = SearchQuery(tokens: [.type(.images), .type(.files)]).toFilter()
+        let results = try store.recentPage(filter: filter)
+
+        XCTAssertEqual(results.count, 3)
+        XCTAssertEqual(Set(results.compactMap(\.plainText)), ["Image", "photo.png", "notes.txt"])
+    }
+
     func testObserveRecentFiresOnChange() throws {
         let store = try makeTempStore()
         let initial = expectation(description: "initial")
@@ -51,4 +82,14 @@ final class ShelfQueryTests: XCTestCase {
         XCTAssertEqual(deliveries[0].count, 0)
         XCTAssertEqual(deliveries[1].map(\.plainText), ["observed"])
     }
+}
+
+private func makeFileItem(names: String, tag: String) -> CapturedItem {
+    CapturedItem(
+        kind: .file,
+        plainText: names,
+        hashData: Data(tag.utf8),
+        representations: [CapturedRepresentation(uti: "public.file-url", data: Data(tag.utf8))],
+        sourceBundleID: "com.test.app",
+        sourceAppName: "TestApp")
 }

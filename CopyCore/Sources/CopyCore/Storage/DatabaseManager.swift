@@ -16,7 +16,20 @@ public final class DatabaseManager {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         blobsDirectory = directory.appendingPathComponent("blobs", isDirectory: true)
         try FileManager.default.createDirectory(at: blobsDirectory, withIntermediateDirectories: true)
-        writer = try DatabasePool(path: directory.appendingPathComponent("copy.sqlite").path)
+        var configuration = Configuration()
+        configuration.prepareDatabase { db in
+            db.add(function: DatabaseFunction(
+                ImageFileDetection.sqlFunctionName,
+                argumentCount: 1,
+                pure: true
+            ) { values in
+                guard let filenames = String.fromDatabaseValue(values[0]) else { return false }
+                return ImageFileDetection.containsImageFile(in: filenames)
+            })
+        }
+        writer = try DatabasePool(
+            path: directory.appendingPathComponent("copy.sqlite").path,
+            configuration: configuration)
         try Self.migrator.migrate(writer)
     }
 

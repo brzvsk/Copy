@@ -138,7 +138,9 @@ public struct SearchQuery: Equatable, Sendable {
         for token in tokens {
             switch token {
             case .app(let bundleID, _): filter.appBundleID = bundleID
-            case .type(let type): kinds.formUnion(type.kinds)
+            case .type(let type):
+                kinds.formUnion(type.kinds)
+                if type == .images { filter.includesImageFiles = true }
             case .date(let date): filter.dateRange = date.interval(now: now, calendar: calendar)
             case .favorites: filter.favoritesOnly = true
             case .pinboard(let id, _): pinboardIDs.insert(id)
