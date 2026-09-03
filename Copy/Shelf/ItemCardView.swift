@@ -518,13 +518,18 @@ struct LinkFaviconView: View {
                     .frame(width: 16, height: 16)
             }
         }
-        .onAppear {
-            if image == nil {
-                image = FaviconCache.shared.cached(for: item)
-                if image == nil {
-                    FaviconCache.shared.favicon(for: item, store: store) { image = $0 }
-                }
-            }
+        .onAppear(perform: loadImage)
+        // Metadata persistence updates the item title after writing its favicon. The
+        // view may already be mounted by then, so `onAppear` alone would leave its
+        // earlier nil lookup stuck until the app relaunched.
+        .onChange(of: item.linkTitle) { _, _ in loadImage() }
+    }
+
+    private func loadImage() {
+        guard image == nil else { return }
+        image = FaviconCache.shared.cached(for: item)
+        if image == nil {
+            FaviconCache.shared.favicon(for: item, store: store) { image = $0 }
         }
     }
 }
