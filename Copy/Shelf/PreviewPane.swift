@@ -33,8 +33,8 @@ struct PreviewPane: View {
     /// Builds the default-branch preview text: the same 200k-character display cap as
     /// before, with syntax colors applied to only the first `highlightCap` characters
     /// of that (detection + tokenization are cached per item by `CodeHighlightCache`).
-    /// Any remainder past the highlighted portion still renders, just as plain mono
-    /// text, exactly as the whole thing did before this feature existed.
+    /// Any remainder past the highlighted portion still renders as plain system text,
+    /// exactly as the whole thing did before this feature existed.
     private func codeAwarePreviewText(_ text: String) -> Text {
         let displayText = String(text.prefix(200_000))
         let cap = min(displayText.count, highlightCap)
@@ -60,7 +60,7 @@ struct PreviewPane: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(Tokens.color(fromHex: item.plainText ?? ""))
                     Text(item.plainText ?? "")
-                        .font(.system(size: 15, design: .monospaced))
+                        .font(.system(size: 15))
                 }
                 .padding(16)
             case .file:
@@ -74,7 +74,7 @@ struct PreviewPane: View {
                             .resizable()
                             .frame(width: 64, height: 64)
                         Text(item.plainText ?? "File")
-                            .font(.system(size: 13, design: .monospaced))
+                            .font(.system(size: 13))
                             .multilineTextAlignment(.center)
                             .lineLimit(4)
                         if !quickLookURLs.isEmpty {
@@ -88,7 +88,7 @@ struct PreviewPane: View {
             default:
                 ScrollView {
                     codeAwarePreviewText(item.plainText ?? "")
-                        .font(.system(size: 13, design: .monospaced))
+                        .font(.system(size: 13))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .padding(14)
