@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
     <channel>
+        <item>
+            <title>Version 0.2.0</title>
+            <pubDate>Thu, 03 Sep 2026 12:11:27 +0000</pubDate>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure
+                url="https://github.com/brzvsk/Copy/releases/download/v0.2.0/Copy-0.2.0.zip"
+                sparkle:edSignature="NHMRQR30P5/SKThrHX7AOqxKfdvJycq6owH2AHlDsSpSZ7u1a/fS20k82k4ybwT60dhKlGuZced4uRDMJfhjAA=="
+                length="5269388"
+                type="application/octet-stream"
+            />
+        </item>
         <title>Copy</title>
         <link>https://brzvsk.github.io/Copy/appcast.xml</link>
         <description>Copy release notes and updates</description>
