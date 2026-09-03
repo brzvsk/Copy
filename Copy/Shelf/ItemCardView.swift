@@ -435,31 +435,25 @@ struct ItemCardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
                         LinkFaviconView(item: item, store: store)
-                        Text(URL(string: item.plainText ?? "")?.host ?? "Link")
-                            .font(Tokens.cardSubtitle)
-                            .lineLimit(1)
+                        Text(linkTitle)
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(bodyLineLimit(standard: 2, compact: 1))
+                            .multilineTextAlignment(.leading)
                     }
-                    Text(linkTitle)
-                        .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(bodyLineLimit(standard: 2, compact: 1))
-                        .multilineTextAlignment(.leading)
-                    Text(String((item.plainText ?? "").prefix(1_500)))
+                    Text(URL(string: item.plainText ?? "")?.host ?? "Link")
                         .font(Tokens.cardBody)
                         .foregroundStyle(.secondary)
-                        .lineLimit(bodyLineLimit(standard: 2, compact: 1))
+                        .lineLimit(1)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
-                    Image(systemName: "link")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                    Text(URL(string: item.plainText ?? "")?.host ?? "Link")
-                        .font(Tokens.cardSubtitle)
-                        .lineLimit(1)
-                    Text(String((item.plainText ?? "").prefix(1_500)))
-                        .font(Tokens.cardBody)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(bodyLineLimit(standard: 5, compact: 3))
+                    HStack(alignment: .top, spacing: 4) {
+                        LinkFaviconView(item: item, store: store)
+                        Text(String((item.plainText ?? "").prefix(1_500)))
+                            .font(Tokens.cardBody)
+                            .lineLimit(bodyLineLimit(standard: 5, compact: 3))
+                            .multilineTextAlignment(.leading)
+                    }
                 }
             }
         case .image:
@@ -506,7 +500,7 @@ struct ItemCardView: View {
             }
             return "\(item.plainText?.count ?? 0) characters"
         case .link:
-            return URL(string: item.plainText ?? "")?.host ?? "Link"
+            return "Link"
         case .image:
             return "Image"
         case .file:
