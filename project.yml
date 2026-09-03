@@ -32,6 +32,7 @@ targets:
         CFBundleDisplayName: Copy
         CFBundleShortVersionString: "0.2.0"
         CFBundleVersion: "8"
+        LSApplicationCategoryType: public.app-category.utilities
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "Original © 2026 Tarik Caramanico; modifications © 2026 Nikolai Berezovskii - GPL-3.0"
