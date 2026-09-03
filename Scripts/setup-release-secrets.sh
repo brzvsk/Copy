@@ -6,8 +6,9 @@
 # have to remember them.
 #
 # Run this INTERACTIVELY on the Mac that holds your Developer ID Application
-# signing identity. Exporting the signing key triggers a macOS keychain
-# authorization prompt: click Allow (or Always Allow) when it appears.
+# signing identity. Export that one identity as a password-protected .p12 in
+# Keychain Access before running this script; the script never bulk-exports the
+# login keychain because that would request access to unrelated private keys.
 #
 # Usage:
 #   Scripts/setup-release-secrets.sh            # run every section
@@ -60,49 +61,16 @@ setup_cert() {
     die "no '$SIGN_IDENTITY' signing identity found in your keychain."
   fi
 
-  local p12="$WORK_DIR/copy-devid.p12"
-  # Generate a strong random password for the .p12 and keep it in the keychain
-  # so you can recover it; it also becomes the DEVELOPER_ID_CERT_PASSWORD secret.
-  local pw
-  pw="$(openssl rand -base64 24)"
+  info "In Keychain Access, export only '$SIGN_IDENTITY: ...($TEAM_HINT)'"
+  info "from the login keychain's 'My Certificates' category."
 
-  # Unlocking the login keychain first avoids the misleading
-  # "SecKeychainItemExport: passphrase not correct" error that `security export`
-  # throws when the keychain is locked. This prompts once for your Mac login
-  # (keychain) password.
-  info "unlocking your login keychain (enter your Mac login password if asked)"
-  security unlock-keychain "$LOGIN_KEYCHAIN" || true
-
-  info "exporting your Developer ID identity"
-  # Try the automated export. It exports the code-signing identities from the
-  # login keychain; the CI import step selects "$SIGN_IDENTITY" by name, so any
-  # extra identities are harmless. If macOS refuses (a long-standing
-  # SecKeychainItemExport quirk with identities), fall back to a manual Keychain
-  # Access export, which is reliable.
-  if security export -k "$LOGIN_KEYCHAIN" -t identities -f pkcs12 -P "$pw" -o "$p12" 2>/dev/null \
-     && [[ -s "$p12" ]]; then
-    info "exported automatically"
-  else
-    # Suggest a strong password so you do not have to invent one for the export.
-    local suggested
-    suggested="$(openssl rand -base64 18)"
-    info "automatic export did not work (a known macOS limitation). Export it once by hand:"
-    info "  1. Open Keychain Access, pick the 'login' keychain, category 'My Certificates'."
-    info "  2. Right-click '$SIGN_IDENTITY: ...($TEAM_HINT)' and choose Export."
-    info "  3. Save it as a .p12. When it asks for a password, you can use this one"
-    info "     (copy it now, then paste it into the dialog):"
-    printf '\n        %s\n\n' "$suggested"
-    local manual_p12 manual_pw
-    read -r -p "    Path to the exported .p12: " manual_p12
-    manual_p12="${manual_p12/#\~/$HOME}"
-    [[ -f "$manual_p12" ]] || die "no file at: $manual_p12"
-    read -r -s -p "    The .p12 password (press Enter to use the suggested one above): " manual_pw
-    echo
-    manual_pw="${manual_pw:-$suggested}"
-    [[ -n "$manual_pw" ]] || die "the .p12 password cannot be empty."
-    p12="$manual_p12"
-    pw="$manual_pw"
-  fi
+  local p12 pw
+  read -r -p "    Path to the exported .p12: " p12
+  p12="${p12/#\~/$HOME}"
+  [[ -f "$p12" ]] || die "no file at: $p12"
+  read -r -s -p "    The .p12 export password: " pw
+  echo
+  [[ -n "$pw" ]] || die "the .p12 password cannot be empty."
 
   base64 -i "$p12" | gh secret set DEVELOPER_ID_CERT_P12_BASE64 --repo "$REPO"
   printf '%s' "$pw" | gh secret set DEVELOPER_ID_CERT_PASSWORD --repo "$REPO"

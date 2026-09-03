@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  # A manual run is a credentials-only preflight. It imports the certificate
+  # and validates the Apple notarization key, but never builds or publishes.
+  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -53,15 +56,18 @@ jobs:
           fi
 
       - name: Select latest Xcode
+        if: github.event_name == 'push'
         run: |
           sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"
           xcodebuild -version
           swift --version
 
       - name: Core tests
+        if: github.event_name == 'push'
         run: swift test --package-path CopyCore
 
       - name: Install xcodegen
+        if: github.event_name == 'push'
         run: brew install xcodegen
 
       # Import the Developer ID Application cert+key into a fresh, disposable
@@ -117,18 +123,32 @@ jobs:
             echo "NOTARY_API_ISSUER_ID=$NOTARY_ISSUER_ID"
           } >> "$GITHUB_ENV"
 
+      - name: Validate release credentials
+        run: |
+          security find-identity -v -p codesigning | grep -F "Developer ID Application"
+          test -s "$SPARKLE_ED_KEY_FILE"
+          xcrun notarytool history \
+            --key "$NOTARY_API_KEY_PATH" \
+            --key-id "$NOTARY_API_KEY_ID" \
+            --issuer "$NOTARY_API_ISSUER_ID" \
+            --output-format json >/dev/null
+          echo "Developer ID, Sparkle, and notarization credentials are valid."
+
       # GITHUB_REF_NAME is a default runner env var (not a `${{ }}` template
       # expression), so expanding it in a shell script here is injection-safe.
       - name: Derive version from tag
+        if: github.event_name == 'push'
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
       - name: Build, sign, and notarize release
+        if: github.event_name == 'push'
         run: Scripts/release.sh "$VERSION"
 
       # Idempotent: if a re-run follows a mid-job failure and the release
       # already exists (created by an earlier attempt), skip re-creating it
       # rather than failing on a duplicate.
       - name: Create GitHub release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -142,6 +162,7 @@ jobs:
       # tree, but that checkout is detached at the tag -- carry the updated
       # file over to main and commit it there so GitHub Pages serves it.
       - name: Commit updated appcast to main
+        if: github.event_name == 'push'
         run: |
           cp docs/appcast.xml "$RUNNER_TEMP/appcast.xml"
 
