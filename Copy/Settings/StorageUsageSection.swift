@@ -3,8 +3,7 @@ import SwiftUI
 
 /// The History pane's storage block: a total, a proportional stacked bar, per-type rows
 /// (with a per-type "Clear"), and a prominent "Clear History" button. Reads
-/// `ItemStore.storageBreakdown()` (the *clearable* set:
-/// favorites and pinboard items are permanent and excluded) and clears through the store,
+/// `ItemStore.storageBreakdown()` (the clearable set excludes pinboard items) and clears through the store,
 /// which the shelf observes live via GRDB, so an open shelf refreshes on its own.
 struct StorageUsageSection: View {
     let store: ItemStore
@@ -26,7 +25,7 @@ struct StorageUsageSection: View {
             } header: {
                 Text("Storage")
             } footer: {
-                Text("Favorites and pinboard items are kept and aren't counted here.")
+                Text("Pinboard items are kept and aren't counted here.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -52,7 +51,7 @@ struct StorageUsageSection: View {
             Button("Clear History", role: .destructive) { clearAll() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Favorites and pinboard items are kept. This cannot be undone.")
+            Text("Pinboard items are kept. This cannot be undone.")
         }
         .confirmationDialog(
             pendingKindClear.map { "Clear all \($0.label.lowercased()) from history?" } ?? "",
@@ -62,7 +61,7 @@ struct StorageUsageSection: View {
             Button("Clear \(category.label)", role: .destructive) { clear(category: category) }
             Button("Cancel", role: .cancel) {}
         } message: { _ in
-            Text("Favorites and pinboard items are kept. This cannot be undone.")
+            Text("Pinboard items are kept. This cannot be undone.")
         }
     }
 
@@ -132,7 +131,7 @@ struct StorageUsageSection: View {
     }
 
     private func clearAll() {
-        try? store.clearHistory(keepFavorites: true)
+        try? store.clearHistory()
         reload()
     }
 

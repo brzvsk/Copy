@@ -55,8 +55,8 @@ struct HistorySettings: View {
 
     private var retentionFooter: String {
         if settings.retention == .unlimited {
-            return "Nothing is removed by age. Favorites and pinboard items are always kept."
+            return "Nothing is removed by age."
         }
-        return "Items you haven't used in \(settings.retention.title.lowercased()) are removed. Favorites and pinboard items are always kept."
+        return "Items you haven't used in \(settings.retention.title.lowercased()) are removed. Pinboard items are always kept."
     }
 }

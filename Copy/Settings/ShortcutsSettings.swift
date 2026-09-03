@@ -15,7 +15,6 @@ struct ShortcutsSettings: View {
                 KeyboardShortcuts.Recorder("Open Copy:", name: .toggleShelf) { _ in
                     settings.onShelfHotkeyChange?()
                 }
-                KeyboardShortcuts.Recorder("Paste Stack:", name: .togglePasteStack)
                 KeyboardShortcuts.Recorder("Quick Paste Latest:", name: .quickPasteLatest)
                 KeyboardShortcuts.Recorder("Next Pinboard:", name: .nextPinboard)
             } footer: {

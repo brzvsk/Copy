@@ -8,7 +8,6 @@ final class SmartSearchTests: XCTestCase {
         query.add(.app(bundleID: "com.apple.Safari", name: "Safari"))
         query.add(.type(.links))
         query.add(.type(.images))
-        query.add(.favorites)
         query.add(.pinboard(id: 3, name: "Work"))
         query.add(.date(.last7))
         query.text = "movement"
@@ -18,7 +17,6 @@ final class SmartSearchTests: XCTestCase {
         XCTAssertEqual(filter.appBundleID, "com.apple.Safari")
         XCTAssertEqual(filter.kinds, [.link, .image])
         XCTAssertTrue(filter.includesImageFiles)
-        XCTAssertTrue(filter.favoritesOnly)
         XCTAssertEqual(filter.pinboardIDs, [3])
         XCTAssertEqual(filter.dateRange, SearchDate.last7.interval(now: now))
     }

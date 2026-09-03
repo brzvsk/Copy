@@ -1,7 +1,6 @@
 import SwiftUI
 import CopyCore
 import AppKit
-import KeyboardShortcuts
 import UniformTypeIdentifiers
 
 struct ShelfRootView: View {
@@ -162,7 +161,6 @@ private struct ShelfHeader: View {
             Spacer(minLength: 12)
             SearchTokenField(viewModel: viewModel, placeholder: searchPlaceholder, focused: $searchFocused)
                 .frame(maxWidth: 360)
-            PasteStackButton(viewModel: viewModel)
             DrawerMenu(viewModel: viewModel)
         }
         .padding(.horizontal, Tokens.shelfPadding)
@@ -185,33 +183,6 @@ private struct ShelfHeader: View {
                 }
             }
         }
-    }
-}
-
-/// Header control that opens the Paste Stack palette (`onTogglePasteStack`), tinting to the
-/// accent while the stack is active. While ⌘ is held it reveals the stack's rebindable
-/// hotkey as a `KeyCap`, matching the shelf's other ⌘-hold hints (the card number badges).
-private struct PasteStackButton: View {
-    @Bindable var viewModel: ShelfViewModel
-
-    private var hotkey: String {
-        KeyboardShortcuts.getShortcut(for: .togglePasteStack)?.description ?? "⇧⌘C"
-    }
-
-    var body: some View {
-        HStack(spacing: 5) {
-            IconButton(systemName: "square.stack.3d.up", fontSize: 15,
-                       size: CGSize(width: 34, height: 30),
-                       tint: viewModel.isPasteStackOn ? Color.accentColor : .secondary,
-                       help: "Paste Stack (\(hotkey))") {
-                viewModel.onTogglePasteStack?()
-            }
-            if viewModel.commandHeld {
-                KeyCap(text: hotkey)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-            }
-        }
-        .animation(.easeOut(duration: 0.12), value: viewModel.commandHeld)
     }
 }
 
@@ -243,7 +214,6 @@ private struct DrawerMenu: View {
             menu.addItem(item)
         }
         add("New Item…") { viewModel.onNewItem?() }
-        add("Paste Stack", checked: viewModel.isPasteStackOn) { viewModel.onTogglePasteStack?() }
         add(viewModel.isPrivacyModeOn ? "Resume Monitoring" : "Pause Monitoring") { viewModel.onTogglePrivacyMode?() }
         menu.addItem(.separator())
         add("Clear History…") { viewModel.onClearHistory?() }
@@ -494,12 +464,6 @@ private struct ShelfItemsRow: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: Tokens.cardGap(compact: compact)) {
                         ForEach(Array(viewModel.items.enumerated()), id: \.element.uuid) { index, item in
-                            // A divider between the leading favorites and the rest.
-                            if index == viewModel.favoritesCount,
-                               viewModel.favoritesCount > 0,
-                               viewModel.favoritesCount < viewModel.items.count {
-                                FavoritesDivider(compact: compact)
-                            }
                             ItemCardView(
                                 item: item,
                                 isSelected: viewModel.isSelected(item),
@@ -527,14 +491,12 @@ private struct ShelfItemsRow: View {
                                 onBeginInlineRename: { viewModel.beginInlineRename(item) },
                                 onCommitInlineRename: { viewModel.commitInlineRename(item, to: $0) },
                                 onCancelInlineRename: { viewModel.cancelInlineRename() },
-                                onToggleFavorite: { viewModel.toggleFavorite(item) },
                                 onAddToPinboard: { id in viewModel.addItem(item, toPinboard: id) },
                                 onRemoveFromPinboard: {
                                     if let currentPinboardID {
                                         viewModel.removeItem(item, fromPinboard: currentPinboardID)
                                     }
                                 },
-                                onAddToPasteStack: { viewModel.addToPasteStack(item) },
                                 onCopyText: { viewModel.copyText(item) },
                                 onQuickLook: { viewModel.quickLook(item) },
                                 onOpen: { viewModel.open(item) },
@@ -579,26 +541,6 @@ private struct ShelfItemsRow: View {
                 }
             }
         }
-    }
-}
-
-/// The vertical rule between the leading favorited cards and the rest of the shelf,
-/// topped with a small star so the grouping reads at a glance.
-private struct FavoritesDivider: View {
-    var compact: Bool = false
-
-    var body: some View {
-        VStack(spacing: 5) {
-            Image(systemName: "star.fill")
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-            RoundedRectangle(cornerRadius: 1, style: .continuous)
-                .fill(Color(nsColor: .separatorColor).opacity(0.8))
-                .frame(width: 1.5)
-        }
-        .frame(height: Tokens.cardHeight(compact: compact))
-        .padding(.horizontal, 2)
-        .accessibilityLabel("Favorites divider")
     }
 }
 

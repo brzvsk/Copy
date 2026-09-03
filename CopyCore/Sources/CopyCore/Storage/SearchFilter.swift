@@ -15,7 +15,6 @@ public struct SearchFilter: Equatable, Sendable {
     /// Matched against `lastUsedAt` — consistent with ordering, retention, and the relative
     /// timestamps shown on cards. Half-open `[start, end)`.
     public var dateRange: DateInterval?
-    public var favoritesOnly: Bool
     public var pinboardIDs: Set<Int64>
 
     public init(text: String = "",
@@ -23,14 +22,12 @@ public struct SearchFilter: Equatable, Sendable {
                 kinds: Set<ItemKind> = [],
                 includesImageFiles: Bool = false,
                 dateRange: DateInterval? = nil,
-                favoritesOnly: Bool = false,
                 pinboardIDs: Set<Int64> = []) {
         self.text = text
         self.appBundleID = appBundleID
         self.kinds = kinds
         self.includesImageFiles = includesImageFiles
         self.dateRange = dateRange
-        self.favoritesOnly = favoritesOnly
         self.pinboardIDs = pinboardIDs
     }
 
@@ -41,7 +38,6 @@ public struct SearchFilter: Equatable, Sendable {
             && kinds.isEmpty
             && !includesImageFiles
             && dateRange == nil
-            && !favoritesOnly
             && pinboardIDs.isEmpty
     }
 

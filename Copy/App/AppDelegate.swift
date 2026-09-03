@@ -6,8 +6,6 @@ import Sparkle
 
 extension KeyboardShortcuts.Name {
     static let toggleShelf = Self("toggleShelf", initial: .init(.v, modifiers: [.command, .shift]))
-    static let togglePasteStack = Self("togglePasteStack", initial: .init(.c, modifiers: [.command, .shift]))
-    static let pasteNextFromStack = Self("pasteNextFromStack", initial: .init(.n, modifiers: [.control, .option, .command]))
     /// No default shortcut — the user opts in from Settings. Pastes the most recent
     /// history item directly into the frontmost app without opening the shelf.
     static let quickPasteLatest = Self("quickPasteLatest")
@@ -63,16 +61,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         KeyboardShortcuts.onKeyDown(for: .toggleShelf) { [weak self] in
             self?.coordinator.toggleShelf()
         }
-        KeyboardShortcuts.onKeyDown(for: .togglePasteStack) { [weak self] in
-            self?.coordinator.togglePasteStack()
-        }
-        // Fallback path only: `AppCoordinator` enables this while the Paste Stack is
-        // active and the CGEvent tap couldn't be created (no Accessibility), and
-        // disables it again on deactivation — see `pasteStackModel.onActiveChange`.
-        KeyboardShortcuts.onKeyDown(for: .pasteNextFromStack) { [weak self] in
-            self?.coordinator.pasteNextFromStack()
-        }
-        KeyboardShortcuts.disable(.pasteNextFromStack)
         KeyboardShortcuts.onKeyDown(for: .quickPasteLatest) { [weak self] in
             self?.coordinator.quickPasteLatest()
         }
@@ -155,10 +143,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return image
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        coordinator.applicationWillTerminate()
-    }
-
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
@@ -192,11 +176,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // extras are "Open Copy" and the live recent-items list above, which are
         // menu-bar-only by nature (the shelf is already open, and already shows items).
         menu.addItem(.separator())
-        let pasteStack = NSMenuItem(title: "Paste Stack", action: #selector(togglePasteStack), keyEquivalent: "c")
-        pasteStack.keyEquivalentModifierMask = [.command, .shift]
-        pasteStack.target = self
-        pasteStack.state = coordinator.isPasteStackActive ? .on : .off
-        menu.addItem(pasteStack)
         let pause = NSMenuItem(title: coordinator.isPaused ? "Resume Monitoring" : "Pause Monitoring",
                                action: #selector(togglePause), keyEquivalent: "")
         pause.target = self
@@ -295,10 +274,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func checkForUpdates(_ sender: Any?) {
         updaterController.checkForUpdates(sender)
-    }
-
-    @objc private func togglePasteStack() {
-        coordinator.togglePasteStack()
     }
 
     @objc private func clearHistory() {

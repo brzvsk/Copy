@@ -53,7 +53,7 @@ final class PinboardStoreTests: XCTestCase {
         let kept = try store.save(makeText("kept"))
         _ = try store.save(makeText("tossed"))
         try pinboards.add(itemID: kept.id!, to: board.id!)
-        try store.clearHistory(keepFavorites: true)
+        try store.clearHistory()
         XCTAssertEqual(try store.recentItems(limit: 10).map(\.plainText), ["kept"])
     }
 

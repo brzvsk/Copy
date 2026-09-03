@@ -8,8 +8,8 @@ public struct ArchivedRep: Codable, Equatable {
 }
 
 /// A clipboard item as it appears inside a `ClipArchive`. Carries everything needed to
-/// reconstruct the item faithfully (timestamps, title, favorite flag, recognized OCR
-/// text, and every representation), keyed for dedup by `contentHash` — the same hash
+/// reconstruct the item faithfully (timestamps, title, recognized OCR text, and every
+/// representation), keyed for dedup by `contentHash` — the same hash
 /// `ItemStore` already uses to recognize identical content.
 public struct ArchivedItem: Codable, Equatable {
     public let kind: String
@@ -22,6 +22,7 @@ public struct ArchivedItem: Codable, Equatable {
     public let createdAt: Date
     public let lastUsedAt: Date
     public let contentHash: String
+    /// Retained only so archives made by older Copy versions remain decodable.
     public let isFavorite: Bool
     public let representations: [ArchivedRep]
 }

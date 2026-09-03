@@ -27,7 +27,7 @@ enum CopySound: String, CaseIterable, Identifiable {
     }
 }
 
-/// How long unfavorited, unpinned history items are kept before pruning.
+/// How long unpinned history items are kept before pruning.
 enum RetentionPeriod: String, CaseIterable {
     case unlimited
     case day
@@ -78,13 +78,10 @@ final class SettingsStore {
     private static let legacyMigrationKey = "didMigrateSettingsFromOriginalCopy"
     private static let legacyKeys = [
         "KeyboardShortcuts_toggleShelf",
-        "KeyboardShortcuts_togglePasteStack",
-        "KeyboardShortcuts_pasteNextFromStack",
         "KeyboardShortcuts_quickPasteLatest",
         "KeyboardShortcuts_nextPinboard",
         "hasOnboarded",
         "hasSeenFirstCopyCoach",
-        "hasSeenPasteStackHint",
         retentionKey,
         fetchLinkPreviewsKey,
         recognizeImageTextKey,
@@ -136,10 +133,8 @@ final class SettingsStore {
         }
     }
 
-    /// When true, the shelf panel and Paste Stack palette set `NSWindowSharingType.none`
-    /// so they're excluded from screen recordings/captures/shares (see
-    /// `ShelfPanelController.setHideDuringScreenSharing`/`PasteStackController`'s
-    /// equivalent). Defaults to false: Copy is visible in screenshots and recordings
+    /// When true, the shelf panel sets `NSWindowSharingType.none` so it's excluded from
+    /// screen recordings/captures/shares. Defaults to false: Copy is visible in screenshots and recordings
     /// out of the box (so people can capture and share it), and hiding is opt-in.
     var hideDuringScreenSharing: Bool {
         didSet {
@@ -162,11 +157,11 @@ final class SettingsStore {
         }
     }
 
-    /// A fixed "pro dark" look for the shelf and paste stack: a forced dark appearance
+    /// A fixed "pro dark" look for the shelf: a forced dark appearance
     /// plus an electric-blue accent, regardless of the system appearance or accent color
     /// (so the app matches its own marketing look). Off by default, so the shelf follows
-    /// the system otherwise. `onShelfProDarkChange` pushes it to the panel controllers
-    /// (which set the window appearance live); `ShelfRootView` reads it via
+    /// the system otherwise. `onShelfProDarkChange` pushes it to the panel controller
+    /// (which sets the window appearance live); `ShelfRootView` reads it via
     /// `ShelfViewModel.settings` to apply the tint.
     var shelfProDark: Bool {
         didSet {

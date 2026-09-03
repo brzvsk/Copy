@@ -26,20 +26,6 @@ final class AppCoordinator {
     private(set) lazy var ocrController = OCRController(store: store)
     private(set) lazy var archiveController = ArchiveController(store: store, pinboardStore: pinboardStore)
 
-    /// Assigned eagerly in `init()` (from a local, not `self.pasteStackModel`) so the
-    /// monitor's `onCapture` closure can capture it directly for the auto-enqueue-while-
-    /// active behavior — `self` isn't fully initialized yet at that point in `init()`,
-    /// but a plain local reference to this same instance is fine to capture. Its
-    /// `onActiveChange` handler is wired afterward, once `self` is safe to capture.
-    private let pasteStackModel: PasteStackModel
-    private lazy var pasteStackController = PasteStackController(
-        model: pasteStackModel,
-        hideDuringScreenSharing: settings.hideDuringScreenSharing,
-        proDark: settings.shelfProDark)
-    private lazy var pasteStackEngine = PasteStackEngine(onIntercept: { [weak self] in
-        self?.pasteNextViaEngine()
-    })
-
     /// How often the retention pruner re-runs while the app stays open.
     private static let retentionInterval: TimeInterval = 12 * 60 * 60
 
@@ -249,9 +235,6 @@ final class AppCoordinator {
                 paste()
             }
         }
-        shelfViewModel.onAddToPasteStack = { [weak self] item in
-            self?.addToPasteStack(item)
-        }
         shelfViewModel.onOpenURL = { [weak controller] url in
             if let controller {
                 controller.hide(restoreFocus: true) {
@@ -277,9 +260,6 @@ final class AppCoordinator {
         }
         shelfViewModel.onNewItem = { [weak self] in
             self?.newItem()
-        }
-        shelfViewModel.onTogglePasteStack = { [weak self] in
-            self?.togglePasteStack()
         }
         shelfViewModel.onTogglePrivacyMode = { [weak self] in
             self?.togglePause()
@@ -357,10 +337,8 @@ final class AppCoordinator {
         self.pinboardStore = pinboardStore
         self.pasteService = PasteService(pasteboard: NSPasteboard.general,
                                          keyPoster: CGKeyEventPoster())
-        let pasteStackModel = PasteStackModel(store: store)
-        self.pasteStackModel = pasteStackModel
         if isDemo {
-            DemoData.seed(store: store, pinboards: pinboardStore, pasteStack: pasteStackModel)
+            DemoData.seed(store: store, pinboards: pinboardStore)
         }
         let settings = SettingsStore()
         self.settings = settings
@@ -378,26 +356,18 @@ final class AppCoordinator {
                 let app = NSWorkspace.shared.frontmostApplication
                 return (app?.bundleIdentifier, app?.localizedName)
             },
-            onCapture: { [persistQueue, linkFetcher, ocrController, settings, pasteStackModel] captured in
+            onCapture: { [persistQueue, linkFetcher, ocrController, settings] captured in
                 persistQueue.async {
                     do {
                         let saved = try store.save(captured)
                         DispatchQueue.main.async {
                             linkFetcher.fetchIfNeeded(for: saved, enabled: settings.fetchLinkPreviews)
                             ocrController.recognizeIfNeeded(for: saved, enabled: settings.recognizeImageText)
-                            // While the stack is active, new copies join the queue too —
-                            // "copying while the stack is active" enqueues automatically.
-                            if pasteStackModel.isActive {
-                                pasteStackModel.enqueue(saved)
-                            }
                             // Already on the main queue; hop into main-actor isolation for
-                            // the one-time activation nudges (see the methods).
+                            // the one-time first-copy coach.
                             MainActor.assumeIsolated {
                                 CopySoundPlayer.shared.play(settings.copySound)
                                 AppCoordinator.showFirstCopyCoachIfNeeded()
-                                if !pasteStackModel.isActive {
-                                    AppCoordinator.notePasteStackOpportunity()
-                                }
                             }
                         }
                     } catch {
@@ -413,37 +383,15 @@ final class AppCoordinator {
         }
         settings.onHideDuringScreenSharingChange = { [weak self] hide in
             self?.shelfController.setHideDuringScreenSharing(hide)
-            self?.pasteStackController.setHideDuringScreenSharing(hide)
         }
         settings.onCompactShelfChange = { [weak self] compact in
             self?.shelfController.setCompactShelf(compact)
         }
         settings.onShelfProDarkChange = { [weak self] proDark in
             self?.shelfController.setProDark(proDark)
-            self?.pasteStackController.setProDark(proDark)
         }
         settings.onShowOnboarding = { [weak self] in
             self?.showOnboarding()
-        }
-        // `self` is fully initialized past this point, so it's safe to capture weakly
-        // in `onActiveChange` — the single fan-out point for palette visibility AND
-        // engine activation, so the two can never drift out of lockstep (see the
-        // `pasteStackModel` doc comment above).
-        pasteStackModel.onActiveChange = { [weak self] isActive in
-            guard let self else { return }
-            self.pasteStackController.syncVisibility(to: isActive)
-            self.shelfViewModel.isPasteStackOn = isActive
-            if isActive {
-                let tapCreated = self.pasteStackEngine.activate()
-                NSLog("Copy: Paste Stack tap \(tapCreated ? "activated" : "could not be created, falling back to hotkey")")
-                if !tapCreated {
-                    KeyboardShortcuts.enable(.pasteNextFromStack)
-                    HUD.show("Use Control Option Command N to paste the next item")
-                }
-            } else {
-                self.pasteStackEngine.deactivate()
-                KeyboardShortcuts.disable(.pasteNextFromStack)
-            }
         }
     }
 
@@ -481,26 +429,8 @@ final class AppCoordinator {
         HUD.show("Saved to Copy. Press \(hotkey) to open it.", duration: 2.8)
     }
 
-    /// Tracks recent capture times; when an established user copies several things in
-    /// quick succession (exactly when a paste stack would help) and hasn't met the
-    /// feature yet, introduce it, once. Gated behind the first-copy coach so a brand-new
-    /// user copying a fast burst isn't double-nagged.
-    private static var recentCaptureTimes: [Date] = []
-    private static func notePasteStackOpportunity() {
-        let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: "hasSeenFirstCopyCoach"),
-              !defaults.bool(forKey: "hasSeenPasteStackHint") else { return }
-        let now = Date()
-        recentCaptureTimes.append(now)
-        recentCaptureTimes = recentCaptureTimes.filter { now.timeIntervalSince($0) < 10 }
-        guard recentCaptureTimes.count >= 3 else { return }
-        defaults.set(true, forKey: "hasSeenPasteStackHint")
-        let hotkey = KeyboardShortcuts.getShortcut(for: .togglePasteStack)?.description ?? "⇧⌘C"
-        HUD.show("Collecting a few things? Press \(hotkey) for the paste stack.", duration: 3.0)
-    }
-
     /// Prunes items past the configured retention window on the persist queue,
-    /// always sparing favorites and pinboard members (`ItemStore.prune` invariant).
+    /// always sparing pinboard members (`ItemStore.prune` invariant).
     private func runRetentionPrune() {
         let cutoff = settings.retention.cutoff
         let store = self.store
@@ -606,15 +536,6 @@ final class AppCoordinator {
         }
     }
 
-    /// Enqueues `item` into the Paste Stack (activating the palette if it wasn't
-    /// already) from the card context menu's "Add to Paste Stack" action. The palette
-    /// re-fits its own size to the new row via `PasteStackView.onContentChange`, so
-    /// there's no need to poke the controller directly here.
-    func addToPasteStack(_ item: ClipItem) {
-        pasteStackModel.enqueue(item)
-        HUD.show("Added to Paste Stack")
-    }
-
     /// Places the primary shelf card on the system clipboard without synthesizing a
     /// paste. The self marker keeps the monitor from ingesting a duplicate; touching
     /// the existing item makes it the current entry in history too. Returns whether the
@@ -669,70 +590,9 @@ final class AppCoordinator {
         HUD.show("Color copied")
     }
 
-    /// Whether the Paste Stack palette/engine are currently active — read by
-    /// `AppDelegate` to reflect a checkmark on the "Paste Stack" menu item.
-    var isPasteStackActive: Bool { pasteStackModel.isActive }
-
-    /// Flips the Paste Stack on or off. All activation/deactivation — the palette, the
-    /// CGEvent tap, and the `.pasteNextFromStack` fallback hotkey — fans out from
-    /// `pasteStackModel.isActive`'s `didSet`, wired to `onActiveChange` in `init()`.
-    func togglePasteStack() {
-        pasteStackModel.isActive.toggle()
-    }
-
-    /// Advances the queue and places the next item's representations on the
-    /// pasteboard, shared by both the engine-intercepted path and the
-    /// `.pasteNextFromStack` fallback hotkey. Returns `false` once the queue is
-    /// exhausted, having already deactivated the stack and shown the "finished" HUD.
-    @discardableResult
-    private func placeNextStackItem() -> Bool {
-        guard let reps = pasteStackModel.advanceAndResolve() else {
-            deactivatePasteStack()
-            HUD.show("Paste Stack finished")
-            return false
-        }
-        pasteService.place(reps, plainTextOnly: false)
-        return true
-    }
-
-    /// Called by `PasteStackEngine`'s `onIntercept` when the CGEvent tap swallows a
-    /// plain ⌘V. This path only runs with Accessibility granted (the tap itself
-    /// requires it), so after placing the item it's safe to re-synthesize a marked ⌘V
-    /// and have the frontmost app receive it automatically.
-    private func pasteNextViaEngine() {
-        guard placeNextStackItem() else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            PasteStackEngine.postMarkedPasteKeystroke()
-        }
-    }
-
-    /// `.pasteNextFromStack` fallback hotkey handler — only reachable while the tap
-    /// couldn't be created (no Accessibility; see `pasteStackModel.onActiveChange`).
-    /// Without Accessibility we can't reliably synthesize a ⌘V ourselves (same reason
-    /// `pasteFromShelf`/`onPasteMultiple` gate `sendPasteKeystroke()` behind
-    /// `AXIsProcessTrusted()`), so this places the item and lets the user's own ⌘V —
-    /// which the OS delivers directly, no synthesis needed — do the actual pasting.
-    func pasteNextFromStack() {
-        guard placeNextStackItem() else { return }
-        HUD.show("Ready to paste. Press Command V.")
-    }
-
-    private func deactivatePasteStack() {
-        pasteStackModel.isActive = false
-    }
-
-    /// Called from `AppDelegate.applicationWillTerminate` so the event tap never
-    /// outlives the app process. `pasteStackEngine.deactivate()` is called directly
-    /// too, as a defensive no-op, in case the tap was ever active without
-    /// `pasteStackModel.isActive` reflecting it.
-    func applicationWillTerminate() {
-        deactivatePasteStack()
-        pasteStackEngine.deactivate()
-    }
-
     func clearHistory() {
         do {
-            try store.clearHistory(keepFavorites: true)
+            try store.clearHistory()
         } catch {
             NSLog("Copy: failed to clear history: \(error)")
         }
@@ -747,7 +607,7 @@ final class AppCoordinator {
     func confirmAndClearHistory() {
         let alert = NSAlert()
         alert.messageText = "Clear clipboard history?"
-        alert.informativeText = "Favorites are kept. This cannot be undone."
+        alert.informativeText = "Pinboard items are kept. This cannot be undone."
         alert.addButton(withTitle: "Clear")
         alert.addButton(withTitle: "Cancel")
         alert.window.level = .statusBar

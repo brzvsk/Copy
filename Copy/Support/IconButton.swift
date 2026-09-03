@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The single icon-only button used across Copy (shelf header, paste stack, card hover
+/// The single icon-only button used across Copy (shelf header, card hover
 /// actions, etc.). It guarantees a generous, fully-hittable target (a plain `Button` with
 /// a sized frame + `contentShape` — SwiftUI's `Menu`/borderless styles only made the glyph
 /// pixels clickable), shows a hover highlight so the target is visible, and carries a

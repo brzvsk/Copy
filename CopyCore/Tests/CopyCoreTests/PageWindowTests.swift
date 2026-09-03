@@ -56,19 +56,7 @@ final class PageWindowTests: XCTestCase {
         XCTAssertEqual(window.limit, 100)
     }
 
-    /// The shelf measures in recents-space, so a favorite's card yields a negative index
-    /// (favorites sit ahead of position 0). That must never trip the lookahead.
-    func testFavoriteCardsNeverGrowTheWindow() {
-        var window = PageWindow()
-        for index in -12 ..< 0 {
-            XCTAssertFalse(window.growIfNeeded(visibleIndex: index, loadedCount: 300))
-        }
-        XCTAssertEqual(window.limit, 100)
-    }
-
-    /// A short page stays short even when favorites make the raw row long: recents-space
-    /// keeps the exhausted-query test honest.
-    func testShortRecentsPageStopsGrowingRegardlessOfFavorites() {
+    func testShortPageStopsGrowing() {
         var window = PageWindow()
         // 40 recents loaded against a 100 window: the history ran out.
         XCTAssertFalse(window.growIfNeeded(visibleIndex: 39, loadedCount: 40))
