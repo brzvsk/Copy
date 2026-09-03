@@ -76,6 +76,12 @@ enum RetentionPeriod: String, CaseIterable {
 final class SettingsStore {
     private static let legacySuiteName = "com.tarikbc.Copy"
     private static let legacyMigrationKey = "didMigrateSettingsFromOriginalCopy"
+    /// Safe defaults for a genuinely new profile. Existing and migrated profiles keep
+    /// their exact saved list, including an intentionally empty one.
+    private static let newProfileExcludedBundleIDs = [
+        "com.apple.Passwords",
+        "com.apple.keychainaccess",
+    ]
     private static let legacyKeys = [
         "KeyboardShortcuts_toggleShelf",
         "KeyboardShortcuts_quickPasteLatest",
@@ -235,6 +241,18 @@ final class SettingsStore {
             Self.migrateLegacySettingsIfNeeded(to: defaults)
         }
         self.defaults = defaults
+        let initialExcludedBundleIDs: [String]
+        if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
+           let decoded = try? JSONDecoder().decode([String].self, from: data) {
+            initialExcludedBundleIDs = decoded.sorted()
+        } else if !defaults.bool(forKey: "hasOnboarded") {
+            initialExcludedBundleIDs = Self.newProfileExcludedBundleIDs.sorted()
+            if let data = try? JSONEncoder().encode(initialExcludedBundleIDs) {
+                defaults.set(data, forKey: Self.excludedBundleIDsKey)
+            }
+        } else {
+            initialExcludedBundleIDs = []
+        }
         if let raw = defaults.string(forKey: Self.retentionKey), let period = RetentionPeriod(rawValue: raw) {
             retention = period
         } else {
@@ -249,12 +267,7 @@ final class SettingsStore {
         doubleClickToPaste = (defaults.object(forKey: Self.doubleClickToPasteKey) as? Bool) ?? true
         copySound = defaults.string(forKey: Self.copySoundKey)
             .flatMap(CopySound.init(rawValue:)) ?? .off
-        if let data = defaults.data(forKey: Self.excludedBundleIDsKey),
-           let decoded = try? JSONDecoder().decode([String].self, from: data) {
-            excludedBundleIDs = decoded.sorted()
-        } else {
-            excludedBundleIDs = []
-        }
+        excludedBundleIDs = initialExcludedBundleIDs
     }
 
     /// The independently maintained app has a new bundle identifier, so macOS gives it a

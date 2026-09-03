@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New installations exclude Passwords and Keychain Access from clipboard capture by default.
+
 ### Removed
 
 - Favorites and Paste Stack, simplifying the shelf around history and pinboards.
