@@ -108,13 +108,13 @@ struct ItemCardView: View {
         .padding(compact ? 8 : 10)
         .frame(width: Tokens.cardWidth(compact: compact), height: Tokens.cardHeight(compact: compact), alignment: .topLeading)
         // M7: deliberately NOT routed through `glassSurface` even on macOS 26. Cards
-        // are dense, content-bearing surfaces (up to 11 lines of mono-spaced clipboard
+        // are dense, content-bearing surfaces (up to 11 lines of clipboard
         // text) shown many-at-a-time in a scrolling row — exactly the case Apple's
         // Liquid Glass guidance calls out as the wrong fit ("glass is for the controls
         // and navigation that float above content, not for the content itself"). The
         // shelf panel behind the row is already glass on 26 (`ShelfRootView`); stacking
-        // another translucent layer under small text-heavy cards would fight the mono
-        // body text's legibility and read as busy rather than intentional. Cards keep
+        // another translucent layer under small text-heavy cards would fight the body
+        // text's legibility and read as busy rather than intentional. Cards keep
         // `controlBackgroundColor` on every macOS version.
         .background(
             ZStack {
@@ -378,7 +378,7 @@ struct ItemCardView: View {
             colorSwatchBody(hex)
         } else {
             codeAwareBody(text: item.plainText ?? "", cap: 1_500)
-                .font(Tokens.bodyMono)
+                .font(Tokens.cardBody)
                 .lineLimit(bodyLineLimit(standard: 11, compact: 6))
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -392,7 +392,7 @@ struct ItemCardView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Tokens.color(fromHex: hex))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Text(hex).font(Tokens.bodyMono)
+            Text(hex).font(Tokens.cardBody)
         }
     }
 
@@ -403,7 +403,7 @@ struct ItemCardView: View {
         VStack(alignment: .leading, spacing: 6) {
             FileThumbnail(item: item, store: store, compact: compact)
             Text(item.plainText ?? "File")
-                .font(Tokens.bodyMono)
+                .font(Tokens.cardBody)
                 .lineLimit(bodyLineLimit(standard: 2, compact: 1))
         }
     }
@@ -457,7 +457,7 @@ struct ItemCardView: View {
                         .lineLimit(bodyLineLimit(standard: 2, compact: 1))
                         .multilineTextAlignment(.leading)
                     Text(String((item.plainText ?? "").prefix(1_500)))
-                        .font(Tokens.bodyMono)
+                        .font(Tokens.cardBody)
                         .foregroundStyle(.secondary)
                         .lineLimit(bodyLineLimit(standard: 2, compact: 1))
                 }
@@ -470,7 +470,7 @@ struct ItemCardView: View {
                         .font(Tokens.cardSubtitle)
                         .lineLimit(1)
                     Text(String((item.plainText ?? "").prefix(1_500)))
-                        .font(Tokens.bodyMono)
+                        .font(Tokens.cardBody)
                         .foregroundStyle(.secondary)
                         .lineLimit(bodyLineLimit(standard: 5, compact: 3))
                 }
@@ -485,7 +485,7 @@ struct ItemCardView: View {
                     .fill(Tokens.color(fromHex: item.plainText ?? ""))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Text(item.plainText ?? "")
-                    .font(Tokens.bodyMono)
+                    .font(Tokens.cardBody)
             }
         }
     }

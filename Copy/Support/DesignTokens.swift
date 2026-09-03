@@ -24,6 +24,12 @@ enum Tokens {
     static func cardGap(compact: Bool) -> CGFloat { compact ? compactCardGap : cardGap }
     static func shelfPadding(compact: Bool) -> CGFloat { compact ? compactShelfPadding : shelfPadding }
 
+    /// Standard macOS system face for clipboard content inside cards. Slightly smaller
+    /// than the platform body style so multi-line cards stay useful without the dense,
+    /// terminal-like texture of the previous monospaced font.
+    static let cardBody = Font.system(size: 12)
+    /// Retained for explicitly technical compact surfaces such as Paste Stack; regular
+    /// shelf cards and Space preview use the system face instead.
     static let bodyMono = Font.system(size: 11, design: .monospaced)
     static let caption = Font.system(size: 10, weight: .medium)
     static let cardTitle = Font.system(size: 11, weight: .semibold)
