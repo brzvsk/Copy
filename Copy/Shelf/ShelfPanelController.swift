@@ -42,9 +42,11 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     private var modalPanel: KeyablePanel?
     private var previousApp: NSRunningApplication?
     private var keyMonitor: Any?
-    /// Guards the animated close: set before restoring focus (which can re-enter `hide`
-    /// via `windowDidResignKey`), and cleared once the panel is actually ordered out.
+    /// Guards the animated close until the panel is actually ordered out.
     private var isHiding = false
+    /// Actions requested while the same close is in flight. They must wait for `orderOut`
+    /// and focus restoration just like the action that initiated the close.
+    private var pendingHideCompletions: [() -> Void] = []
     /// Bumped by both `show()` and each `hide()` so a stale close animation's completion
     /// handler doesn't order the panel out after a newer show/hide has superseded it.
     private var closeToken = 0
@@ -142,37 +144,43 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         DispatchQueue.main.async { [weak panel] in panel?.makeFirstResponder(nil) }
     }
 
-    func hide(restoreFocus: Bool) {
-        guard let panel, isVisible, !isHiding else { return }
-        // Set before restoring focus: activating the previous app resigns the panel's key
-        // status, which re-enters this method via `windowDidResignKey`; the guard above
-        // makes that second call a no-op.
+    func hide(restoreFocus: Bool, completion: (() -> Void)? = nil) {
+        guard let panel, isVisible else {
+            completion?()
+            return
+        }
+        if let completion {
+            pendingHideCompletions.append(completion)
+        }
+        // A repeated action during the 180ms fade joins the current close instead of
+        // being dropped or running before the destination app regains focus.
+        guard !isHiding else { return }
+        // Keep Copy active until the panel is fully out. On macOS 26 the shelf is live
+        // Liquid Glass; activating the previous app while that glass is still visible
+        // changes its sampled backdrop mid-fade and produces a one-frame flash.
         isHiding = true
         removeKeyMonitor()
-        if restoreFocus {
-            previousApp?.activate()
-        }
 
-        // Mirror of `show()`'s entrance: fade out while sliding down 24pt, then order out.
+        // Mirror of `show()`'s entrance: fade out while sliding down 18pt, then order out.
         // Reduce Motion skips straight to the orderOut, matching the entrance's own gate.
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            finishHide(panel)
+            finishHide(panel, restoreFocus: restoreFocus)
             return
         }
 
         closeToken += 1
         let token = closeToken
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.16
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            context.duration = 0.18
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             panel.animator().alphaValue = 0
-            panel.animator().setFrame(panel.frame.offsetBy(dx: 0, dy: -24), display: true)
+            panel.animator().setFrame(panel.frame.offsetBy(dx: 0, dy: -18), display: true)
         } completionHandler: { [weak self] in
             // NSAnimationContext runs its completion on the main thread; the closure's
             // `@Sendable` type just can't see that statically.
             MainActor.assumeIsolated {
                 guard let self, self.closeToken == token else { return }
-                self.finishHide(panel)
+                self.finishHide(panel, restoreFocus: restoreFocus)
             }
         }
     }
@@ -181,11 +189,19 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     /// (which clears the shelf's transient selection/preview state) fires here, at the end
     /// of the close animation, so that content doesn't visibly reset while the panel is
     /// still fading out.
-    private func finishHide(_ panel: KeyablePanel) {
+    private func finishHide(_ panel: KeyablePanel, restoreFocus: Bool) {
         panel.orderOut(nil)
-        panel.alphaValue = 1
+        // Leave alpha at zero while hidden. Resetting it to one in the same run-loop
+        // turn as `orderOut` can race WindowServer and briefly re-show the fully opaque
+        // surface. `show()` always establishes its own alpha-zero starting state.
         isHiding = false
         onDidHide?()
+        if restoreFocus {
+            previousApp?.activate()
+        }
+        let completions = pendingHideCompletions
+        pendingHideCompletions.removeAll()
+        completions.forEach { $0() }
     }
 
     // MARK: - Private

@@ -219,15 +219,27 @@ final class AppCoordinator {
             }
         }
         shelfViewModel.onPaste = { [weak self, weak controller] item, plain in
-            controller?.hide(restoreFocus: true)
-            self?.pasteFromShelf(item, plainTextOnly: plain)
+            let paste: () -> Void = { [weak self] in
+                guard let self else { return }
+                self.pasteFromShelf(item, plainTextOnly: plain)
+            }
+            if let controller {
+                controller.hide(restoreFocus: true, completion: paste)
+            } else {
+                paste()
+            }
         }
         shelfViewModel.onAddToPasteStack = { [weak self] item in
             self?.addToPasteStack(item)
         }
         shelfViewModel.onOpenURL = { [weak controller] url in
-            controller?.hide(restoreFocus: true)
-            NSWorkspace.shared.open(url)
+            if let controller {
+                controller.hide(restoreFocus: true) {
+                    NSWorkspace.shared.open(url)
+                }
+            } else {
+                NSWorkspace.shared.open(url)
+            }
         }
         shelfViewModel.onCopyText = { [weak self] text in
             self?.copyText(text)
@@ -265,17 +277,23 @@ final class AppCoordinator {
             self?.openSettings()
         }
         shelfViewModel.onPasteMultiple = { [weak self, weak controller] joined in
-            controller?.hide(restoreFocus: true)
-            guard let self else { return }
-            self.pasteService.place(
-                [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(joined.utf8))],
-                plainTextOnly: false)
-            guard AXIsProcessTrusted() else {
-                HUD.show("Press ⌘V to paste")
-                return
+            let paste = { [weak self] in
+                guard let self else { return }
+                self.pasteService.place(
+                    [CapturedRepresentation(uti: "public.utf8-plain-text", data: Data(joined.utf8))],
+                    plainTextOnly: false)
+                guard AXIsProcessTrusted() else {
+                    HUD.show("Press ⌘V to paste")
+                    return
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [pasteService = self.pasteService] in
+                    pasteService.sendPasteKeystroke()
+                }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [pasteService = self.pasteService] in
-                pasteService.sendPasteKeystroke()
+            if let controller {
+                controller.hide(restoreFocus: true, completion: paste)
+            } else {
+                paste()
             }
         }
         controller.onFlagsChanged = { [weak self] event in
@@ -725,7 +743,7 @@ final class AppCoordinator {
             promptForAccessibility()
             return
         }
-        // Give the menu time to close so the keystroke lands in the frontmost app.
+        // Give app activation time to settle so the keystroke lands in the frontmost app.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [pasteService] in
             pasteService.sendPasteKeystroke()
         }
