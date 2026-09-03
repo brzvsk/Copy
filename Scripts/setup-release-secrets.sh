@@ -19,12 +19,12 @@
 # files are created in a private temp dir and deleted on exit.
 set -euo pipefail
 
-REPO="tarikbc/Copy"
+REPO="brzvsk/Copy"
 SIGN_IDENTITY="Developer ID Application"
-TEAM_HINT="P7V47BUA2B"
+TEAM_HINT="UDTBP44Q7F"
 LOGIN_KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 # A keychain "service" under which we save the generated passwords/ids for you.
-KC_SERVICE="com.tarikbc.Copy.release"
+KC_SERVICE="sk.brzv.Copy.release"
 
 WORK_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$WORK_DIR"; }
@@ -121,10 +121,10 @@ setup_sparkle() {
   [[ -n "$gen" ]] || die "Sparkle's generate_keys not found. Build the app once so SPM resolves Sparkle, then retry."
 
   local key="$WORK_DIR/sparkle-copy.key"
-  # Copy's dedicated key lives under the 'copy' keychain account (kept separate
+  # Copy's dedicated key lives under the 'brzv-copy' keychain account (kept separate
   # from any other Sparkle app on this Mac). Export it just long enough to upload.
-  "$gen" --account copy -x "$key" >/dev/null 2>&1 \
-    || die "could not export Copy's Sparkle key from the 'copy' keychain account."
+  "$gen" --account brzv-copy -x "$key" >/dev/null 2>&1 \
+    || die "could not export Copy's Sparkle key from the 'brzv-copy' keychain account."
   gh secret set SPARKLE_PRIVATE_KEY --repo "$REPO" < "$key"
   info "set SPARKLE_PRIVATE_KEY"
 }
@@ -172,7 +172,7 @@ main() {
   gh secret list --repo "$REPO" | sed 's/^/    /'
   echo
   info "Next: enable GitHub Pages on the docs/ folder (Settings > Pages), then"
-  info "cut a release with:  git tag v0.1.0 && git push origin v0.1.0"
+  info "cut a release with:  git tag v0.2.0 && git push origin v0.2.0"
 }
 
 main "$@"

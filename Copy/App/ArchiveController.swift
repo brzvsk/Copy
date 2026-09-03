@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 final class ArchiveController {
     private let store: ItemStore
     private let pinboardStore: PinboardStore
-    private let queue = DispatchQueue(label: "com.tarikbc.copy.archive", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "sk.brzv.copy.archive", qos: .userInitiated)
 
     init(store: ItemStore, pinboardStore: PinboardStore) {
         self.store = store

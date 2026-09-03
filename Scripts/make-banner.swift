@@ -69,7 +69,10 @@ NSGraphicsContext.restoreGraphicsState()
 
 guard let img = ctx.makeImage() else { fatalError("img") }
 let rep = NSBitmapImageRep(cgImage: img)
-let out = "/Users/tarikbc/Programacao/Copy/docs/assets/img"
-try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "\(out)/banner.png"))
-try! rep.representation(using: .jpeg, properties: [.compressionFactor: 0.9])!.write(to: URL(fileURLWithPath: "\(out)/og-image.jpg"))
+let repoRoot = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+let out = repoRoot.appendingPathComponent("docs/assets/img", isDirectory: true)
+try! rep.representation(using: .png, properties: [:])!.write(to: out.appendingPathComponent("banner.png"))
+try! rep.representation(using: .jpeg, properties: [.compressionFactor: 0.9])!.write(to: out.appendingPathComponent("og-image.jpg"))
 print("wrote banner.png + og-image.jpg")

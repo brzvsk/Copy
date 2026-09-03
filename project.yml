@@ -1,6 +1,6 @@
 name: Copy
 options:
-  bundleIdPrefix: com.tarikbc
+  bundleIdPrefix: sk.brzv
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
@@ -30,32 +30,32 @@ targets:
       path: Copy/Info.plist
       properties:
         CFBundleDisplayName: Copy
-        CFBundleShortVersionString: "0.1.6"
-        CFBundleVersion: "7"
+        CFBundleShortVersionString: "0.2.0"
+        CFBundleVersion: "8"
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
-        NSHumanReadableCopyright: "© 2026 Tarik Caramanico - GPL-3.0"
-        # Sparkle auto-update feed. SUPublicEDKey is Copy's dedicated EdDSA
-        # public key (generated under the `copy` keychain account; the private
+        NSHumanReadableCopyright: "Original © 2026 Tarik Caramanico; modifications © 2026 Nikolai Berezovskii - GPL-3.0"
+        # Sparkle auto-update feed. SUPublicEDKey is this fork's dedicated EdDSA
+        # public key (generated under the `brzv-copy` keychain account; the private
         # key is backed up outside the repo, see Scripts/sparkle-keys-README.md).
-        SUFeedURL: https://tarikbc.github.io/Copy/appcast.xml
-        SUPublicEDKey: "T/g8uQqB0Ki0cQTD43Mjk5KC4YRtBYMUfg5QduAnH2c="
+        SUFeedURL: https://brzvsk.github.io/Copy/appcast.xml
+        SUPublicEDKey: "ic1GeI8aVeYsA3RsX9sxrbaAkWOFyLOhL8K94U7TrNA="
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
         # Declares the internal card-drag payload type (see ShelfViewModel.UTType.copyItem)
         # so the system recognizes it during real drag-and-drop, not just as an in-process
         # string constant. Required for card → pinboard tab filing to work.
         UTExportedTypeDeclarations:
-          - UTTypeIdentifier: com.tarikbc.copy.item
+          - UTTypeIdentifier: sk.brzv.copy.item
             UTTypeDescription: Copy clipboard item
             UTTypeConformsTo:
               - public.data
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.tarikbc.Copy
-        MARKETING_VERSION: "0.1.6"
+        PRODUCT_BUNDLE_IDENTIFIER: sk.brzv.Copy
+        MARKETING_VERSION: "0.2.0"
         SWIFT_VERSION: "5.0"
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: P7V47BUA2B
+        DEVELOPMENT_TEAM: UDTBP44Q7F
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

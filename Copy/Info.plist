@@ -17,21 +17,21 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.6</string>
+	<string>0.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>7</string>
+	<string>8</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Tarik Caramanico - GPL-3.0</string>
+	<string>Original © 2026 Tarik Caramanico; modifications © 2026 Nikolai Berezovskii - GPL-3.0</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://tarikbc.github.io/Copy/appcast.xml</string>
+	<string>https://brzvsk.github.io/Copy/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>T/g8uQqB0Ki0cQTD43Mjk5KC4YRtBYMUfg5QduAnH2c=</string>
+	<string>ic1GeI8aVeYsA3RsX9sxrbaAkWOFyLOhL8K94U7TrNA=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 	<key>UTExportedTypeDeclarations</key>
@@ -44,7 +44,7 @@
 			<key>UTTypeDescription</key>
 			<string>Copy clipboard item</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.tarikbc.copy.item</string>
+			<string>sk.brzv.copy.item</string>
 		</dict>
 	</array>
 </dict>

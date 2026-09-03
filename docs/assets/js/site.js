@@ -3,28 +3,6 @@
 (function () {
   "use strict";
 
-  // Copy-to-clipboard for the Homebrew command chips.
-  document.querySelectorAll("[data-copy]").forEach(function (button) {
-    var defaultLabel = button.textContent;
-    button.addEventListener("click", function () {
-      var text = button.getAttribute("data-copy");
-      var done = function () {
-        button.textContent = "Copied";
-        button.classList.add("is-copied");
-        window.setTimeout(function () {
-          button.textContent = defaultLabel;
-          button.classList.remove("is-copied");
-        }, 1600);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
-      } else {
-        fallbackCopy(text);
-        done();
-      }
-    });
-  });
-
   // Cursor parallax: the hero shelf mock tilts toward the pointer.
   var tilt = document.querySelector("[data-tilt]");
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -65,17 +43,5 @@
     scene.addEventListener("pointerenter", stop);
     scene.addEventListener("pointerleave", start);
     window.setTimeout(start, 1700);   // let the load-in settle first
-  }
-
-  function fallbackCopy(text) {
-    var area = document.createElement("textarea");
-    area.value = text;
-    area.setAttribute("readonly", "");
-    area.style.position = "absolute";
-    area.style.left = "-9999px";
-    document.body.appendChild(area);
-    area.select();
-    try { document.execCommand("copy"); } catch (err) { /* no-op */ }
-    document.body.removeChild(area);
   }
 })();

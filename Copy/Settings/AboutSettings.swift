@@ -9,9 +9,9 @@ import SwiftUI
 struct AboutSettings: View {
     @Bindable var settings: SettingsStore
 
-    private static let repoURL = URL(string: "https://github.com/tarikbc/Copy")!
-    private static let issuesURL = URL(string: "https://github.com/tarikbc/Copy/issues/new")!
-    private static let licenseURL = URL(string: "https://github.com/tarikbc/Copy/blob/main/LICENSE")!
+    private static let repoURL = URL(string: "https://github.com/brzvsk/Copy")!
+    private static let issuesURL = URL(string: "https://github.com/brzvsk/Copy/issues/new")!
+    private static let licenseURL = URL(string: "https://github.com/brzvsk/Copy/blob/main/LICENSE")!
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,7 +31,7 @@ struct AboutSettings: View {
                     Button("Report an Issue") { NSWorkspace.shared.open(Self.issuesURL) }
                     Button("License (GPL-3.0)") { NSWorkspace.shared.open(Self.licenseURL) }
                 } footer: {
-                    Text("© 2026 Tarik Caramanico · GPL-3.0")
+                    Text("Original © 2026 Tarik Caramanico\nModifications © 2026 Nikolai Berezovskii · GPL-3.0")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

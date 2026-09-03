@@ -19,7 +19,7 @@ public struct ItemStore {
     public static let inlineThreshold = 65_536
     public static let deleteChunkSize = 500
     public static let userCreatedAppName = "Copy"
-    public static let userCreatedAppBundleID = "com.tarikbc.Copy"
+    public static let userCreatedAppBundleID = "sk.brzv.Copy"
 
     private let writer: any DatabaseWriter
     private let blobs: BlobStore

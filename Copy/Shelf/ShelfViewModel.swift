@@ -9,7 +9,7 @@ extension UTType {
     /// filing drags within the shelf. Declared in project.yml's Info.plist properties
     /// (`UTExportedTypeDeclarations`) so the system recognizes it during real
     /// drag-and-drop sessions, not just as an in-process string constant.
-    static let copyItem = UTType(exportedAs: "com.tarikbc.copy.item")
+    static let copyItem = UTType(exportedAs: "sk.brzv.copy.item")
 }
 
 @MainActor

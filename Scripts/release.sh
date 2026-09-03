@@ -20,12 +20,12 @@
 #
 # Requires locally:
 #   - Xcode + xcodegen
-#   - A "Developer ID Application" signing identity for team P7V47BUA2B
+#   - A "Developer ID Application" signing identity for team UDTBP44Q7F
 #   - A notarytool keychain profile (see COPY_NOTARY_PROFILE below)
 #   - Sparkle's sign_update binary, resolved automatically from DerivedData
 #
 # Env vars:
-#   COPY_NOTARY_PROFILE     notarytool keychain profile name (default: copy-notary),
+#   COPY_NOTARY_PROFILE     notarytool keychain profile name (default: brzv-copy-notary),
 #                           used when the API-key env vars below are not all set
 #   NOTARY_API_KEY_PATH     path to an App Store Connect API .p8 key
 #   NOTARY_API_KEY_ID       the API key's key ID
@@ -35,7 +35,7 @@
 #                           profile (this is how CI notarizes, since it has no
 #                           interactive keychain profile to draw on)
 #   SPARKLE_ED_KEY_FILE     path to the Sparkle EdDSA private key; when unset,
-#                           sign_update reads the key from the `copy` keychain
+#                           sign_update reads the key from the `brzv-copy` keychain
 #                           account instead
 set -euo pipefail
 
@@ -75,10 +75,11 @@ cd "$ROOT_DIR"
 
 SCHEME="Copy"
 PROJECT="Copy.xcodeproj"
-TEAM_ID="P7V47BUA2B"
+TEAM_ID="${COPY_TEAM_ID:-UDTBP44Q7F}"
 SIGN_IDENTITY="Developer ID Application"
-NOTARY_PROFILE="${COPY_NOTARY_PROFILE:-copy-notary}"
-GITHUB_REPO="tarikbc/Copy"
+NOTARY_PROFILE="${COPY_NOTARY_PROFILE:-brzv-copy-notary}"
+GITHUB_REPO="${COPY_GITHUB_REPO:-brzvsk/Copy}"
+SPARKLE_ACCOUNT="${COPY_SPARKLE_ACCOUNT:-brzv-copy}"
 
 BUILD_DIR="$ROOT_DIR/build"
 ARCHIVE_PATH="$BUILD_DIR/Copy.xcarchive"
@@ -359,14 +360,14 @@ fi
 
 # Sign with Copy's dedicated EdDSA key. In CI, SPARKLE_ED_KEY_FILE points at the
 # private key written from the SPARKLE_PRIVATE_KEY secret; locally it is unset
-# and we read Copy's key from the `copy` keychain account (kept separate from
+# and we read Copy's key from the configured keychain account (kept separate from
 # other apps' Sparkle keys on the same machine).
 if [[ -n "${SPARKLE_ED_KEY_FILE:-}" ]]; then
   echo "    Signing $SPARKLE_ZIP_PATH with $SIGN_UPDATE_BIN (key file)"
   SIGN_UPDATE_OUTPUT="$("$SIGN_UPDATE_BIN" --ed-key-file "$SPARKLE_ED_KEY_FILE" "$SPARKLE_ZIP_PATH")"
 else
-  echo "    Signing $SPARKLE_ZIP_PATH with $SIGN_UPDATE_BIN (keychain account: copy)"
-  SIGN_UPDATE_OUTPUT="$("$SIGN_UPDATE_BIN" --account copy "$SPARKLE_ZIP_PATH")"
+  echo "    Signing $SPARKLE_ZIP_PATH with $SIGN_UPDATE_BIN (keychain account: $SPARKLE_ACCOUNT)"
+  SIGN_UPDATE_OUTPUT="$("$SIGN_UPDATE_BIN" --account "$SPARKLE_ACCOUNT" "$SPARKLE_ZIP_PATH")"
 fi
 echo "    $SIGN_UPDATE_OUTPUT"
 
@@ -418,7 +419,7 @@ if [[ ! -f "$APPCAST_PATH" ]]; then
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
     <channel>
         <title>Copy</title>
-        <link>https://tarikbc.github.io/Copy/appcast.xml</link>
+        <link>https://brzvsk.github.io/Copy/appcast.xml</link>
         <description>Copy release notes and updates</description>
         <language>en</language>
 ${APPCAST_ITEM}

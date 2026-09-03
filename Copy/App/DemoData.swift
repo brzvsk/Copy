@@ -100,8 +100,8 @@ enum DemoData {
                                   label: "INVOICE #A-2214",
                                   ocr: "INVOICE #A-2214  total due $4,820.00  net 30")
 
-        let githubID = try link("https://github.com/tarikbc/Copy",
-                                title: "tarikbc/Copy: a visual clipboard for macOS",
+        let githubID = try link("https://github.com/brzvsk/Copy",
+                                title: "brzvsk/Copy: a visual clipboard for macOS",
                                 from: safari, at: ago(9 * minute), favicon: NSColor(calibratedWhite: 0.13, alpha: 1))
 
         let sketchID = try file("/Users/tarik/Design/Copy-hero.sketch", from: finder, at: ago(12 * minute))
@@ -147,7 +147,7 @@ enum DemoData {
 
         try text("Chris: sounds great, I'll put the playlist on today 🎧", from: whatsapp, at: ago(2 * hour))
 
-        let shellID = try text("brew install --cask tarikbc/tap/copy && open -a Copy",
+        let shellID = try text("gh release download --repo brzvsk/Copy --pattern '*.dmg'",
                                from: terminal, at: ago(3 * hour))
 
         try image(from: finder, at: ago(4 * hour),

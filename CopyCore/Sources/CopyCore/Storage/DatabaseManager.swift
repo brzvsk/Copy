@@ -8,7 +8,7 @@ public final class DatabaseManager {
     public static func makeDefault() throws -> DatabaseManager {
         let appSupport = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Copy", isDirectory: true)
+            .appendingPathComponent("sk.brzv.Copy", isDirectory: true)
         return try DatabaseManager(directory: appSupport)
     }
 

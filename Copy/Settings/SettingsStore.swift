@@ -74,6 +74,28 @@ enum RetentionPeriod: String, CaseIterable {
 @MainActor
 @Observable
 final class SettingsStore {
+    private static let legacySuiteName = "com.tarikbc.Copy"
+    private static let legacyMigrationKey = "didMigrateSettingsFromOriginalCopy"
+    private static let legacyKeys = [
+        "KeyboardShortcuts_toggleShelf",
+        "KeyboardShortcuts_togglePasteStack",
+        "KeyboardShortcuts_pasteNextFromStack",
+        "KeyboardShortcuts_quickPasteLatest",
+        "KeyboardShortcuts_nextPinboard",
+        "hasOnboarded",
+        "hasSeenFirstCopyCoach",
+        "hasSeenPasteStackHint",
+        retentionKey,
+        fetchLinkPreviewsKey,
+        recognizeImageTextKey,
+        excludedBundleIDsKey,
+        hideDuringScreenSharingKey,
+        compactShelfKey,
+        shelfProDarkKey,
+        hideMenuBarIconKey,
+        doubleClickToPasteKey,
+        copySoundKey,
+    ]
     static let retentionKey = "retentionPeriod"
     static let fetchLinkPreviewsKey = "fetchLinkPreviews"
     static let recognizeImageTextKey = "recognizeImageText"
@@ -214,6 +236,9 @@ final class SettingsStore {
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
+        if defaults === UserDefaults.standard {
+            Self.migrateLegacySettingsIfNeeded(to: defaults)
+        }
         self.defaults = defaults
         if let raw = defaults.string(forKey: Self.retentionKey), let period = RetentionPeriod(rawValue: raw) {
             retention = period
@@ -234,6 +259,21 @@ final class SettingsStore {
             excludedBundleIDs = decoded.sorted()
         } else {
             excludedBundleIDs = []
+        }
+    }
+
+    /// The independently maintained app has a new bundle identifier, so macOS gives it a
+    /// fresh defaults domain. Copy only the user-facing settings from the original app —
+    /// never Sparkle state or window restoration data — and only on the first launch.
+    private static func migrateLegacySettingsIfNeeded(to defaults: UserDefaults) {
+        guard defaults.object(forKey: legacyMigrationKey) == nil else { return }
+        defer { defaults.set(true, forKey: legacyMigrationKey) }
+        guard let legacy = UserDefaults(suiteName: legacySuiteName) else { return }
+
+        for key in legacyKeys where defaults.object(forKey: key) == nil {
+            if let value = legacy.object(forKey: key) {
+                defaults.set(value, forKey: key)
+            }
         }
     }
 

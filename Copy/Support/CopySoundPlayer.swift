@@ -5,7 +5,7 @@ extension Notification.Name {
     /// pasteboard. The clipboard monitor ignores that marked write, so this separate
     /// event avoids both missed feedback and double playback.
     static let copyDidCompleteInternalCopy = Notification.Name(
-        "com.tarikbc.copy.didCompleteInternalCopy")
+        "sk.brzv.copy.didCompleteInternalCopy")
 }
 
 /// Small cached player for optional clipboard-capture feedback. `NSSound` is enough for

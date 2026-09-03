@@ -6,20 +6,20 @@ This keypair is generated **once** for the life of the project.
 
 ## Status: keypair generated
 
-Copy's keypair has been generated under a dedicated keychain account named `copy` (kept
+Copy's keypair has been generated under a dedicated keychain account named `brzv-copy` (kept
 separate from any other Sparkle-using app on the same Mac). The public key is already wired
 into `project.yml` and Info.plist:
 
 ```
-SUPublicEDKey = T/g8uQqB0Ki0cQTD43Mjk5KC4YRtBYMUfg5QduAnH2c=
+SUPublicEDKey = ic1GeI8aVeYsA3RsX9sxrbaAkWOFyLOhL8K94U7TrNA=
 ```
 
-The private key was exported to `~/copy-sparkle-private-key.txt` as a backup. **Move that
-file into a password manager or encrypted vault and delete the plaintext copy from your home
-directory.** It is also the value you paste into the `SPARKLE_PRIVATE_KEY` GitHub secret for
-the automated release workflow (see `.github/workflows/release.yml`).
+The private key currently lives in the login Keychain. It must be exported into a password
+manager or encrypted vault before the first public release. The exported value also becomes
+the `SPARKLE_PRIVATE_KEY` GitHub secret used by the automated release workflow (see
+`.github/workflows/release.yml`).
 
-Local signing (`Scripts/release.sh`) reads this key from the `copy` keychain account
+Local signing (`Scripts/release.sh`) reads this key from the `brzv-copy` keychain account
 automatically. CI signing reads it from `SPARKLE_ED_KEY_FILE` (written from the secret).
 
 The rest of this document is the original one-time procedure, kept for reference and for
@@ -37,15 +37,15 @@ find ~/Library/Developer/Xcode/DerivedData -name generate_keys -path '*sparkle*'
 (If you're building via a raw SwiftPM checkout instead of Xcode, look under
 `.build/artifacts/sparkle/Sparkle/bin/generate_keys` instead.)
 
-Run it with no arguments:
+Run it under Copy's dedicated account:
 
 ```sh
-/path/to/generate_keys
+/path/to/generate_keys --account brzv-copy
 ```
 
 This will:
 - Generate a new EdDSA (Ed25519) keypair.
-- Write the **private** key to your login keychain (item named `Private key for signing Sparkle updates for com.tarikbc.Copy`, or similar: the tool will tell you exactly what it stored).
+- Write the **private** key to your login keychain under the `brzv-copy` account (the tool will tell you exactly what it stored).
 - Print the **public** key to stdout.
 
 Paste the printed public key into `project.yml` as the value of `SUPublicEDKey` under the
@@ -64,7 +64,7 @@ original `SUPublicEDKey` baked into the app it downloaded).
 Immediately after generating the keys, export the private key to a file:
 
 ```sh
-/path/to/generate_keys -x copy-sparkle-private.key
+/path/to/generate_keys --account brzv-copy -x copy-sparkle-private.key
 ```
 
 Then:

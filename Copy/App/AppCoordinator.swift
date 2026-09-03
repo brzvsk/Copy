@@ -11,7 +11,7 @@ final class AppCoordinator {
     let settings: SettingsStore
     private let monitor: ClipboardMonitor
     private let pasteService: PasteService
-    private let persistQueue = DispatchQueue(label: "com.tarikbc.copy.persist", qos: .utility)
+    private let persistQueue = DispatchQueue(label: "sk.brzv.copy.persist", qos: .utility)
     private let saveErrors = SaveErrorReporter()
     private var retentionTimer: DispatchSourceTimer?
     private(set) var isPaused = false
@@ -633,7 +633,7 @@ final class AppCoordinator {
         // event is harmless without it and avoids re-ingesting our marked pasteboard
         // write just to detect a successful shelf copy.
         NotificationCenter.default.post(
-            name: Notification.Name("com.tarikbc.copy.didCompleteInternalCopy"),
+            name: Notification.Name("sk.brzv.copy.didCompleteInternalCopy"),
             object: nil)
         return true
     }

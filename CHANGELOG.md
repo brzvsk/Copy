@@ -5,6 +5,26 @@ All notable changes to Copy are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-03
+
+The first independently maintained Copy release.
+
+### Added
+
+- Standard shelf actions: Command-C copies the selected card, Command-V pastes it, and Backspace deletes it.
+- Optional short feedback sounds for clipboard capture and shelf copy.
+- Image files now appear in the Image filter alongside directly copied images.
+
+### Changed
+
+- Image files render directly in the Space preview panel.
+- Card timestamps stay on one line.
+- Shelf dismissal is smoother and no longer flashes during teardown.
+
+### Project
+
+- Copy is now independently maintained at `brzvsk/Copy`, with its own bundle identifier, signing identity, update feed, and release channel.
+
 ## [0.1.6] - 2026-08-15
 
 Favorites hold their place while you scroll back through history.

@@ -68,7 +68,7 @@ final class RenameAndCreateTests: XCTestCase {
         XCTAssertEqual(created.plainText, "Grocery list: eggs, milk")
         XCTAssertEqual(created.title, "Groceries")
         XCTAssertEqual(created.appName, "Copy")
-        XCTAssertEqual(created.appBundleID, "com.tarikbc.Copy")
+        XCTAssertEqual(created.appBundleID, "sk.brzv.Copy")
 
         let reps = try store.representations(forItemID: created.id!)
         XCTAssertEqual(reps.map(\.uti), ["public.utf8-plain-text"])

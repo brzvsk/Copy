@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tarikbc/Copy/actions/workflows/ci.yml"><img src="https://github.com/tarikbc/Copy/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/tarikbc/Copy/releases/latest"><img src="https://img.shields.io/github/v/release/tarikbc/Copy?sort=semver&color=4C9DFF" alt="Latest release"></a>
+  <a href="https://github.com/brzvsk/Copy/actions/workflows/ci.yml"><img src="https://github.com/brzvsk/Copy/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/brzvsk/Copy/releases/latest"><img src="https://img.shields.io/github/v/release/brzvsk/Copy?sort=semver&color=4C9DFF" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-4C9DFF.svg" alt="License: GPL-3.0"></a>
   <img src="https://img.shields.io/badge/macOS-14%2B-1C1F27?logo=apple&logoColor=white" alt="macOS 14+">
   <img src="https://img.shields.io/badge/Swift-5-1C1F27?logo=swift&logoColor=white" alt="Swift 5">
@@ -15,8 +15,12 @@ shelf of cards slides up from the bottom of your screen showing everything you h
 copied, ready to search, pin, edit, and paste back. It is local-first, native, and
 deliberately quiet: no account, no cloud, no telemetry.
 
+This is an independently maintained continuation of
+[Tarik Caramanico's original Copy project](https://github.com/tarikbc/Copy), with
+its history and GPL-3.0 license preserved.
+
 <p align="center">
-  <b><a href="https://tarikbc.github.io/Copy/">Website</a> &nbsp;·&nbsp; <a href="https://github.com/tarikbc/Copy/releases/latest">Download</a> &nbsp;·&nbsp; <a href="#install">Install</a> &nbsp;·&nbsp; <a href="#keyboard-shortcuts">Shortcuts</a></b>
+  <b><a href="https://brzvsk.github.io/Copy/">Website</a> &nbsp;·&nbsp; <a href="https://github.com/brzvsk/Copy/releases/latest">Download</a> &nbsp;·&nbsp; <a href="#install">Install</a> &nbsp;·&nbsp; <a href="#keyboard-shortcuts">Shortcuts</a></b>
 </p>
 
 ## Why Copy
@@ -67,19 +71,16 @@ including the text inside screenshots.
 
 ## Install
 
-### Homebrew (recommended)
-
-```sh
-brew install --cask tarikbc/tap/copy
-```
-
-### Direct download
-
-Grab the latest DMG from [Releases](https://github.com/tarikbc/Copy/releases/latest),
+Grab the latest DMG from [Releases](https://github.com/brzvsk/Copy/releases/latest),
 open it, and drag Copy to Applications. Requires **macOS 14 (Sonoma) or later**.
 
 On first launch, Copy asks for Accessibility access (to paste for you) and, on macOS
 15.4+, pasteboard access. Summon it any time with <kbd>⇧⌘V</kbd>.
+
+This continuation uses its own bundle identifier and data directory so it cannot corrupt
+an original Copy installation running elsewhere. User-facing settings migrate once on the
+first launch; to bring an existing history across, choose **Export…** in the original app
+and **Import…** in this one.
 
 ## Keyboard shortcuts
 
@@ -146,7 +147,7 @@ else you would rather Copy ignore.
 Copy is built in the open and contributions are welcome. Good places to start:
 
 - ⭐ Star the repo and follow along
-- 🐛 [Open an issue](https://github.com/tarikbc/Copy/issues) for a bug or a feature idea
+- 🐛 [Open an issue](https://github.com/brzvsk/Copy/issues) for a bug or a feature idea
 - 🔧 Send a pull request. The core engine lives in `CopyCore` and has its own test suite
   (`swift test --package-path CopyCore`); please add or update tests for any engine change
 
@@ -156,4 +157,5 @@ availability checks.
 
 ## License
 
-[GPL-3.0](LICENSE). © 2026 Tarik Caramanico.
+[GPL-3.0](LICENSE). Original project © 2026 Tarik Caramanico; independent
+modifications © 2026 Nikolai Berezovskii. See [NOTICE](NOTICE).

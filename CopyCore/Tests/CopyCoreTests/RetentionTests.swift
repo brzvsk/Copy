@@ -126,7 +126,7 @@ final class RetentionTests: XCTestCase {
 
         // Verify only one favicon representation exists
         let reps = try store.representations(forItemID: item.id!)
-        let faviconReps = reps.filter { $0.uti == "com.tarikbc.copy.favicon" }
+        let faviconReps = reps.filter { $0.uti == "sk.brzv.copy.favicon" }
         XCTAssertEqual(faviconReps.count, 1, "Should have exactly one favicon representation")
     }
 
