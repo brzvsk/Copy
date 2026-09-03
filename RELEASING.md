@@ -23,6 +23,29 @@ Configure these under **Settings → Secrets and variables → Actions**:
 `Scripts/setup-release-secrets.sh` prepares and uploads these values. Treat its
 inputs and temporary files as production signing credentials; never commit them.
 
+Run the workflow manually to verify all six secrets on a fresh GitHub runner:
+
+```sh
+gh workflow run release.yml --repo brzvsk/Copy --ref main
+```
+
+A manual run is preflight-only: it imports the certificate and validates the
+Sparkle and Apple notarization credentials, but never builds, tags, or publishes.
+
+## Development cadence
+
+- Give each coherent feature or fix a short-lived branch. Install its local
+  build for hands-on testing, then merge it into `main` only after acceptance.
+- Do not bump the version or publish a release for every merged feature. Record
+  user-visible changes under `Unreleased` in `CHANGELOG.md` as they land.
+- Keep `main` releasable. Cut a release when several changes form a useful
+  package, or immediately for a fix users should receive without waiting.
+- During the `0.x` series, use a patch version for fixes only (`0.2.1`) and a
+  minor version for a feature batch (`0.3.0`). Increment `CFBundleVersion` for
+  every public build.
+- A separate release branch is unnecessary for this workflow. Tag the exact,
+  clean `main` commit selected for release.
+
 ## GitHub Pages
 
 Serve `/docs` from `main`. The feed URL embedded in the app is:
@@ -44,7 +67,8 @@ under `brzv-copy` and must be backed up securely before the release.
    ```
 
 2. Bump `CFBundleShortVersionString`, `MARKETING_VERSION`, and
-   `CFBundleVersion` in `project.yml`; add the release to `CHANGELOG.md`; commit.
+   `CFBundleVersion` in `project.yml`; move the accumulated `Unreleased` notes
+   under the new version and date in `CHANGELOG.md`; commit.
 
 3. Tag that exact commit and push the tag:
 
