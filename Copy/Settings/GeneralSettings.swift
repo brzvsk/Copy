@@ -26,7 +26,7 @@ struct GeneralSettings: View {
                     Text("Standard").tag(false)
                     Text("Compact").tag(true)
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
             } footer: {
                 Text("Compact shows smaller cards so more fit in the shelf at once.")
                     .font(.footnote)
@@ -51,6 +51,28 @@ struct GeneralSettings: View {
                 Text(settings.doubleClickToPaste
                      ? "A single click selects a card. Double-click it or press Return to paste."
                      : "A single click selects and immediately pastes a card.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                HStack {
+                    Text("Copy Sound")
+                    Spacer()
+                    Picker("Copy Sound", selection: $settings.copySound) {
+                        ForEach(CopySound.allCases) { sound in
+                            Text(sound.title).tag(sound)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 120)
+                }
+                .onChange(of: settings.copySound) { _, sound in
+                    CopySoundPlayer.shared.play(sound)
+                }
+            } footer: {
+                Text("Plays after Copy captures a new clipboard item.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

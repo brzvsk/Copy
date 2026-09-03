@@ -364,6 +364,10 @@ final class AppCoordinator {
         }
         let settings = SettingsStore()
         self.settings = settings
+        // Start listening before the shelf can perform an explicit Cmd+C. That path
+        // marks its pasteboard write as internal, so the clipboard monitor correctly
+        // ignores it and cannot be the source of sound feedback.
+        _ = CopySoundPlayer.shared
         let linkFetcher = LinkMetadataFetcher(store: store)
         let ocrController = OCRController(store: store)
         let reporter = saveErrors
@@ -389,6 +393,7 @@ final class AppCoordinator {
                             // Already on the main queue; hop into main-actor isolation for
                             // the one-time activation nudges (see the methods).
                             MainActor.assumeIsolated {
+                                CopySoundPlayer.shared.play(settings.copySound)
                                 AppCoordinator.showFirstCopyCoachIfNeeded()
                                 if !pasteStackModel.isActive {
                                     AppCoordinator.notePasteStackOpportunity()
