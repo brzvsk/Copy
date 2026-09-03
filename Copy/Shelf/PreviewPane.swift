@@ -6,6 +6,19 @@ import UniformTypeIdentifiers
 struct PreviewPane: View {
     let item: ClipItem
     let store: ItemStore
+    @State private var imagePixelSize: CGSize?
+
+    private static let imagePadding: CGFloat = 12
+    private static let fallbackImagePixelSize = CGSize(width: 1_200, height: 900)
+
+    init(item: ClipItem, store: ItemStore) {
+        self.item = item
+        self.store = store
+        // The visible card has normally populated this cache already. Seeding from it
+        // lets the popover open at the right aspect ratio immediately; the preview
+        // decoder replaces it with the original pixel dimensions once metadata loads.
+        _imagePixelSize = State(initialValue: ThumbnailCache.shared.cached(for: item)?.size)
+    }
 
     private var quickLookURLs: [URL] {
         QuickLookController.fileURLs(for: item, store: store)
@@ -20,6 +33,79 @@ struct PreviewPane: View {
                   let contentType = values.contentType else { return false }
             return contentType.conforms(to: .image)
         }
+    }
+
+    private var screen: NSScreen? {
+        NSApp.keyWindow?.screen ?? NSScreen.main
+    }
+
+    /// Size of the popover's actual content surface. Image previews retain their source
+    /// aspect ratio and use substantially more of the display, while text previews grow
+    /// only as tall as their estimated wrapped line count before becoming scrollable.
+    private var previewSize: CGSize {
+        if item.kind == .image || imageFileURL != nil {
+            return imagePreviewSize(for: imagePixelSize ?? Self.fallbackImagePixelSize)
+        }
+        switch item.kind {
+        case .text, .richText, .link:
+            return textPreviewSize(for: item.plainText ?? "")
+        case .color, .file, .image:
+            return CGSize(width: 420, height: 320)
+        }
+    }
+
+    /// Treat captured pixels as Retina pixels when choosing a natural starting size,
+    /// then scale up only very small images and scale down anything beyond the display
+    /// cap. The final fit never distorts the source aspect ratio.
+    private func imagePreviewSize(for pixelSize: CGSize) -> CGSize {
+        let screenSize = screen?.visibleFrame.size ?? CGSize(width: 1_440, height: 900)
+        let backingScale = screen?.backingScaleFactor ?? 2
+        let maxOuter = CGSize(width: min(1_120, screenSize.width * 0.78),
+                              height: min(720, screenSize.height * 0.72))
+        let maxContent = CGSize(width: maxOuter.width - Self.imagePadding * 2,
+                                height: maxOuter.height - Self.imagePadding * 2)
+
+        let safeWidth = max(pixelSize.width, 1)
+        let safeHeight = max(pixelSize.height, 1)
+        var content = CGSize(width: safeWidth / backingScale,
+                             height: safeHeight / backingScale)
+
+        let minimumLongEdge: CGFloat = 520
+        let longEdge = max(content.width, content.height)
+        if longEdge < minimumLongEdge {
+            let scale = minimumLongEdge / longEdge
+            content.width *= scale
+            content.height *= scale
+        }
+
+        let fitScale = min(1, min(maxContent.width / content.width,
+                                  maxContent.height / content.height))
+        content.width *= fitScale
+        content.height *= fitScale
+
+        return CGSize(width: ceil(content.width + Self.imagePadding * 2),
+                      height: ceil(content.height + Self.imagePadding * 2))
+    }
+
+    private func textPreviewSize(for text: String) -> CGSize {
+        let screenSize = screen?.visibleFrame.size ?? CGSize(width: 1_440, height: 900)
+        let minimumWidth: CGFloat = 320
+        let maximumWidth = min(520, screenSize.width * 0.55)
+        let horizontalPadding: CGFloat = 28
+        let averageGlyphWidth: CGFloat = 7.2
+        let sourceLines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        let longestLine = sourceLines.map(\.count).max() ?? 0
+        let width = min(maximumWidth,
+                        max(minimumWidth, CGFloat(longestLine) * averageGlyphWidth + horizontalPadding))
+        let charactersPerLine = max(1, Int((width - horizontalPadding) / averageGlyphWidth))
+        let wrappedLines = sourceLines.reduce(0) { count, line in
+            count + max(1, Int(ceil(Double(line.count) / Double(charactersPerLine))))
+        }
+        let minimumHeight: CGFloat = 120
+        let maximumHeight = min(620, screenSize.height * 0.62)
+        let estimatedHeight = CGFloat(wrappedLines) * 18 + 28
+        return CGSize(width: ceil(width),
+                      height: ceil(min(maximumHeight, max(minimumHeight, estimatedHeight))))
     }
 
     /// How much of the preview's text ever gets tokenized for syntax color. The pane
@@ -53,8 +139,8 @@ struct PreviewPane: View {
         Group {
             switch item.kind {
             case .image:
-                CardThumbnail(item: item, store: store)
-                    .padding(12)
+                StoredImagePreview(item: item, store: store) { imagePixelSize = $0 }
+                    .padding(Self.imagePadding)
             case .color:
                 VStack(spacing: 10) {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -65,9 +151,9 @@ struct PreviewPane: View {
                 .padding(16)
             case .file:
                 if let imageFileURL {
-                    FileImagePreview(url: imageFileURL)
+                    FileImagePreview(url: imageFileURL) { imagePixelSize = $0 }
                         .id(imageFileURL)
-                        .padding(12)
+                        .padding(Self.imagePadding)
                 } else {
                     VStack(spacing: 10) {
                         Image(nsImage: NSWorkspace.shared.icon(for: Tokens.fileType(for: item)))
@@ -95,7 +181,8 @@ struct PreviewPane: View {
                 }
             }
         }
-        .frame(width: 420, height: 320)
+        .frame(width: previewSize.width, height: previewSize.height)
+        .animation(.easeOut(duration: 0.18), value: previewSize)
         // M7: the popover's own chrome is otherwise unstyled (SwiftUI/AppKit gives it
         // a plain system background), so this is a clean single-surface adoption —
         // glass on 26 with Reduce Transparency off, the app's existing `.hudWindow`
@@ -107,13 +194,16 @@ struct PreviewPane: View {
     }
 }
 
-/// Decodes an image-file card from its original URL for the larger Space preview.
-/// This deliberately does not use the 400-point Quick Look thumbnail used by shelf
-/// cards: ImageIO downsamples the source itself at a size suitable for a Retina pane.
-private struct FileImagePreview: View {
-    let url: URL
+/// Decodes a clipboard-backed image at preview resolution rather than scaling the
+/// shelf's 400-pixel thumbnail into a large popover. Metadata is read before decoding
+/// so the parent can size the popover from the original, orientation-corrected pixels.
+private struct StoredImagePreview: View {
+    let item: ClipItem
+    let store: ItemStore
+    let onPixelSize: (CGSize) -> Void
     @State private var image: NSImage?
     @State private var didFail = false
+    @State private var didStart = false
 
     var body: some View {
         Group {
@@ -137,22 +227,94 @@ private struct FileImagePreview: View {
     }
 
     private func loadImage() {
-        guard image == nil, !didFail else { return }
-        let requestedURL = url
+        guard !didStart, let id = item.id else {
+            if item.id == nil { didFail = true }
+            return
+        }
+        didStart = true
         DispatchQueue.global(qos: .userInitiated).async {
-            let source = CGImageSourceCreateWithURL(requestedURL as CFURL, nil)
-            let cgImage = source.flatMap {
-                CGImageSourceCreateThumbnailAtIndex($0, 0, [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 1_600,
-                    kCGImageSourceCreateThumbnailWithTransform: true,
-                ] as CFDictionary)
-            }
+            let reps = (try? store.representations(forItemID: id)) ?? []
+            let data = reps.first(where: { $0.uti == "public.png" })?.data
+                ?? reps.first(where: { $0.uti == "public.tiff" })?.data
+            let source = data.flatMap { CGImageSourceCreateWithData($0 as CFData, nil) }
+            let pixelSize = source.flatMap(PreviewImageDecoder.orientedPixelSize)
+            let cgImage = source.flatMap(PreviewImageDecoder.previewImage)
             let decoded = cgImage.map { NSImage(cgImage: $0, size: .zero) }
             DispatchQueue.main.async {
+                if let pixelSize { onPixelSize(pixelSize) }
                 image = decoded
                 didFail = decoded == nil
             }
         }
+    }
+}
+
+/// Decodes an image-file card from its original URL for the larger Space preview.
+/// This deliberately does not use the 400-point Quick Look thumbnail used by shelf
+/// cards: ImageIO downsamples the source itself at a size suitable for a Retina pane.
+private struct FileImagePreview: View {
+    let url: URL
+    let onPixelSize: (CGSize) -> Void
+    @State private var image: NSImage?
+    @State private var didFail = false
+    @State private var didStart = false
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else if didFail {
+                Image(systemName: "photo.badge.exclamationmark")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.secondary)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onAppear(perform: loadImage)
+    }
+
+    private func loadImage() {
+        guard !didStart else { return }
+        didStart = true
+        let requestedURL = url
+        DispatchQueue.global(qos: .userInitiated).async {
+            let source = CGImageSourceCreateWithURL(requestedURL as CFURL, nil)
+            let pixelSize = source.flatMap(PreviewImageDecoder.orientedPixelSize)
+            let cgImage = source.flatMap(PreviewImageDecoder.previewImage)
+            let decoded = cgImage.map { NSImage(cgImage: $0, size: .zero) }
+            DispatchQueue.main.async {
+                if let pixelSize { onPixelSize(pixelSize) }
+                image = decoded
+                didFail = decoded == nil
+            }
+        }
+    }
+}
+
+private enum PreviewImageDecoder {
+    static func orientedPixelSize(_ source: CGImageSource) -> CGSize? {
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
+              let height = properties[kCGImagePropertyPixelHeight] as? NSNumber else { return nil }
+        let orientation = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+        if (5...8).contains(orientation) {
+            return CGSize(width: height.doubleValue, height: width.doubleValue)
+        }
+        return CGSize(width: width.doubleValue, height: height.doubleValue)
+    }
+
+    static func previewImage(_ source: CGImageSource) -> CGImage? {
+        CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 2_400,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+        ] as CFDictionary)
     }
 }
