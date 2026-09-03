@@ -16,7 +16,7 @@ final class CarryoverTests: XCTestCase {
         let store = ItemStore(writer: dbm.writer, blobs: BlobStore(directory: dbm.blobsDirectory))
         _ = try store.save(makeBlobItem(0x01, hashSeed: "a"))
         _ = try store.save(makeBlobItem(0x02, hashSeed: "b"))
-        try store.clearHistory(keepFavorites: true)
+        try store.clearHistory()
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dbm.blobsDirectory.path).count, 0)
         XCTAssertEqual(try store.recentItems(limit: 10).count, 0)
     }
@@ -32,14 +32,6 @@ final class CarryoverTests: XCTestCase {
         try store.delete(itemID: a.id!)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dbm.blobsDirectory.path).count, 1,
                        "blob still referenced by the second item must survive")
-    }
-
-    func testClearHistoryIncludingFavorites() throws {
-        let store = try makeTempStore()
-        let fav = try store.save(makeText("fav"))
-        try store.setFavorite(itemID: fav.id!, true)
-        try store.clearHistory(keepFavorites: false)
-        XCTAssertEqual(try store.recentItems(limit: 10).count, 0)
     }
 
     func testSearchStillFindsItemAfterTouch() throws {

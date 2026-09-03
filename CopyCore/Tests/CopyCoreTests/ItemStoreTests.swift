@@ -64,17 +64,6 @@ final class ItemStoreTests: XCTestCase {
         XCTAssertNil(byKind[.link])                 // kinds with no items are omitted
     }
 
-    func testStorageBreakdownExcludesFavorites() throws {
-        let store = try makeTempStore()
-        let fav = try store.save(makeText("keep"))
-        try store.setFavorite(itemID: fav.id!, true)
-        _ = try store.save(makeText("drop"))
-
-        let text = try store.storageBreakdown().first { $0.kind == .text }
-        XCTAssertEqual(text?.count, 1)              // favorite excluded from the clearable set
-        XCTAssertEqual(text?.bytes, 4)              // only "drop"
-    }
-
     func testClearHistoryByKindClearsOnlyThatKind() throws {
         let store = try makeTempStore()
         _ = try store.save(makeText("t1"))
@@ -85,17 +74,6 @@ final class ItemStoreTests: XCTestCase {
 
         XCTAssertEqual(try store.recentItems(limit: 10).map(\.kind), [.text])
         XCTAssertNil(try store.storageBreakdown().first { $0.kind == .image })
-    }
-
-    func testClearHistoryByKindKeepsFavorites() throws {
-        let store = try makeTempStore()
-        let fav = try store.save(makeImage(bytes: 30, tag: "favimg"))
-        try store.setFavorite(itemID: fav.id!, true)
-        _ = try store.save(makeImage(bytes: 10, tag: "img1"))
-
-        try store.clearHistory(kind: .image)
-
-        XCTAssertEqual(try store.recentItems(limit: 10).count, 1)  // favorite image survives
     }
 
     func testSearchFilterByApp() throws {
@@ -122,15 +100,6 @@ final class ItemStoreTests: XCTestCase {
                                  end: Date(timeIntervalSince1970: 2_500_000))
         let results = try store.search(filter: SearchFilter(dateRange: range))
         XCTAssertEqual(results.map(\.plainText), ["recent"])
-    }
-
-    func testSearchFilterByFavorites() throws {
-        let store = try makeTempStore()
-        let fav = try store.save(makeText("keep"))
-        try store.setFavorite(itemID: fav.id!, true)
-        _ = try store.save(makeText("drop"))
-        let results = try store.search(filter: SearchFilter(favoritesOnly: true))
-        XCTAssertEqual(results.map(\.plainText), ["keep"])
     }
 
     func testSearchFilterCombinesTextAndFacets() throws {
@@ -173,17 +142,6 @@ final class ItemStoreTests: XCTestCase {
         _ = try store.save(makeText("second"), now: Date(timeIntervalSince1970: 2000))
         let recent = try store.recentItems(limit: 10)
         XCTAssertEqual(recent.map(\.plainText), ["second", "first"])
-    }
-
-    func testItemByUUIDRoundTripsAndNilsOnUnknown() throws {
-        let store = try makeTempStore()
-        let saved = try store.save(makeText("find me"))
-
-        let found = try store.item(uuid: saved.uuid)
-        XCTAssertEqual(found?.id, saved.id)
-        XCTAssertEqual(found?.plainText, "find me")
-
-        XCTAssertNil(try store.item(uuid: "not-a-real-uuid"))
     }
 
     func testRepresentationsRoundTrip() throws {

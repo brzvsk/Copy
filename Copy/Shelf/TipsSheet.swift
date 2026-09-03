@@ -11,10 +11,6 @@ struct TipsSheet: View {
         KeyboardShortcuts.getShortcut(for: .toggleShelf)?.description ?? "⇧⌘V"
     }
 
-    private var pasteStackHotkey: String {
-        KeyboardShortcuts.getShortcut(for: .togglePasteStack)?.description ?? "⇧⌘C"
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -45,10 +41,6 @@ struct TipsSheet: View {
                         ("⌘⌫", "Delete the selected card"),
                         ("⌘Z", "Undo a delete"),
                         ("Drag", "Drop a card on a pinboard tab to keep it"),
-                    ])
-                    section("Paste stack", [
-                        (pasteStackHotkey, "Toggle the paste stack"),
-                        ("⌘V", "Paste the next queued item, again and again"),
                     ])
                 }
                 .padding(16)

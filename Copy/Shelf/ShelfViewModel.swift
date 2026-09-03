@@ -30,9 +30,6 @@ final class ShelfViewModel {
     let settings: SettingsStore
 
     var items: [ClipItem] = []
-    /// How many leading items in `items` are favorites; the shelf draws a divider after
-    /// this many cards to separate starred copies from the rest.
-    var favoritesCount = 0
     /// The faceted search: facet pill tokens + trailing free text. Driven through the
     /// mutating helpers (`updateSearchText`, `acceptSuggestion`, …) rather than a `didSet`,
     /// so a token-plus-text change refreshes once.
@@ -93,14 +90,9 @@ final class ShelfViewModel {
     /// the shelf's global shortcuts.
     var inlineRenamingItemID: Int64?
 
-    /// Mirror `AppCoordinator.isPaused`/`isPasteStackActive` for the in-drawer menu
-    /// (`ShelfHeader`'s ellipsis menu), which needs to show "Pause"/"Resume Monitoring"
-    /// and a Paste Stack checkmark that reflect those AppKit-owned coordinator states.
-    /// `AppCoordinator` pushes these live whenever the underlying state changes
-    /// (`togglePause()`, `pasteStackModel.onActiveChange`), the same fan-out shape as
-    /// `onCompactShelfChange` etc. keep `SettingsStore` in sync with AppKit-side state.
+    /// Mirrors `AppCoordinator.isPaused` for the in-drawer menu, which needs to show
+    /// "Pause" or "Resume Monitoring" as that AppKit-owned state changes.
     var isPrivacyModeOn = false
-    var isPasteStackOn = false
 
     /// Backs `ShelfRootView`'s permission banner. The shelf panel + its SwiftUI content
     /// are created once and reused for the app's lifetime (see
@@ -112,7 +104,6 @@ final class ShelfViewModel {
 
     @ObservationIgnored var onPaste: ((ClipItem, Bool) -> Void)?
     @ObservationIgnored var onPasteMultiple: ((String) -> Void)?
-    @ObservationIgnored var onAddToPasteStack: ((ClipItem) -> Void)?
     @ObservationIgnored var onCopyText: ((String) -> Void)?
     @ObservationIgnored var onAdjustColorCopy: ((String) -> Void)?
     /// Opens a resolved link/file URL in its default app. `AppCoordinator` wires this to
@@ -129,7 +120,6 @@ final class ShelfViewModel {
     /// so `AppCoordinator` can show/hide the centered modal child window.
     @ObservationIgnored var onModalPresent: ((Bool) -> Void)?
     @ObservationIgnored var onNewItem: (() -> Void)?
-    @ObservationIgnored var onTogglePasteStack: (() -> Void)?
     @ObservationIgnored var onTogglePrivacyMode: (() -> Void)?
     @ObservationIgnored var onClearHistory: (() -> Void)?
     @ObservationIgnored var onExportHistory: (() -> Void)?
@@ -228,15 +218,8 @@ final class ShelfViewModel {
     /// query against it. Each card calls this from `.onAppear`; `PageWindow` decides when a
     /// wider fetch is actually warranted (and when the history has run out).
     func loadMoreIfNeeded(at index: Int) {
-        // `items` is favorites-then-recents, but the window only bounds the recents — the
-        // store returns every matching favorite regardless of `limit`. Measure in
-        // recents-space so a big favorites block can't read as "this page came back full"
-        // and keep growing the window against an already-exhausted history. A favorite's
-        // own card yields a negative index here and never trips the lookahead, which is
-        // right: favorites sit at the front, nowhere near the oldest card.
         guard isPaged,
-              page.growIfNeeded(visibleIndex: index - favoritesCount,
-                                loadedCount: items.count - favoritesCount) else { return }
+              page.growIfNeeded(visibleIndex: index, loadedCount: items.count) else { return }
         startObservation()
     }
 
@@ -498,17 +481,6 @@ final class ShelfViewModel {
         if !searchQuery.isEmpty { refresh() }
     }
 
-    func toggleFavoritePrimary() {
-        guard let item = primaryItem, let id = item.id else { return }
-        do {
-            try store.setFavorite(itemID: id, !item.isFavorite)
-        } catch {
-            NSLog("Copy: failed to toggle favorite: \(error)")
-            HUD.show("Couldn't complete that")
-        }
-        if !searchQuery.isEmpty { refresh() }
-    }
-
     func addSelection(toPinboard id: Int64) {
         for item in orderedSelectedItems {
             guard let itemID = item.id else { continue }
@@ -522,10 +494,6 @@ final class ShelfViewModel {
     }
 
     // MARK: - Per-item actions (context menu)
-
-    func addToPasteStack(_ item: ClipItem) {
-        onAddToPasteStack?(item)
-    }
 
     /// Places `item`'s recognized OCR text on the clipboard, marked as a self-paste —
     /// a plain copy, not a paste-in-place, since the user asked to copy the text, not
@@ -550,17 +518,6 @@ final class ShelfViewModel {
             if let snapshot { pushUndo(.deleted([snapshot])) }
         } catch {
             NSLog("Copy: failed to delete item: \(error)")
-            HUD.show("Couldn't complete that")
-        }
-        if !searchQuery.isEmpty { refresh() }
-    }
-
-    func toggleFavorite(_ item: ClipItem) {
-        guard let id = item.id else { return }
-        do {
-            try store.setFavorite(itemID: id, !item.isFavorite)
-        } catch {
-            NSLog("Copy: failed to toggle favorite: \(error)")
             HUD.show("Couldn't complete that")
         }
         if !searchQuery.isEmpty { refresh() }
@@ -855,12 +812,7 @@ final class ShelfViewModel {
     }
 
     private func apply(_ new: [ClipItem]) {
-        // Favorites float to the front (preserving recency within each group); the shelf
-        // draws a divider at the boundary (`favoritesCount`).
-        let favorites = new.filter(\.isFavorite)
-        let rest = new.filter { !$0.isFavorite }
-        items = favorites + rest
-        favoritesCount = favorites.count
+        items = new
         let order = items.map(\.uuid)
         selection.prune(existing: Set(order), order: order)
         if let jump = pendingJumpItemID {

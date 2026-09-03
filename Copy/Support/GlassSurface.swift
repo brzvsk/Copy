@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 /// Single switch point for adopting Liquid Glass across the app: every M7 surface
-/// (shelf, cards, popovers, HUD, paste stack, settings) should route its background
+/// (shelf, cards, popovers, HUD, settings) should route its background
 /// through `glassSurface` rather than reaching for `NSVisualEffectView` directly, so
 /// the macOS-version gate and the Reduce Transparency fallback only need to be right
 /// in one place.
@@ -28,7 +28,7 @@ import AppKit
 /// independently; it composes fine with `glassSurface` underneath.
 extension View {
     /// All four corners rounded by the same radius — the common case for cards,
-    /// popovers, the HUD, and the paste stack.
+    /// popovers and the HUD.
     func glassSurface(cornerRadius: CGFloat) -> some View {
         modifier(GlassSurfaceModifier(corners: .all(cornerRadius)))
     }

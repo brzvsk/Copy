@@ -101,16 +101,6 @@ public struct ItemStore {
         }
     }
 
-    /// Looks up a single item by its stable uuid, regardless of how far back it sits
-    /// in `lastUsedAt` order — unlike `recentItems`, this isn't bounded by a `limit`,
-    /// so it's the right tool for resolving a uuid held elsewhere (e.g. a Paste Stack
-    /// queue entry) that may have aged out of any "recent" window.
-    public func item(uuid: String) throws -> ClipItem? {
-        try writer.read { db in
-            try ClipItem.filter(Column("uuid") == uuid).fetchOne(db)
-        }
-    }
-
     public func representations(forItemID id: Int64) throws -> [CapturedRepresentation] {
         let records = try writer.read { db in
             try Representation.filter(Column("itemId") == id).fetchAll(db)
@@ -182,26 +172,19 @@ public struct ItemStore {
     }
 
     /// Faceted search (see `SearchFilter`): FTS-matches `filter.text` when present, then
-    /// AND-applies the app/kind/date/favorites/pinboard facets. With no text it's a plain
+    /// AND-applies the app/kind/date/pinboard facets. With no text it's a plain
     /// `SELECT` (no FTS), so facet-only queries work without a text pattern.
-    /// Results page the same way history does, so favorites get the same exemption from
-    /// `limit` for the same reason — see `fetchRecentPage`. Matching favorites come first
-    /// and in full; everything else is bounded.
     public func search(filter: SearchFilter, limit: Int = 100) throws -> [ClipItem] {
-        guard let favorites = searchQuery(filter, isFavorite: true, limit: nil),
-              let rest = searchQuery(filter, isFavorite: false, limit: limit) else { return [] }
+        guard let query = searchQuery(filter, limit: limit) else { return [] }
         return try writer.read { db in
-            try ClipItem.fetchAll(db, sql: favorites.sql,
-                                  arguments: StatementArguments(favorites.arguments))
-                + ClipItem.fetchAll(db, sql: rest.sql,
-                                    arguments: StatementArguments(rest.arguments))
+            try ClipItem.fetchAll(db, sql: query.sql,
+                                  arguments: StatementArguments(query.arguments))
         }
     }
 
-    /// Builds one half of `search(filter:)`: the matching rows on one side of the favorite
-    /// split, newest first, optionally bounded. Returns nil when the free text can't compile
-    /// to an FTS pattern, which the caller treats as "no results".
-    private func searchQuery(_ filter: SearchFilter, isFavorite: Bool, limit: Int?)
+    /// Builds `search(filter:)`, newest first and bounded. Returns nil when the free text
+    /// can't compile to an FTS pattern, which the caller treats as "no results".
+    private func searchQuery(_ filter: SearchFilter, limit: Int)
         -> (sql: String, arguments: [any DatabaseValueConvertible])? {
         var sql: String
         var arguments: [any DatabaseValueConvertible] = []
@@ -219,13 +202,9 @@ public struct ItemStore {
         let facets = facetClauses(filter)
         sql += facets.sql
         arguments.append(contentsOf: facets.arguments)
-        // A literal 0/1 from a Bool, not caller text, so there's nothing to bind or escape.
-        sql += " AND item.isFavorite = \(isFavorite ? 1 : 0)"
         sql += " ORDER BY item.lastUsedAt DESC"
-        if let limit {
-            sql += " LIMIT ?"
-            arguments.append(limit)
-        }
+        sql += " LIMIT ?"
+        arguments.append(limit)
         return (sql, arguments)
     }
 
@@ -246,9 +225,6 @@ public struct ItemStore {
             sql += " AND item.lastUsedAt >= ? AND item.lastUsedAt < ?"
             arguments.append(range.start)
             arguments.append(range.end)
-        }
-        if filter.favoritesOnly {
-            sql += " AND item.isFavorite = 1"
         }
         if !filter.pinboardIDs.isEmpty {
             let ids = filter.pinboardIDs.sorted()
@@ -286,61 +262,43 @@ public struct ItemStore {
         }
     }
 
-    public func setFavorite(itemID: Int64, _ favorite: Bool) throws {
-        try writer.write { db in
-            try db.execute(
-                sql: "UPDATE item SET isFavorite = ? WHERE id = ?",
-                arguments: [favorite, itemID])
-        }
-    }
-
     public func delete(itemID: Int64) throws {
         try writer.write { db in
             try deleteItems(ClipItem.filter(Column("id") == itemID), in: db)
         }
     }
 
-    public func clearHistory(keepFavorites: Bool = true) throws {
+    public func clearHistory() throws {
         try writer.write { db in
             let memberIDs = "SELECT DISTINCT itemId FROM pinboard_item"
-            var doomed = ClipItem.filter(sql: "id NOT IN (\(memberIDs))")
-            if keepFavorites {
-                doomed = doomed.filter(Column("isFavorite") == false)
-            }
+            let doomed = ClipItem.filter(sql: "id NOT IN (\(memberIDs))")
             try deleteItems(doomed, in: db)
         }
     }
 
-    /// Clears just one kind from the clearable history — same keep rules as
-    /// `clearHistory(keepFavorites:)` (pinboard members and, when `keepFavorites`,
-    /// favorites are preserved). Used by the Settings storage view's per-type "Clear".
-    public func clearHistory(kind: ItemKind, keepFavorites: Bool = true) throws {
+    /// Clears just one kind from the clearable history, preserving pinboard members.
+    /// Used by the Settings storage view's per-type "Clear".
+    public func clearHistory(kind: ItemKind) throws {
         try writer.write { db in
             let memberIDs = "SELECT DISTINCT itemId FROM pinboard_item"
-            var doomed = ClipItem
+            let doomed = ClipItem
                 .filter(sql: "id NOT IN (\(memberIDs))")
                 .filter(Column("kind") == kind.rawValue)
-            if keepFavorites {
-                doomed = doomed.filter(Column("isFavorite") == false)
-            }
             try deleteItems(doomed, in: db)
         }
     }
 
-    /// Per-kind item count and total `sizeBytes` over the *clearable* history: items not in
-    /// any pinboard and (when `keepFavorites`) not favorited — exactly the set
-    /// `clearHistory(keepFavorites:)` removes. Favorites and pinboard items are permanent
-    /// (excluded from the retention prune too), so they aren't counted here. Kinds with no
-    /// clearable items are omitted. Powers the Settings storage breakdown.
-    public func storageBreakdown(keepFavorites: Bool = true) throws -> [StorageUsage] {
+    /// Per-kind item count and total `sizeBytes` over the clearable history: items not in
+    /// any pinboard, exactly the set `clearHistory()` removes. Kinds with no clearable
+    /// items are omitted. Powers the Settings storage breakdown.
+    public func storageBreakdown() throws -> [StorageUsage] {
         try writer.read { db in
-            var sql = """
+            let sql = """
                 SELECT kind AS k, COUNT(*) AS c, COALESCE(SUM(sizeBytes), 0) AS b
                 FROM item
                 WHERE id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
+                GROUP BY kind
                 """
-            if keepFavorites { sql += " AND isFavorite = 0" }
-            sql += " GROUP BY kind"
             return try Row.fetchAll(db, sql: sql).compactMap { row in
                 guard let raw: String = row["k"], let kind = ItemKind(rawValue: raw) else { return nil }
                 let count: Int = row["c"]
@@ -395,9 +353,6 @@ public struct ItemStore {
         if let range = filter.dateRange {
             request = request.filter(Column("lastUsedAt") >= range.start && Column("lastUsedAt") < range.end)
         }
-        if filter.favoritesOnly {
-            request = request.filter(Column("isFavorite") == true)
-        }
         if !filter.pinboardIDs.isEmpty {
             let ids = filter.pinboardIDs.sorted()
             let placeholders = ids.map { _ in "?" }.joined(separator: ",")
@@ -428,28 +383,12 @@ public struct ItemStore {
         return ("(\(clauses.joined(separator: " OR ")))", arguments)
     }
 
-    /// One page of shelf history: every favorite matching `filter`, plus the `limit` most
-    /// recent non-favorites, favorites first.
-    ///
-    /// Favorites are deliberately exempt from `limit`. The shelf floats them to the front of
-    /// its row, so bounding them by the same recency window would hide a favorite as soon as
-    /// `limit` newer items existed, then drop it into the first position once scrolling grew
-    /// the window — shifting every visible card sideways mid-scroll. Favorites are a small
-    /// curated set that retention never deletes (see `RetentionPeriod`), so fetching all of
-    /// them keeps the front of the row fixed for one extra indexed read.
-    ///
-    /// The two queries can't overlap: one asks for `isFavorite = true` and the other for
-    /// `isFavorite = false`, so concatenating them never duplicates a row.
+    /// One page of shelf history matching `filter`, newest first.
     func fetchRecentPage(_ db: Database, filter: SearchFilter, limit: Int) throws -> [ClipItem] {
-        let base = applyFacets(filter, to: ClipItem.all())
-        let favorites = try base.filter(Column("isFavorite") == true)
-            .order(Column("lastUsedAt").desc)
-            .fetchAll(db)
-        let rest = try base.filter(Column("isFavorite") == false)
+        try applyFacets(filter, to: ClipItem.all())
             .order(Column("lastUsedAt").desc)
             .limit(limit)
             .fetchAll(db)
-        return favorites + rest
     }
 
     /// Synchronous counterpart to `observeRecent(filter:limit:)`, for callers that want one
@@ -616,7 +555,7 @@ public struct ItemStore {
             if let cutoff {
                 let oldIds = try Int64.fetchAll(db, sql: """
                     SELECT id FROM item
-                    WHERE lastUsedAt < ? AND isFavorite = false
+                    WHERE lastUsedAt < ?
                     AND id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
                     """, arguments: [cutoff])
                 doomed.formUnion(oldIds)
@@ -625,8 +564,7 @@ public struct ItemStore {
             if let maxItems {
                 let newestIds = try Int64.fetchAll(db, sql: """
                     SELECT id FROM item
-                    WHERE isFavorite = false
-                    AND id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
+                    WHERE id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
                     ORDER BY lastUsedAt DESC
                     LIMIT ?
                     """, arguments: [maxItems])
@@ -634,8 +572,7 @@ public struct ItemStore {
 
                 let excessIds = try Int64.fetchAll(db, sql: """
                     SELECT id FROM item
-                    WHERE isFavorite = false
-                    AND id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
+                    WHERE id NOT IN (SELECT DISTINCT itemId FROM pinboard_item)
                     """)
                 for id in excessIds {
                     if !newestSet.contains(id) {
@@ -766,7 +703,7 @@ public struct ItemStore {
     }
 
     /// Inserts an item reconstructed from an exported archive (`ArchiveIO`), preserving
-    /// its original timestamps, title, favorite flag, and recognized text so a restored
+    /// its original timestamps, title, legacy favorite flag, and recognized text so a restored
     /// history is indistinguishable from the original. Dedups by content hash like
     /// `save`/`createTextItem`: if an item with the same hash already exists, this is a
     /// no-op and returns `false` — the property that makes re-importing the same

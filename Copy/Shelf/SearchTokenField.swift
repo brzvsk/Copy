@@ -52,7 +52,7 @@ struct SearchTokenField: View {
 }
 
 /// Shown when the empty search field is focused: a compact legend of the filter categories
-/// so users discover they can filter by app, type, time, favorites, and pinboards, not just
+/// so users discover they can filter by app, type, time, and pinboards, not just
 /// search text.
 private struct SearchHintPanel: View {
     var body: some View {
@@ -63,7 +63,6 @@ private struct SearchHintPanel: View {
                 .tracking(0.5)
             row("textformat", "Type", "Text, Link, Image, File, Color")
             row("calendar", "Time", "Today, Last week, Last month…")
-            row("star", "Favorites", "Only starred items")
             row("app.dashed", "App", "Name an app you copied from")
             row("pin", "Pinboard", "Name one of your boards")
         }

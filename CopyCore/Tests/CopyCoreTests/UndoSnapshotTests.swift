@@ -28,10 +28,9 @@ final class UndoSnapshotTests: XCTestCase {
         XCTAssertEqual(try store.search("undo").map(\.plainText), ["undo me please"])
     }
 
-    func testArchivedSnapshotPreservesTitleAndFavorite() throws {
+    func testArchivedSnapshotPreservesTitle() throws {
         let store = try makeTempStore()
         let saved = try store.createTextItem("body text", title: "My Title")
-        try store.setFavorite(itemID: saved.id!, true)
 
         let snapshot = try store.archivedSnapshot(itemID: saved.id!)
         try store.delete(itemID: saved.id!)
@@ -39,6 +38,5 @@ final class UndoSnapshotTests: XCTestCase {
 
         let restored = try store.item(contentHash: saved.contentHash)
         XCTAssertEqual(restored?.title, "My Title")
-        XCTAssertEqual(restored?.isFavorite, true)
     }
 }

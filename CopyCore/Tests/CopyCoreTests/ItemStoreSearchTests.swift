@@ -25,15 +25,12 @@ final class ItemStoreSearchTests: XCTestCase {
         XCTAssertEqual(try store.search("delete").count, 0)
     }
 
-    func testClearHistoryKeepsFavorites() throws {
+    func testClearHistoryRemovesLooseItems() throws {
         let store = try makeTempStore()
-        let fav = try store.save(makeText("keep me"))
-        _ = try store.save(makeText("toss me"))
-        try store.setFavorite(itemID: fav.id!, true)
-        try store.clearHistory(keepFavorites: true)
-        let remaining = try store.recentItems(limit: 10)
-        XCTAssertEqual(remaining.map(\.plainText), ["keep me"])
-        XCTAssertTrue(remaining[0].isFavorite)
+        _ = try store.save(makeText("one"))
+        _ = try store.save(makeText("two"))
+        try store.clearHistory()
+        XCTAssertTrue(try store.recentItems(limit: 10).isEmpty)
     }
 
     func testTouchMovesToFront() throws {

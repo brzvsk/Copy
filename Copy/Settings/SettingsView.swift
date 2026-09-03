@@ -8,7 +8,7 @@ import SwiftUI
 /// The window is tinted electric-blue (`Tokens.electricBlue`) so the sidebar selection and
 /// all controls read as one brand accent, but it otherwise stays native: it follows the
 /// system appearance and each pane's controls sit in a grouped `Form`. That last choice is
-/// deliberate and unchanged from the tabbed version — unlike the shelf/paste stack/sheets,
+/// deliberate and unchanged from the tabbed version — unlike the shelf and sheets,
 /// Settings keeps its content on the opaque grouped-form background rather than glass, the
 /// same way Apple's System Settings reserves glass for chrome (the sidebar) and not the
 /// settings content itself.

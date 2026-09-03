@@ -14,14 +14,13 @@ final class RetentionTests: XCTestCase {
         let beforeClear = try store.recentItems(limit: 5000)
         XCTAssertEqual(beforeClear.count, 1200, "Should have saved 1200 items")
 
-        // Clear all (no favorites to preserve)
-        try store.clearHistory(keepFavorites: false)
+        try store.clearHistory()
 
         let afterClear = try store.recentItems(limit: 5000)
         XCTAssertEqual(afterClear.count, 0, "clearHistory should delete all items across chunks")
     }
 
-    func testPruneByDateSparesOldUnprotectedOnly() throws {
+    func testPruneByDateSparesOnlyPinboardItems() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("CopyTests-\(UUID().uuidString)")
         let dbm = try DatabaseManager(directory: dir)
@@ -32,14 +31,10 @@ final class RetentionTests: XCTestCase {
         let cutoffDate = Date(timeIntervalSince1970: 2000)
         let newDate = Date(timeIntervalSince1970: 3000)
 
-        // Create 4 items: 3 old, 1 new
+        // Create 3 items: 2 old, 1 new
         let oldUnprotected = try store.save(makeText("old-unprotected"), now: oldDate)
-        let oldFavorite = try store.save(makeText("old-favorite"), now: oldDate)
         let oldPinboardMember = try store.save(makeText("old-pinboard"), now: oldDate)
         let newItem = try store.save(makeText("new"), now: newDate)
-
-        // Mark one old item as favorite
-        try store.setFavorite(itemID: oldFavorite.id!, true)
 
         // Add one old item to a pinboard
         let pinboard = try pinboardStore.create(name: "Board", symbol: "star")
@@ -51,7 +46,7 @@ final class RetentionTests: XCTestCase {
         XCTAssertEqual(deletedCount, 1, "Should delete only the unprotected old item")
 
         let remaining = try store.recentItems(limit: 100)
-        XCTAssertEqual(remaining.count, 3, "Favorite, pinboard member, and new item should remain")
+        XCTAssertEqual(remaining.count, 2, "Pinboard member and new item should remain")
     }
 
     func testPruneByCountKeepsNewest() throws {

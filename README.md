@@ -58,8 +58,6 @@ including the text inside screenshots.
 **Pasting**
 - <kbd>⏎</kbd> pastes the selected card; <kbd>⌥⏎</kbd> strips formatting and pastes plain text
 - Two-click-to-paste by default (single click selects, double click pastes), or switch to single-click
-- Paste stack: queue several cards and walk through them on successive <kbd>⌘V</kbd> presses,
-  shown as a numbered queue with the next item marked
 - <kbd>⌘O</kbd> opens the selected link or file without pasting; <kbd>⌘Z</kbd> undoes a delete
 - App Intents so Shortcuts can paste your latest item, search, or paste from a pinboard
 
@@ -102,7 +100,6 @@ and **Import…** in this one.
 | <kbd>⌫</kbd> | Delete selected card |
 | <kbd>⌘⌫</kbd> | Delete selected card |
 | <kbd>⌘N</kbd> | New item |
-| <kbd>⇧⌘C</kbd> | Toggle the paste stack |
 
 ## Build from source
 

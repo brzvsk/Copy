@@ -15,6 +15,8 @@ public struct ClipItem: Codable, Equatable, Identifiable, FetchableRecord, Mutab
     public var appName: String?
     public var contentHash: String
     public var sizeBytes: Int
+    /// Legacy storage retained for database and archive compatibility; product behavior
+    /// no longer reads or mutates it.
     public var isFavorite: Bool
     public var title: String?
     public var recognizedText: String?

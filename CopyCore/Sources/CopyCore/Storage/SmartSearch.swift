@@ -76,7 +76,6 @@ public enum SearchToken: Equatable, Identifiable, Sendable {
     case app(bundleID: String, name: String)
     case type(SearchType)
     case date(SearchDate)
-    case favorites
     case pinboard(id: Int64, name: String)
 
     public var id: String {
@@ -84,7 +83,6 @@ public enum SearchToken: Equatable, Identifiable, Sendable {
         case .app(let bundleID, _): return "app:\(bundleID)"
         case .type(let type): return "type:\(type.rawValue)"
         case .date(let date): return "date:\(date.rawValue)"
-        case .favorites: return "favorites"
         case .pinboard(let id, _): return "pinboard:\(id)"
         }
     }
@@ -94,7 +92,6 @@ public enum SearchToken: Equatable, Identifiable, Sendable {
         case .app(_, let name): return name
         case .type(let type): return type.label
         case .date(let date): return date.label
-        case .favorites: return "Favorites"
         case .pinboard(_, let name): return name
         }
     }
@@ -105,7 +102,6 @@ public enum SearchToken: Equatable, Identifiable, Sendable {
         case .app: return nil
         case .type(let type): return type.systemImage
         case .date(let date): return date.systemImage
-        case .favorites: return "star.fill"
         case .pinboard: return "pin.fill"
         }
     }
@@ -142,7 +138,6 @@ public struct SearchQuery: Equatable, Sendable {
                 kinds.formUnion(type.kinds)
                 if type == .images { filter.includesImageFiles = true }
             case .date(let date): filter.dateRange = date.interval(now: now, calendar: calendar)
-            case .favorites: filter.favoritesOnly = true
             case .pinboard(let id, _): pinboardIDs.insert(id)
             }
         }
@@ -180,7 +175,6 @@ public enum Suggestion: Equatable, Identifiable, Sendable {
     case app(bundleID: String, name: String)
     case type(SearchType)
     case date(SearchDate)
-    case favorites
     case pinboard(id: Int64, name: String)
 
     public var token: SearchToken {
@@ -188,7 +182,6 @@ public enum Suggestion: Equatable, Identifiable, Sendable {
         case .app(let bundleID, let name): return .app(bundleID: bundleID, name: name)
         case .type(let type): return .type(type)
         case .date(let date): return .date(date)
-        case .favorites: return .favorites
         case .pinboard(let id, let name): return .pinboard(id: id, name: name)
         }
     }
@@ -198,20 +191,19 @@ public enum Suggestion: Equatable, Identifiable, Sendable {
     public var systemImage: String? { token.systemImage }
     public var appBundleID: String? { token.appBundleID }
 
-    /// Category order in the dropdown: type, favorites, pinboard, app, date.
+    /// Category order in the dropdown: type, pinboard, app, date.
     var priority: Int {
         switch self {
         case .type: return 0
-        case .favorites: return 1
-        case .pinboard: return 2
-        case .app: return 3
-        case .date: return 4
+        case .pinboard: return 1
+        case .app: return 2
+        case .date: return 3
         }
     }
 }
 
 /// Ranked facet suggestions for the current trailing text. Case-insensitive prefix match
-/// across type/favorites/pinboard/app/date, excluding facets already satisfied by `query`
+/// across type/pinboard/app/date, excluding facets already satisfied by `query`
 /// (single-valued app/date once set; any already-present token). Empty prefix → no
 /// suggestions. Stable-sorted by category priority, then by input order (apps stay in the
 /// frequency order `distinctApps` returns).
@@ -225,15 +217,10 @@ public func searchSuggestions(prefix rawPrefix: String,
 
     let hasApp = query.tokens.contains { if case .app = $0 { return true } else { return false } }
     let hasDate = query.tokens.contains { if case .date = $0 { return true } else { return false } }
-    let hasFavorites = query.tokens.contains(.favorites)
-
     var out: [Suggestion] = []
 
     for type in SearchType.allCases where matchesPrefix(type.label, prefix) && !query.tokens.contains(.type(type)) {
         out.append(.type(type))
-    }
-    if matchesPrefix("Favorites", prefix) && !hasFavorites {
-        out.append(.favorites)
     }
     for pinboard in pinboards {
         guard let id = pinboard.id, matchesPrefix(pinboard.name, prefix),

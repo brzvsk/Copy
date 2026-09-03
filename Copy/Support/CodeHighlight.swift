@@ -24,7 +24,7 @@ enum CodeHighlightPalette {
 /// default (primary) color. Font is intentionally left to the caller's `.font(...)`
 /// modifier on the returned `Text` — every run here is otherwise plain, so one outer
 /// `.font()` cascades to the whole concatenation, matching how the plain-text path
-/// already applies `Tokens.bodyMono`/mono system font today.
+/// already applies a monospaced system font today.
 func highlightedText(_ text: String, tokens: [HighlightToken]) -> Text {
     guard !tokens.isEmpty else { return Text(text) }
     let ns = text as NSString

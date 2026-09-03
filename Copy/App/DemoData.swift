@@ -19,16 +19,16 @@ enum DemoData {
     private static let mail: App = ("com.apple.mail", "Mail")
 
     @MainActor
-    static func seed(store: ItemStore, pinboards: PinboardStore, pasteStack: PasteStackModel) {
+    static func seed(store: ItemStore, pinboards: PinboardStore) {
         do {
-            try seedThrowing(store: store, pinboards: pinboards, pasteStack: pasteStack)
+            try seedThrowing(store: store, pinboards: pinboards)
         } catch {
             NSLog("Copy: demo seed failed: \(error)")
         }
     }
 
     @MainActor
-    private static func seedThrowing(store: ItemStore, pinboards: PinboardStore, pasteStack: PasteStackModel) throws {
+    private static func seedThrowing(store: ItemStore, pinboards: PinboardStore) throws {
         let now = Date()
         let minute = 60.0, hour = 3600.0, day = 86400.0
         func ago(_ seconds: TimeInterval) -> Date { now.addingTimeInterval(-seconds) }
@@ -127,7 +127,7 @@ enum DemoData {
                                    title: "Copy — Marketing site (Figma)",
                                    from: figma, at: ago(34 * minute), favicon: .systemPurple)
 
-        try text("Standup at 10:30 — demo the smart search and paste stack. Can someone record the video? 🎥",
+        try text("Standup at 10:30 — demo the smart search and image previews. Can someone record the video? 🎥",
                  from: slack, at: ago(45 * minute))
 
         let jsonCode = """
@@ -170,12 +170,6 @@ enum DemoData {
                   bottom: NSColor(calibratedRed: 0.10, green: 0.55, blue: 0.45, alpha: 1),
                   label: "Old concept")
 
-        // MARK: favorites (float above the divider)
-
-        for id in [codeID, githubID, invoiceID, brandColorID] {
-            try store.setFavorite(itemID: id, true)
-        }
-
         // MARK: pinboards
 
         let work = try pinboards.create(name: "Work", symbol: "briefcase", tint: "007AFF")
@@ -192,13 +186,6 @@ enum DemoData {
             try pinboards.add(itemID: id, to: snippets.id!)
         }
 
-        // MARK: paste stack (pre-filled; the palette isn't auto-shown)
-
-        let saved = try store.recentItems(limit: 200)
-        func uuid(of id: Int64) -> String? { saved.first { $0.id == id }?.uuid }
-        for uuid in [shellID, githubID, brandColorID].compactMap(uuid(of:)) {
-            pasteStack.queue.enqueue(uuid)
-        }
     }
 
     // MARK: image generation (no bundled assets)

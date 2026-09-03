@@ -6,7 +6,7 @@ final class KeyablePanel: NSPanel {
     /// SwiftUI's `.popover()` presents its content in a separate `NSWindow` attached to
     /// this one via `addChildWindow` — a different window than the panel itself, so
     /// merely setting the panel's own `sharingType` doesn't exclude it from capture.
-    /// Whoever owns this panel (`ShelfPanelController`/`PasteStackController`) keeps this
+    /// `ShelfPanelController` keeps this
     /// in sync with its own `sharingType` policy; every child window attached from then
     /// on inherits it here, before `super.addChildWindow` orders it on screen.
     var childWindowSharingType: NSWindow.SharingType = .readOnly

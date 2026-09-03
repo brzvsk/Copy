@@ -22,8 +22,7 @@ final class ArchiveIOTests: XCTestCase {
         let (items, pinboards) = try makeTempStores()
 
         let plain = try items.save(makeText("plain body"))
-        let favorite = try items.save(makeText("favorite body"))
-        try items.setFavorite(itemID: favorite.id!, true)
+        let secondPlain = try items.save(makeText("second plain body"))
         let titled = try items.createTextItem("titled body", title: "My Title")
         // A representation larger than ItemStore.inlineThreshold forces the blob-file
         // storage path, so this also proves blob-backed representations round-trip.
@@ -50,9 +49,8 @@ final class ArchiveIOTests: XCTestCase {
         let recent = try freshItems.recentItems(limit: 10)
         XCTAssertEqual(recent.count, 4)
 
-        let restoredFavorite = recent.first { $0.contentHash == favorite.contentHash }
-        XCTAssertEqual(restoredFavorite?.isFavorite, true)
-        XCTAssertEqual(restoredFavorite?.plainText, "favorite body")
+        let restoredSecondPlain = recent.first { $0.contentHash == secondPlain.contentHash }
+        XCTAssertEqual(restoredSecondPlain?.plainText, "second plain body")
 
         let restoredTitled = recent.first { $0.contentHash == titled.contentHash }
         XCTAssertEqual(restoredTitled?.title, "My Title")
