@@ -30,8 +30,8 @@ targets:
       path: Copy/Info.plist
       properties:
         CFBundleDisplayName: Copy
-        CFBundleShortVersionString: "0.2.0"
-        CFBundleVersion: "8"
+        CFBundleShortVersionString: "0.3.0"
+        CFBundleVersion: "9"
         LSApplicationCategoryType: public.app-category.utilities
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
@@ -54,7 +54,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sk.brzv.Copy
-        MARKETING_VERSION: "0.2.0"
+        MARKETING_VERSION: "0.3.0"
         SWIFT_VERSION: "5.0"
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_STYLE: Automatic

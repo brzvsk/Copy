@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-03
+
+A cleaner, more native shelf focused on fast clipboard history and pinboards.
+
 ### Added
 
 - New installations exclude Passwords and Keychain Access from clipboard capture by default.
+
+### Changed
+
+- The shelf now floats clear of every screen edge with continuous rounded corners and a native glass boundary.
+- Shelf presentation is faster, slides naturally from the bottom edge, and no longer takes focus from the app you are using.
+- Image previews adapt to the image's aspect ratio and available screen space; short text previews use a smaller window.
+- Cards and text previews use the standard macOS system font instead of a monospaced face.
+- Light, Dark, and Follow System themes now apply consistently to both the shelf and Settings.
+- The shelf header is quieter and more compact, without a separator above the cards.
+- Pinboards use emoji as their only optional visual identity; custom colors and tinting have been removed.
+- Link cards show a bold page title above the complete wrapping URL, load real favicons, and backfill metadata for older visible links.
 
 ### Removed
 

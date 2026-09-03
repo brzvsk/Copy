@@ -144,6 +144,16 @@ jobs:
         if: github.event_name == 'push'
         run: Scripts/release.sh "$VERSION"
 
+      - name: Prepare release notes
+        if: github.event_name == 'push'
+        run: |
+          awk -v version="$VERSION" '
+            index($0, "## [" version "]") == 1 { capture = 1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          test -s "$RUNNER_TEMP/release-notes.md"
+
       # Idempotent: if a re-run follows a mid-job failure and the release
       # already exists (created by an earlier attempt), skip re-creating it
       # rather than failing on a duplicate.
@@ -156,7 +166,7 @@ jobs:
             "build/Copy-${VERSION}.dmg" \
             "build/Copy-${VERSION}.zip" \
             --title "Copy $VERSION" \
-            --notes-file CHANGELOG.md
+            --notes-file "$RUNNER_TEMP/release-notes.md"
 
       # release.sh refreshes docs/appcast.xml in the tag checkout's working
       # tree, but that checkout is detached at the tag -- carry the updated
