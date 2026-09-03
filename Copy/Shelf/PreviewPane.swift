@@ -1,5 +1,7 @@
 import SwiftUI
 import CopyCore
+import ImageIO
+import UniformTypeIdentifiers
 
 struct PreviewPane: View {
     let item: ClipItem
@@ -7,6 +9,17 @@ struct PreviewPane: View {
 
     private var quickLookURLs: [URL] {
         QuickLookController.fileURLs(for: item, store: store)
+    }
+
+    /// File cards keep their original on-disk URLs instead of image bytes in Copy's
+    /// database. When the first available file is itself an image, route Space preview
+    /// through an image renderer rather than treating it like a generic document.
+    private var imageFileURL: URL? {
+        quickLookURLs.first { url in
+            guard let values = try? url.resourceValues(forKeys: [.contentTypeKey]),
+                  let contentType = values.contentType else { return false }
+            return contentType.conforms(to: .image)
+        }
     }
 
     /// How much of the preview's text ever gets tokenized for syntax color. The pane
@@ -51,21 +64,27 @@ struct PreviewPane: View {
                 }
                 .padding(16)
             case .file:
-                VStack(spacing: 10) {
-                    Image(nsImage: NSWorkspace.shared.icon(for: Tokens.fileType(for: item)))
-                        .resizable()
-                        .frame(width: 64, height: 64)
-                    Text(item.plainText ?? "File")
-                        .font(.system(size: 13, design: .monospaced))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(4)
-                    if !quickLookURLs.isEmpty {
-                        Button("Quick Look") {
-                            QuickLookController.shared.preview(quickLookURLs)
+                if let imageFileURL {
+                    FileImagePreview(url: imageFileURL)
+                        .id(imageFileURL)
+                        .padding(12)
+                } else {
+                    VStack(spacing: 10) {
+                        Image(nsImage: NSWorkspace.shared.icon(for: Tokens.fileType(for: item)))
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                        Text(item.plainText ?? "File")
+                            .font(.system(size: 13, design: .monospaced))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(4)
+                        if !quickLookURLs.isEmpty {
+                            Button("Quick Look") {
+                                QuickLookController.shared.preview(quickLookURLs)
+                            }
                         }
                     }
+                    .padding(16)
                 }
-                .padding(16)
             default:
                 ScrollView {
                     codeAwarePreviewText(item.plainText ?? "")
@@ -85,5 +104,55 @@ struct PreviewPane: View {
         // corners past the rounded backing on either code path.
         .glassSurface(cornerRadius: 12)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+/// Decodes an image-file card from its original URL for the larger Space preview.
+/// This deliberately does not use the 400-point Quick Look thumbnail used by shelf
+/// cards: ImageIO downsamples the source itself at a size suitable for a Retina pane.
+private struct FileImagePreview: View {
+    let url: URL
+    @State private var image: NSImage?
+    @State private var didFail = false
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else if didFail {
+                Image(systemName: "photo.badge.exclamationmark")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.secondary)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onAppear(perform: loadImage)
+    }
+
+    private func loadImage() {
+        guard image == nil, !didFail else { return }
+        let requestedURL = url
+        DispatchQueue.global(qos: .userInitiated).async {
+            let source = CGImageSourceCreateWithURL(requestedURL as CFURL, nil)
+            let cgImage = source.flatMap {
+                CGImageSourceCreateThumbnailAtIndex($0, 0, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 1_600,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                ] as CFDictionary)
+            }
+            let decoded = cgImage.map { NSImage(cgImage: $0, size: .zero) }
+            DispatchQueue.main.async {
+                image = decoded
+                didFail = decoded == nil
+            }
+        }
     }
 }

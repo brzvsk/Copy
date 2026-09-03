@@ -17,9 +17,19 @@ final class SmartSearchTests: XCTestCase {
         XCTAssertEqual(filter.text, "movement")
         XCTAssertEqual(filter.appBundleID, "com.apple.Safari")
         XCTAssertEqual(filter.kinds, [.link, .image])
+        XCTAssertTrue(filter.includesImageFiles)
         XCTAssertTrue(filter.favoritesOnly)
         XCTAssertEqual(filter.pinboardIDs, [3])
         XCTAssertEqual(filter.dateRange, SearchDate.last7.interval(now: now))
+    }
+
+    func testOnlyImageTypeIncludesImageFiles() {
+        var query = SearchQuery(tokens: [.type(.files)])
+        XCTAssertFalse(query.toFilter().includesImageFiles)
+
+        query = SearchQuery(tokens: [.type(.images)])
+        XCTAssertEqual(query.toFilter().kinds, [.image])
+        XCTAssertTrue(query.toFilter().includesImageFiles)
     }
 
     func testAddReplacesSingleValuedFacets() {

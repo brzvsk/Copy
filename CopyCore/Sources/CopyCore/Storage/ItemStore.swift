@@ -238,10 +238,9 @@ public struct ItemStore {
             sql += " AND item.appBundleID = ?"
             arguments.append(appBundleID)
         }
-        if !filter.kinds.isEmpty {
-            let names = filter.kinds.map(\.rawValue).sorted()
-            sql += " AND item.kind IN (\(names.map { _ in "?" }.joined(separator: ",")))"
-            arguments.append(contentsOf: names)
+        if let kindFacet = kindFacet(filter) {
+            sql += " AND \(kindFacet.sql)"
+            arguments.append(contentsOf: kindFacet.arguments)
         }
         if let range = filter.dateRange {
             sql += " AND item.lastUsedAt >= ? AND item.lastUsedAt < ?"
@@ -389,8 +388,9 @@ public struct ItemStore {
         if let appBundleID = filter.appBundleID {
             request = request.filter(Column("appBundleID") == appBundleID)
         }
-        if !filter.kinds.isEmpty {
-            request = request.filter(filter.kinds.map(\.rawValue).contains(Column("kind")))
+        if let kindFacet = kindFacet(filter) {
+            request = request.filter(sql: kindFacet.sql,
+                                     arguments: StatementArguments(kindFacet.arguments))
         }
         if let range = filter.dateRange {
             request = request.filter(Column("lastUsedAt") >= range.start && Column("lastUsedAt") < range.end)
@@ -406,6 +406,26 @@ public struct ItemStore {
                 arguments: StatementArguments(ids))
         }
         return request
+    }
+
+    /// One OR-ed type predicate. Image facets include native `.image` rows plus `.file`
+    /// rows whose newline-separated filenames contain an image content type; other type
+    /// facets retain the ordinary `kind IN (…)` behavior.
+    private func kindFacet(_ filter: SearchFilter)
+        -> (sql: String, arguments: [any DatabaseValueConvertible])? {
+        var clauses: [String] = []
+        var arguments: [any DatabaseValueConvertible] = []
+        if !filter.kinds.isEmpty {
+            let names = filter.kinds.map(\.rawValue).sorted()
+            clauses.append("item.kind IN (\(names.map { _ in "?" }.joined(separator: ",")))")
+            arguments.append(contentsOf: names)
+        }
+        if filter.includesImageFiles {
+            clauses.append("(item.kind = ? AND \(ImageFileDetection.sqlFunctionName)(item.plainText) = 1)")
+            arguments.append(ItemKind.file.rawValue)
+        }
+        guard !clauses.isEmpty else { return nil }
+        return ("(\(clauses.joined(separator: " OR ")))", arguments)
     }
 
     /// One page of shelf history: every favorite matching `filter`, plus the `limit` most

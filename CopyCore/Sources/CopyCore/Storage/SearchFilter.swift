@@ -9,6 +9,9 @@ public struct SearchFilter: Equatable, Sendable {
     public var text: String
     public var appBundleID: String?
     public var kinds: Set<ItemKind>
+    /// Extends a kind facet with `.file` items whose stored filenames resolve to an image
+    /// content type. Used by the Image token; it deliberately does not include every file.
+    public var includesImageFiles: Bool
     /// Matched against `lastUsedAt` — consistent with ordering, retention, and the relative
     /// timestamps shown on cards. Half-open `[start, end)`.
     public var dateRange: DateInterval?
@@ -18,12 +21,14 @@ public struct SearchFilter: Equatable, Sendable {
     public init(text: String = "",
                 appBundleID: String? = nil,
                 kinds: Set<ItemKind> = [],
+                includesImageFiles: Bool = false,
                 dateRange: DateInterval? = nil,
                 favoritesOnly: Bool = false,
                 pinboardIDs: Set<Int64> = []) {
         self.text = text
         self.appBundleID = appBundleID
         self.kinds = kinds
+        self.includesImageFiles = includesImageFiles
         self.dateRange = dateRange
         self.favoritesOnly = favoritesOnly
         self.pinboardIDs = pinboardIDs
@@ -34,6 +39,7 @@ public struct SearchFilter: Equatable, Sendable {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && appBundleID == nil
             && kinds.isEmpty
+            && !includesImageFiles
             && dateRange == nil
             && !favoritesOnly
             && pinboardIDs.isEmpty
