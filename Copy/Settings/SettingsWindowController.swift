@@ -32,6 +32,11 @@ final class SettingsWindowController: NSWindowController {
         window.contentMinSize = NSSize(width: 640, height: 460)
         window.setContentSize(NSSize(width: 720, height: 520))
         self.init(window: window)
+        setTheme(settings.shelfTheme)
+    }
+
+    func setTheme(_ theme: ShelfTheme) {
+        window?.appearance = theme.appearance
     }
 
     func show() {

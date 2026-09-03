@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -23,6 +24,32 @@ enum CopySound: String, CaseIterable, Identifiable {
         case .off: return nil
         case .bubblePop: return "copy-bubble-pop"
         case .clickTone: return "copy-click-tone"
+        }
+    }
+}
+
+/// Appearance used by the shelf and its modal content. Raw values are persisted, so
+/// keep them stable across releases.
+enum ShelfTheme: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .system: return "Follow System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    var appearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
         }
     }
 }
@@ -94,6 +121,7 @@ final class SettingsStore {
         excludedBundleIDsKey,
         hideDuringScreenSharingKey,
         compactShelfKey,
+        shelfThemeKey,
         shelfProDarkKey,
         hideMenuBarIconKey,
         doubleClickToPasteKey,
@@ -105,6 +133,8 @@ final class SettingsStore {
     static let excludedBundleIDsKey = "excludedBundleIDs"
     static let hideDuringScreenSharingKey = "hideDuringScreenSharing"
     static let compactShelfKey = "compactShelf"
+    static let shelfThemeKey = "shelfTheme"
+    /// Previous binary theme preference, retained only to migrate existing profiles.
     static let shelfProDarkKey = "shelfProDark"
     static let hideMenuBarIconKey = "hideMenuBarIcon"
     static let doubleClickToPasteKey = "doubleClickToPaste"
@@ -163,17 +193,14 @@ final class SettingsStore {
         }
     }
 
-    /// A fixed "pro dark" look for the shelf: a forced dark appearance
-    /// plus an electric-blue accent, regardless of the system appearance or accent color
-    /// (so the app matches its own marketing look). Off by default, so the shelf follows
-    /// the system otherwise. `onShelfProDarkChange` pushes it to the panel controller
-    /// (which sets the window appearance live); `ShelfRootView` reads it via
-    /// `ShelfViewModel.settings` to apply the tint.
-    var shelfProDark: Bool {
+    /// Controls the shelf independently of the system appearance when requested.
+    /// `onShelfThemeChange` pushes the choice to the panel controller live;
+    /// `ShelfRootView` reads it to retain the electric-blue accent in Dark mode.
+    var shelfTheme: ShelfTheme {
         didSet {
-            guard shelfProDark != oldValue else { return }
-            defaults.set(shelfProDark, forKey: Self.shelfProDarkKey)
-            onShelfProDarkChange?(shelfProDark)
+            guard shelfTheme != oldValue else { return }
+            defaults.set(shelfTheme.rawValue, forKey: Self.shelfThemeKey)
+            onShelfThemeChange?(shelfTheme)
         }
     }
 
@@ -223,7 +250,7 @@ final class SettingsStore {
     @ObservationIgnored var onShowOnboarding: (() -> Void)?
     @ObservationIgnored var onHideDuringScreenSharingChange: ((Bool) -> Void)?
     @ObservationIgnored var onCompactShelfChange: ((Bool) -> Void)?
-    @ObservationIgnored var onShelfProDarkChange: ((Bool) -> Void)?
+    @ObservationIgnored var onShelfThemeChange: ((ShelfTheme) -> Void)?
     @ObservationIgnored var onHideMenuBarIconChange: ((Bool) -> Void)?
     /// Not backed by a stored property here — the shelf summon hotkey itself lives in
     /// `KeyboardShortcuts`' own storage (see `KeyboardShortcuts.Name.toggleShelf`), not
@@ -262,7 +289,16 @@ final class SettingsStore {
         recognizeImageText = (defaults.object(forKey: Self.recognizeImageTextKey) as? Bool) ?? true
         hideDuringScreenSharing = (defaults.object(forKey: Self.hideDuringScreenSharingKey) as? Bool) ?? false
         compactShelf = (defaults.object(forKey: Self.compactShelfKey) as? Bool) ?? false
-        shelfProDark = (defaults.object(forKey: Self.shelfProDarkKey) as? Bool) ?? false
+        let initialShelfTheme: ShelfTheme
+        if let rawTheme = defaults.string(forKey: Self.shelfThemeKey),
+           let savedTheme = ShelfTheme(rawValue: rawTheme) {
+            initialShelfTheme = savedTheme
+        } else {
+            // Preserve the old toggle exactly: on meant Dark, off meant system-driven.
+            initialShelfTheme = defaults.bool(forKey: Self.shelfProDarkKey) ? .dark : .system
+            defaults.set(initialShelfTheme.rawValue, forKey: Self.shelfThemeKey)
+        }
+        shelfTheme = initialShelfTheme
         hideMenuBarIcon = (defaults.object(forKey: Self.hideMenuBarIconKey) as? Bool) ?? false
         doubleClickToPaste = (defaults.object(forKey: Self.doubleClickToPasteKey) as? Bool) ?? true
         copySound = defaults.string(forKey: Self.copySoundKey)
