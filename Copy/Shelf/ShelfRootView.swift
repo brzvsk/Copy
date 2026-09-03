@@ -55,7 +55,15 @@ struct ShelfRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .glassSurface(corners: .top(12))
+        // `glassEffect` shapes the material, but does not clip the view hierarchy laid
+        // over it. Without this, the header/items backgrounds still draw to the hosting
+        // view's rectangular bounds and leave faint square pixels around every corner.
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        // Apply glass *after* clipping the content so its own lensing and edge remain
+        // intact, then reserve transparent room for that edge inside the NSPanel. This
+        // mirrors native floating glass surfaces instead of painting a fixed border.
+        .glassSurface(cornerRadius: 12)
+        .padding(ShelfPanelController.glassBleed)
         // Card → pinboard filing is handled here, at the shelf root, because a per-tab
         // `.onDrop` never establishes a working drop region on the small pills inside this
         // borderless non-activating glass panel (a shelf-level drop, by contrast, fires

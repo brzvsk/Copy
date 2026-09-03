@@ -20,6 +20,14 @@ final class KeyablePanel: NSPanel {
 @MainActor
 final class ShelfPanelController: NSObject, NSWindowDelegate {
     static let shelfHeight: CGFloat = 352
+    /// Keeps the shelf visually detached from the screen edges. The same inset on both
+    /// horizontal sides makes the panel read as one floating surface, while the bottom
+    /// gap leaves room for its newly rounded lower corners and shadow.
+    static let shelfInset: CGFloat = 12
+    /// Liquid Glass lenses and shadows slightly outside its shape. The window needs a
+    /// transparent gutter for that optical edge; otherwise WindowServer clips it at the
+    /// rectangular panel bounds. `ShelfRootView` applies the matching outer padding.
+    static let glassBleed: CGFloat = 8
     /// Panel height while `SettingsStore.compactShelf` is on, sized to `Tokens.compactCardHeight`
     /// plus the same header/divider/padding chrome `shelfHeight` allows for above the
     /// (shorter) card row. `ShelfHeader` isn't shortened in compact mode, so the fixed
@@ -73,6 +81,14 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         compactShelf ? Self.compactShelfHeight : Self.shelfHeight
     }
 
+    private func shelfFrame(in visibleFrame: NSRect) -> NSRect {
+        let windowInset = Self.shelfInset - Self.glassBleed
+        return NSRect(x: visibleFrame.minX + windowInset,
+                      y: visibleFrame.minY + windowInset,
+                      width: visibleFrame.width - (windowInset * 2),
+                      height: currentShelfHeight + (Self.glassBleed * 2))
+    }
+
     /// Applied at panel creation and pushed live here when the setting changes
     /// (`AppCoordinator` wires `SettingsStore.onHideDuringScreenSharingChange`). `.none`
     /// excludes the panel from screen recordings/captures/shares; `.readOnly` is
@@ -93,10 +109,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
               let screen = NSScreen.screens.first(where: {
                   NSMouseInRect(NSEvent.mouseLocation, $0.frame, false)
               }) ?? NSScreen.main else { return }
-        let frame = NSRect(x: screen.visibleFrame.minX,
-                           y: screen.visibleFrame.minY,
-                           width: screen.visibleFrame.width,
-                           height: currentShelfHeight)
+        let frame = shelfFrame(in: screen.visibleFrame)
         panel.setFrame(frame, display: true)
     }
 
@@ -112,10 +125,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
             NSMouseInRect(NSEvent.mouseLocation, $0.frame, false)
         }) ?? NSScreen.main else { return }
 
-        let frame = NSRect(x: screen.visibleFrame.minX,
-                           y: screen.visibleFrame.minY,
-                           width: screen.visibleFrame.width,
-                           height: currentShelfHeight)
+        let frame = shelfFrame(in: screen.visibleFrame)
         let panel = self.panel ?? makePanel()
         self.panel = panel
 
@@ -218,6 +228,11 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
         panel.isFloatingPanel = true
+        // AppKit shadows a borderless window by its rectangular frame, not by the
+        // SwiftUI glass shape inside it. Once the shelf floats away from the screen edge,
+        // that leaves faint square corners around the rounded glass surface. Liquid Glass
+        // supplies its own edge treatment, so keep the outer window itself shadowless.
+        panel.hasShadow = false
         panel.delegate = self
         panel.contentView = makeContent()
         panel.sharingType = hideDuringScreenSharing ? .none : .readOnly

@@ -33,9 +33,8 @@ extension View {
         modifier(GlassSurfaceModifier(corners: .all(cornerRadius)))
     }
 
-    /// Independent per-corner radii, e.g. the shelf panel's top-corners-only
-    /// treatment (it anchors to the bottom of the screen, so only its floating top
-    /// edge is rounded).
+    /// Independent per-corner radii for surfaces that intentionally use an asymmetric
+    /// shape. The floating shelf now uses the uniform overload above.
     func glassSurface(corners: GlassSurfaceCorners) -> some View {
         modifier(GlassSurfaceModifier(corners: corners))
     }
@@ -54,7 +53,7 @@ struct GlassSurfaceCorners: Equatable {
         .init(topLeading: radius, topTrailing: radius, bottomLeading: radius, bottomTrailing: radius)
     }
 
-    /// Only the top corners rounded — see `ShelfRootView`.
+    /// Only the top corners rounded.
     static func top(_ radius: CGFloat) -> Self {
         .init(topLeading: radius, topTrailing: radius)
     }
