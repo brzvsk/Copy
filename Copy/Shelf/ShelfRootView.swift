@@ -46,7 +46,6 @@ struct ShelfRootView: View {
             ShelfHeader(viewModel: viewModel)
                 // Above the cards so the search suggestions dropdown floats over them.
                 .zIndex(1)
-            Divider()
             ShelfItemsRow(viewModel: viewModel)
             if showsLegend {
                 KeyboardLegend(onDismiss: dismissLegend)
@@ -54,15 +53,11 @@ struct ShelfRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // `glassEffect` shapes the material, but does not clip the view hierarchy laid
-        // over it. Without this, the header/items backgrounds still draw to the hosting
-        // view's rectangular bounds and leave faint square pixels around every corner.
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        // Apply glass *after* clipping the content so its own lensing and edge remain
-        // intact, then reserve transparent room for that edge inside the NSPanel. This
-        // mirrors native floating glass surfaces instead of painting a fixed border.
         .glassSurface(cornerRadius: 12)
-        .padding(ShelfPanelController.glassBleed)
+        // Clip *after* glass is drawn. Clipping only the content leaves the glass
+        // shader's outer pixels visible in the rectangular NSPanel corners; giving the
+        // shader an inset gutter instead produces a second outline around the shelf.
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         // Card → pinboard filing is handled here, at the shelf root, because a per-tab
         // `.onDrop` never establishes a working drop region on the small pills inside this
         // borderless non-activating glass panel (a shelf-level drop, by contrast, fires
@@ -80,10 +75,9 @@ struct ShelfRootView: View {
                 viewModel.tab = .pinboard(id)
             }
         ))
-        // Pro-dark: force the marketing electric-blue accent regardless of the system
-        // accent color. The forced dark appearance itself is set on the panel window in
-        // `ShelfPanelController`, which cascades to this hosted content.
-        .tint(viewModel.settings.shelfProDark ? Tokens.electricBlue : nil)
+        // Dark keeps the marketing electric-blue accent. The forced light/dark window
+        // appearance itself is applied by `ShelfPanelController`.
+        .tint(viewModel.settings.shelfTheme == .dark ? Tokens.electricBlue : nil)
         // Edit/Create/Adjust Color/Tips are shown as a centered child window over the
         // shelf (see `ShelfModalHostView`), not as attached sheets that overflow off the
         // bottom of the screen. This view is always on screen while the shelf is open, so
@@ -266,7 +260,6 @@ private struct ShelfTabs: View {
                     label: pinboard.name,
                     symbol: pinboard.symbol,
                     emoji: pinboard.emoji,
-                    tint: pinboard.tint,
                     showsSymbol: false,
                     isSelected: pinboard.id.map { viewModel.tab == .pinboard($0) } ?? false,
                     isDropTargeted: pinboard.id != nil && viewModel.dropTargetedPinboardID == pinboard.id,
@@ -285,8 +278,8 @@ private struct ShelfTabs: View {
                     }
                 )
                 .contextMenu {
-                    // "Edit…" opens PinboardEditPopover, which edits name, symbol, emoji,
-                    // and color (including a custom color picker) in one place.
+                    // "Edit…" opens PinboardEditPopover, which edits the pinboard's
+                    // name and emoji in one place.
                     Button("Edit…") { renamingPinboard = pinboard }
                     Button("Delete Pinboard", role: .destructive) { confirmDelete(pinboard) }
                 }
@@ -294,12 +287,10 @@ private struct ShelfTabs: View {
                     get: { pinboard.id != nil && renamingPinboard?.id == pinboard.id },
                     set: { if !$0 { renamingPinboard = nil } }
                 )) {
-                    PinboardEditPopover(mode: .rename(pinboard)) { name, symbol, emoji, tint in
+                    PinboardEditPopover(mode: .rename(pinboard)) { name, emoji in
                         if let id = pinboard.id {
                             viewModel.renamePinboard(id: id, to: name)
-                            viewModel.setPinboardSymbol(id: id, symbol)
                             viewModel.setPinboardEmoji(id: id, emoji)
-                            viewModel.setPinboardTint(id: id, tint)
                         }
                         renamingPinboard = nil
                     }
@@ -322,8 +313,8 @@ private struct ShelfTabs: View {
                 createPresented = true
             }
             .popover(isPresented: $createPresented) {
-                PinboardEditPopover(mode: .create) { name, symbol, emoji, tint in
-                    viewModel.createPinboard(name: name, symbol: symbol, emoji: emoji, tint: tint)
+                PinboardEditPopover(mode: .create) { name, emoji in
+                    viewModel.createPinboard(name: name, emoji: emoji)
                 }
             }
         }
@@ -331,9 +322,9 @@ private struct ShelfTabs: View {
         // onto a pinboard tab routes to THIS panel instead of passing through the glass
         // surface to the window behind (which pasted the card's text into the app
         // underneath). The window server treats a pixel as pass-through only when its
-        // composited alpha rounds to zero, so this needs alpha above 1/255 (0.001 rounds
-        // to 0 and still passed drags through); 0.02 is ~2% and imperceptible over glass.
-        .background(Color.black.opacity(0.02))
+        // composited alpha rounds to zero. A dynamic system background at 1% stays above
+        // that threshold while visually merging into both light and dark shelf material.
+        .background(Color(nsColor: .windowBackgroundColor).opacity(0.01))
         .onChange(of: createPresented) { _, isPresented in
             viewModel.pinboardPopoverShown = isPresented || renamingPinboard != nil
         }
@@ -363,13 +354,10 @@ private struct ShelfTabs: View {
 private struct TabPill: View {
     let label: String
     let symbol: String
-    /// A user-chosen emoji shown in place of the SF Symbol, when set. `nil`/untinted
-    /// pinboards (and the History tab) render exactly as before this feature.
+    /// A user-chosen emoji shown in place of the SF Symbol, when set.
     var emoji: String? = nil
-    /// A user-chosen hex color (e.g. "FF3B30"); empty means no color identity.
-    var tint: String = ""
     /// Whether to draw the SF Symbol when no emoji is set. History uses it (a clock);
-    /// pinboards don't — their identity is the color dot and optional emoji.
+    /// pinboards don't — their optional emoji is the only visual identity.
     var showsSymbol: Bool = true
     let isSelected: Bool
     var isDropTargeted: Bool = false
@@ -377,10 +365,6 @@ private struct TabPill: View {
     var shortcutHint: String? = nil
     let action: () -> Void
     @State private var isHovering = false
-
-    private var tintColor: Color? {
-        tint.isEmpty ? nil : Tokens.color(fromHex: tint)
-    }
 
     var body: some View {
         HStack(spacing: 4) {
@@ -390,12 +374,6 @@ private struct TabPill: View {
                 Image(systemName: symbol)
             }
             Text(label)
-            if let tintColor {
-                Circle()
-                    .fill(tintColor)
-                    .frame(width: 6, height: 6)
-                    .accessibilityHidden(true)
-            }
             if let shortcutHint {
                 Text("⌘\(shortcutHint)")
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
@@ -435,10 +413,7 @@ private struct TabPill: View {
 
     private var backgroundFill: Color {
         if isDropTargeted { return Color.accentColor.opacity(0.24) }
-        if isSelected {
-            if let tintColor { return tintColor.opacity(0.18) }
-            return Color.primary.opacity(0.08)
-        }
+        if isSelected { return Color.primary.opacity(0.08) }
         return isHovering ? Color.primary.opacity(0.05) : .clear
     }
 }
@@ -510,7 +485,10 @@ private struct ShelfItemsRow: View {
                             // The LazyHStack only builds a card once it scrolls into view,
                             // so this fires as the user nears the oldest card and widens the
                             // fetch window. Without it the shelf stopped at the first page.
-                            .onAppear { viewModel.loadMoreIfNeeded(at: index) }
+                            .onAppear {
+                                viewModel.loadMoreIfNeeded(at: index)
+                                viewModel.fetchLinkPreviewIfNeeded(for: item)
+                            }
                             .popover(isPresented: Binding(
                                 get: { viewModel.isSelected(item) && item.uuid == viewModel.selection.primary && viewModel.previewShown },
                                 set: { viewModel.previewShown = $0 }
@@ -520,7 +498,8 @@ private struct ShelfItemsRow: View {
                         }
                     }
                     .padding(.horizontal, Tokens.shelfPadding(compact: compact))
-                    .padding(.vertical, compact ? 10 : 16)
+                    .padding(.top, compact ? 4 : 8)
+                    .padding(.bottom, compact ? 10 : 16)
                     // Give the whole row (including the gaps between cards) a real backing
                     // view so a scroll wheel over a gap routes to the scroll view instead
                     // of passing through to the panel behind. A near-zero-opacity fill is

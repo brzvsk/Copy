@@ -21,7 +21,12 @@ final class AppCoordinator {
     let isDemoMode: Bool
     /// `UserDefaults` key the status-menu toggle flips; read at launch to enter demo mode.
     static let demoModeKey = "demoMode"
-    private(set) lazy var shelfViewModel = ShelfViewModel(store: store, pinboardStore: pinboardStore, settings: settings)
+    private(set) lazy var shelfViewModel = ShelfViewModel(
+        store: store,
+        pinboardStore: pinboardStore,
+        settings: settings,
+        linkFetcher: linkFetcher
+    )
     private(set) lazy var linkFetcher = LinkMetadataFetcher(store: store)
     private(set) lazy var ocrController = OCRController(store: store)
     private(set) lazy var archiveController = ArchiveController(store: store, pinboardStore: pinboardStore)
@@ -38,7 +43,7 @@ final class AppCoordinator {
         let controller = ShelfPanelController(
             hideDuringScreenSharing: settings.hideDuringScreenSharing,
             compactShelf: settings.compactShelf,
-            proDark: settings.shelfProDark) { [weak self] in
+            theme: settings.shelfTheme) { [weak self] in
             guard let self else { return NSView() }
             return NSHostingView(rootView: ShelfRootView(viewModel: self.shelfViewModel))
         }
@@ -387,8 +392,9 @@ final class AppCoordinator {
         settings.onCompactShelfChange = { [weak self] compact in
             self?.shelfController.setCompactShelf(compact)
         }
-        settings.onShelfProDarkChange = { [weak self] proDark in
-            self?.shelfController.setProDark(proDark)
+        settings.onShelfThemeChange = { [weak self] theme in
+            self?.shelfController.setTheme(theme)
+            self?.settingsWindowController.setTheme(theme)
         }
         settings.onShowOnboarding = { [weak self] in
             self?.showOnboarding()

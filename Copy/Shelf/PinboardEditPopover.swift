@@ -1,22 +1,14 @@
 import SwiftUI
 import CopyCore
 
-/// Create/rename UI for a pinboard: name field + symbol picker + emoji picker + color
-/// swatches, shared by the "+" button (create mode) and a tab's "Rename…" context menu
-/// item (rename mode). Emoji and color are optional, user-chosen identity (like Finder
-/// tags or Things areas) — never an auto-applied card decoration.
+/// Create/rename UI for a pinboard: name field + emoji picker, shared by the "+"
+/// button (create mode) and a tab's "Edit…" context menu item. Emoji is the only
+/// optional visual identity shown on pinboard tabs.
 struct PinboardEditPopover: View {
     enum Mode {
         case create
         case rename(Pinboard)
     }
-
-    static let symbols = [
-        "pin", "star", "folder", "briefcase", "chevron.left.forwardslash.chevron.right",
-        "doc.text", "photo", "link", "envelope", "cart", "creditcard", "key",
-        "terminal", "paintbrush", "book", "bookmark", "tag", "tray",
-        "archivebox", "calendar", "person", "globe", "lightbulb", "heart",
-    ]
 
     /// Curated emoji categories for the full picker, modeled on the standard system
     /// character-viewer groupings. Not exhaustive (Unicode defines thousands of
@@ -120,46 +112,25 @@ struct PinboardEditPopover: View {
         }
     }
 
-    /// A curated, system-ish palette. Empty hex means "no color".
-    static let colorOptions: [(name: String, hex: String)] = [
-        ("None", ""),
-        ("Red", "FF3B30"),
-        ("Orange", "FF9500"),
-        ("Yellow", "FFCC00"),
-        ("Green", "34C759"),
-        ("Blue", "007AFF"),
-        ("Purple", "AF52DE"),
-        ("Pink", "FF2D55"),
-        ("Graphite", "8E8E93"),
-    ]
-
     let mode: Mode
-    let onCommit: (String, String, String?, String) -> Void
+    let onCommit: (String, String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
-    @State private var symbol: String
     @State private var emoji: String?
-    @State private var tint: String
     @State private var emojiCategoryIndex = 0
     @FocusState private var nameFocused: Bool
 
-    init(mode: Mode, onCommit: @escaping (String, String, String?, String) -> Void) {
+    init(mode: Mode, onCommit: @escaping (String, String?) -> Void) {
         self.mode = mode
         self.onCommit = onCommit
         switch mode {
         case .create:
             _name = State(initialValue: "")
-            _symbol = State(initialValue: "pin")
             _emoji = State(initialValue: nil)
-            // New pinboards get a color by default (Blue) since the color is now their
-            // primary identity on the tabs; the user can change or clear it below.
-            _tint = State(initialValue: "007AFF")
         case .rename(let pinboard):
             _name = State(initialValue: pinboard.name)
-            _symbol = State(initialValue: pinboard.symbol)
             _emoji = State(initialValue: pinboard.emoji)
-            _tint = State(initialValue: pinboard.tint)
         }
     }
 
@@ -254,30 +225,6 @@ struct PinboardEditPopover: View {
                 .frame(height: 168)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Color")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 5) {
-                    ForEach(Self.colorOptions, id: \.hex) { option in
-                        ColorSwatch(name: option.name, hex: option.hex, isSelected: option.hex == tint) {
-                            tint = option.hex
-                        }
-                    }
-                    // Custom color: the system picker, selected when the tint isn't a preset.
-                    ColorPicker("", selection: customColorBinding, supportsOpacity: false)
-                        .labelsHidden()
-                        .frame(width: 22, height: 22)
-                        .help("Custom color")
-                        .overlay(
-                            Circle()
-                                .strokeBorder(Color.accentColor, lineWidth: 2)
-                                .padding(-2)
-                                .opacity(isCustomTint ? 1 : 0)
-                        )
-                }
-            }
-
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
@@ -291,59 +238,11 @@ struct PinboardEditPopover: View {
         .onAppear { nameFocused = true }
     }
 
-    /// True when the current tint isn't one of the presets — i.e. a custom color.
-    private var isCustomTint: Bool {
-        !tint.isEmpty && !Self.colorOptions.contains { $0.hex == tint }
-    }
-
-    /// Bridges the `tint` hex (stored without a leading `#`) to the system `ColorPicker`.
-    private var customColorBinding: Binding<Color> {
-        Binding(
-            get: { tint.isEmpty ? Color.accentColor : Tokens.color(fromHex: tint) },
-            set: { tint = Tokens.hex(from: $0).replacingOccurrences(of: "#", with: "") }
-        )
-    }
-
     private func commit() {
         guard !trimmedName.isEmpty else { return }
         Self.recordRecent(emoji)
-        onCommit(trimmedName, symbol, emoji, tint)
+        onCommit(trimmedName, emoji)
         dismiss()
-    }
-}
-
-private struct SymbolSwatch: View {
-    let symbol: String
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isHovering = false
-
-    /// Human-readable name for VoiceOver; most symbol identifiers already read fine as
-    /// a single word, a couple need a friendlier label.
-    private var accessibleName: String {
-        switch symbol {
-        case "chevron.left.forwardslash.chevron.right": return "Code"
-        case "doc.text": return "Document"
-        case "creditcard": return "Credit Card"
-        default: return symbol.capitalized
-        }
-    }
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
-                .foregroundStyle(isSelected ? Color.white : Color.primary.opacity(0.8))
-                .frame(width: 30, height: 30)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? Color.accentColor : (isHovering ? Color.primary.opacity(0.08) : .clear))
-                )
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
-        .accessibilityLabel(accessibleName)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -371,7 +270,7 @@ private struct EmojiSwatch: View {
 }
 
 /// A small category tab above the emoji grid (Recent + the standard groupings).
-/// Icon-only with a tooltip, mirroring `SymbolSwatch`'s selection styling.
+/// Icon-only with a tooltip, using the same quiet selection styling as emoji swatches.
 private struct EmojiCategoryTab: View {
     let symbol: String
     let name: String
@@ -393,41 +292,6 @@ private struct EmojiCategoryTab: View {
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
         .help(name)
-        .accessibilityLabel(name)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-private struct ColorSwatch: View {
-    let name: String
-    let hex: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    private var swatchColor: Color? {
-        hex.isEmpty ? nil : Tokens.color(fromHex: hex)
-    }
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(swatchColor ?? Color.clear)
-                if swatchColor == nil {
-                    Circle().stroke(Color.primary.opacity(0.35), lineWidth: 1)
-                    Image(systemName: "slash.circle")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 20, height: 20)
-            .overlay(
-                Circle()
-                    .stroke(Color.primary, lineWidth: isSelected ? 2 : 0)
-                    .padding(-2)
-            )
-        }
-        .buttonStyle(.plain)
         .accessibilityLabel(name)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }

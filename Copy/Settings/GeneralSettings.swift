@@ -34,11 +34,12 @@ struct GeneralSettings: View {
             }
 
             Section {
-                Toggle("Always Use Dark Shelf", isOn: $settings.shelfProDark)
-            } footer: {
-                Text("Keeps the shelf dark with a blue accent, even in Light Mode. Off by default, so it follows your system appearance.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                Picker("Theme", selection: $settings.shelfTheme) {
+                    ForEach(ShelfTheme.allCases) { theme in
+                        Text(theme.title).tag(theme)
+                    }
+                }
+                .pickerStyle(.menu)
             }
 
             Section {

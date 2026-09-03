@@ -24,10 +24,6 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     /// horizontal sides makes the panel read as one floating surface, while the bottom
     /// gap leaves room for its newly rounded lower corners and shadow.
     static let shelfInset: CGFloat = 12
-    /// Liquid Glass lenses and shadows slightly outside its shape. The window needs a
-    /// transparent gutter for that optical edge; otherwise WindowServer clips it at the
-    /// rectangular panel bounds. `ShelfRootView` applies the matching outer padding.
-    static let glassBleed: CGFloat = 8
     /// Panel height while `SettingsStore.compactShelf` is on, sized to `Tokens.compactCardHeight`
     /// plus the same header/divider/padding chrome `shelfHeight` allows for above the
     /// (shorter) card row. `ShelfHeader` isn't shortened in compact mode, so the fixed
@@ -60,21 +56,20 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     private var closeToken = 0
     private var hideDuringScreenSharing: Bool
     private var compactShelf: Bool
-    private var proDark: Bool
+    private var theme: ShelfTheme
 
-    init(hideDuringScreenSharing: Bool, compactShelf: Bool, proDark: Bool, makeContent: @escaping () -> NSView) {
+    init(hideDuringScreenSharing: Bool, compactShelf: Bool, theme: ShelfTheme, makeContent: @escaping () -> NSView) {
         self.hideDuringScreenSharing = hideDuringScreenSharing
         self.compactShelf = compactShelf
-        self.proDark = proDark
+        self.theme = theme
         self.makeContent = makeContent
     }
 
-    /// Pushed live by `AppCoordinator` via `SettingsStore.onShelfProDarkChange`. Forces
-    /// the panel (and its hosted SwiftUI content) to a dark appearance so the whole shelf
-    /// matches the marketing "pro dark" look; `nil` returns to following the system.
-    func setProDark(_ on: Bool) {
-        proDark = on
-        panel?.appearance = on ? NSAppearance(named: .darkAqua) : nil
+    /// Pushed live by `AppCoordinator` via `SettingsStore.onShelfThemeChange`.
+    func setTheme(_ theme: ShelfTheme) {
+        self.theme = theme
+        panel?.appearance = theme.appearance
+        modalPanel?.appearance = theme.appearance
     }
 
     private var currentShelfHeight: CGFloat {
@@ -82,11 +77,16 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
     }
 
     private func shelfFrame(in visibleFrame: NSRect) -> NSRect {
-        let windowInset = Self.shelfInset - Self.glassBleed
-        return NSRect(x: visibleFrame.minX + windowInset,
-                      y: visibleFrame.minY + windowInset,
-                      width: visibleFrame.width - (windowInset * 2),
-                      height: currentShelfHeight + (Self.glassBleed * 2))
+        NSRect(x: visibleFrame.minX + Self.shelfInset,
+               y: visibleFrame.minY + Self.shelfInset,
+               width: visibleFrame.width - (Self.shelfInset * 2),
+               height: currentShelfHeight)
+    }
+
+    /// Places the shelf immediately beyond the same bottom edge it is attached to, so
+    /// its transition has a clear spatial origin instead of looking like a dissolve.
+    private func frameBelowScreen(_ frame: NSRect, visibleFrame: NSRect) -> NSRect {
+        frame.offsetBy(dx: 0, dy: visibleFrame.minY - frame.maxY)
     }
 
     /// Applied at panel creation and pushed live here when the setting changes
@@ -135,15 +135,17 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         isHiding = false
 
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        panel.setFrame(reduceMotion ? frame : frame.offsetBy(dx: 0, dy: -24), display: false)
-        panel.alphaValue = 0
+        panel.setFrame(reduceMotion ? frame : frameBelowScreen(frame, visibleFrame: screen.visibleFrame), display: false)
+        panel.alphaValue = 1
         panel.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.22
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().alphaValue = 1
-            panel.animator().setFrame(frame, display: true)
+        if !reduceMotion {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.13
+                context.timingFunction = CAMediaTimingFunction(
+                    controlPoints: 0.22, 1, 0.36, 1
+                )
+                panel.animator().setFrame(frame, display: true)
+            }
         }
         installKeyMonitor()
         // The shelf opens in browse mode: keep the search field from auto-becoming first
@@ -162,17 +164,17 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         if let completion {
             pendingHideCompletions.append(completion)
         }
-        // A repeated action during the 180ms fade joins the current close instead of
+        // A repeated action during the close joins the current transition instead of
         // being dropped or running before the destination app regains focus.
         guard !isHiding else { return }
-        // Keep Copy active until the panel is fully out. On macOS 26 the shelf is live
-        // Liquid Glass; activating the previous app while that glass is still visible
-        // changes its sampled backdrop mid-fade and produces a one-frame flash.
+        // Keep the non-activating panel key until it is fully out. On macOS 26 the shelf
+        // is live Liquid Glass; returning key focus while that glass is still visible
+        // changes its sampled backdrop mid-transition and produces a one-frame flash.
         isHiding = true
         removeKeyMonitor()
 
-        // Mirror of `show()`'s entrance: fade out while sliding down 18pt, then order out.
-        // Reduce Motion skips straight to the orderOut, matching the entrance's own gate.
+        // Mirror the entrance direction and move the whole shelf beyond the bottom edge.
+        // Reduce Motion skips straight to orderOut.
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             finishHide(panel, restoreFocus: restoreFocus)
             return
@@ -180,11 +182,13 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
 
         closeToken += 1
         let token = closeToken
+        let visibleFrame = panel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+        let destination = visibleFrame.map { frameBelowScreen(panel.frame, visibleFrame: $0) }
+            ?? panel.frame.offsetBy(dx: 0, dy: -(panel.frame.height + Self.shelfInset))
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.18
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            panel.animator().alphaValue = 0
-            panel.animator().setFrame(panel.frame.offsetBy(dx: 0, dy: -18), display: true)
+            context.duration = 0.13
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().setFrame(destination, display: true)
         } completionHandler: { [weak self] in
             // NSAnimationContext runs its completion on the main thread; the closure's
             // `@Sendable` type just can't see that statically.
@@ -195,15 +199,12 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Orders the panel out and resets it so the next `show()` starts clean. `onDidHide`
+    /// Orders the panel out after it has cleared the screen. `onDidHide`
     /// (which clears the shelf's transient selection/preview state) fires here, at the end
     /// of the close animation, so that content doesn't visibly reset while the panel is
-    /// still fading out.
+    /// still sliding out.
     private func finishHide(_ panel: KeyablePanel, restoreFocus: Bool) {
         panel.orderOut(nil)
-        // Leave alpha at zero while hidden. Resetting it to one in the same run-loop
-        // turn as `orderOut` can race WindowServer and briefly re-show the fully opaque
-        // surface. `show()` always establishes its own alpha-zero starting state.
         isHiding = false
         onDidHide?()
         if restoreFocus {
@@ -224,7 +225,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.appearance = proDark ? NSAppearance(named: .darkAqua) : nil
+        panel.appearance = theme.appearance
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
         panel.isFloatingPanel = true
@@ -327,6 +328,7 @@ final class ShelfPanelController: NSObject, NSWindowDelegate {
         host.isOpaque = false
         host.backgroundColor = .clear
         host.hasShadow = false
+        host.appearance = theme.appearance
         host.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         host.hidesOnDeactivate = false
         host.sharingType = hideDuringScreenSharing ? .none : .readOnly
