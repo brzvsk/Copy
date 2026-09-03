@@ -10,5 +10,16 @@ struct CopyApp: App {
     // Copy doesn't use SwiftUI's `Settings` scene as the actual mechanism.
     var body: some Scene {
         Settings { EmptyView() }
+            // SwiftUI still installs its standard ⌘, command for the placeholder
+            // scene above. Replace that command so it opens the real AppKit-owned
+            // settings window instead of presenting an empty scene.
+            .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("Settings…") {
+                        appDelegate.openSettingsFromCommand()
+                    }
+                    .keyboardShortcut(",", modifiers: .command)
+                }
+            }
     }
 }

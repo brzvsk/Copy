@@ -283,8 +283,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         coordinator.importHistory()
     }
 
-    @objc private func openSettings() {
+    /// Shared by the status-menu item and CopyApp's replacement for SwiftUI's default
+    /// ⌘, command, so both routes reach the real AppKit-owned settings window.
+    func openSettingsFromCommand() {
         coordinator.openSettings()
+    }
+
+    @objc private func openSettings() {
+        openSettingsFromCommand()
     }
 
     @objc private func checkForUpdates(_ sender: Any?) {
