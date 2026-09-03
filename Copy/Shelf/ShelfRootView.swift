@@ -260,7 +260,6 @@ private struct ShelfTabs: View {
                     label: pinboard.name,
                     symbol: pinboard.symbol,
                     emoji: pinboard.emoji,
-                    tint: pinboard.tint,
                     showsSymbol: false,
                     isSelected: pinboard.id.map { viewModel.tab == .pinboard($0) } ?? false,
                     isDropTargeted: pinboard.id != nil && viewModel.dropTargetedPinboardID == pinboard.id,
@@ -279,8 +278,8 @@ private struct ShelfTabs: View {
                     }
                 )
                 .contextMenu {
-                    // "Edit…" opens PinboardEditPopover, which edits name, symbol, emoji,
-                    // and color (including a custom color picker) in one place.
+                    // "Edit…" opens PinboardEditPopover, which edits the pinboard's
+                    // name and emoji in one place.
                     Button("Edit…") { renamingPinboard = pinboard }
                     Button("Delete Pinboard", role: .destructive) { confirmDelete(pinboard) }
                 }
@@ -288,12 +287,10 @@ private struct ShelfTabs: View {
                     get: { pinboard.id != nil && renamingPinboard?.id == pinboard.id },
                     set: { if !$0 { renamingPinboard = nil } }
                 )) {
-                    PinboardEditPopover(mode: .rename(pinboard)) { name, symbol, emoji, tint in
+                    PinboardEditPopover(mode: .rename(pinboard)) { name, emoji in
                         if let id = pinboard.id {
                             viewModel.renamePinboard(id: id, to: name)
-                            viewModel.setPinboardSymbol(id: id, symbol)
                             viewModel.setPinboardEmoji(id: id, emoji)
-                            viewModel.setPinboardTint(id: id, tint)
                         }
                         renamingPinboard = nil
                     }
@@ -316,8 +313,8 @@ private struct ShelfTabs: View {
                 createPresented = true
             }
             .popover(isPresented: $createPresented) {
-                PinboardEditPopover(mode: .create) { name, symbol, emoji, tint in
-                    viewModel.createPinboard(name: name, symbol: symbol, emoji: emoji, tint: tint)
+                PinboardEditPopover(mode: .create) { name, emoji in
+                    viewModel.createPinboard(name: name, emoji: emoji)
                 }
             }
         }
@@ -357,13 +354,10 @@ private struct ShelfTabs: View {
 private struct TabPill: View {
     let label: String
     let symbol: String
-    /// A user-chosen emoji shown in place of the SF Symbol, when set. `nil`/untinted
-    /// pinboards (and the History tab) render exactly as before this feature.
+    /// A user-chosen emoji shown in place of the SF Symbol, when set.
     var emoji: String? = nil
-    /// A user-chosen hex color (e.g. "FF3B30"); empty means no color identity.
-    var tint: String = ""
     /// Whether to draw the SF Symbol when no emoji is set. History uses it (a clock);
-    /// pinboards don't — their identity is the color dot and optional emoji.
+    /// pinboards don't — their optional emoji is the only visual identity.
     var showsSymbol: Bool = true
     let isSelected: Bool
     var isDropTargeted: Bool = false
@@ -371,10 +365,6 @@ private struct TabPill: View {
     var shortcutHint: String? = nil
     let action: () -> Void
     @State private var isHovering = false
-
-    private var tintColor: Color? {
-        tint.isEmpty ? nil : Tokens.color(fromHex: tint)
-    }
 
     var body: some View {
         HStack(spacing: 4) {
@@ -384,12 +374,6 @@ private struct TabPill: View {
                 Image(systemName: symbol)
             }
             Text(label)
-            if let tintColor {
-                Circle()
-                    .fill(tintColor)
-                    .frame(width: 6, height: 6)
-                    .accessibilityHidden(true)
-            }
             if let shortcutHint {
                 Text("⌘\(shortcutHint)")
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
@@ -429,10 +413,7 @@ private struct TabPill: View {
 
     private var backgroundFill: Color {
         if isDropTargeted { return Color.accentColor.opacity(0.24) }
-        if isSelected {
-            if let tintColor { return tintColor.opacity(0.18) }
-            return Color.primary.opacity(0.08)
-        }
+        if isSelected { return Color.primary.opacity(0.08) }
         return isHovering ? Color.primary.opacity(0.05) : .clear
     }
 }
