@@ -22,6 +22,7 @@ final class ShelfViewModel {
 
     let store: ItemStore
     let pinboardStore: PinboardStore
+    private let linkFetcher: LinkMetadataFetcher
     /// Held so `ShelfRootView`/`ItemCardView` can read `settings.compactShelf` live —
     /// both this view model and `SettingsStore` are `@Observable`, so a body that reads
     /// `viewModel.settings.compactShelf` re-renders on toggle without any extra
@@ -146,10 +147,16 @@ final class ShelfViewModel {
     /// every item on the board, so there's nothing to page there.
     @ObservationIgnored private var isPaged = true
 
-    init(store: ItemStore, pinboardStore: PinboardStore, settings: SettingsStore) {
+    init(
+        store: ItemStore,
+        pinboardStore: PinboardStore,
+        settings: SettingsStore,
+        linkFetcher: LinkMetadataFetcher
+    ) {
         self.store = store
         self.pinboardStore = pinboardStore
         self.settings = settings
+        self.linkFetcher = linkFetcher
         pinboardsToken = pinboardStore.observeAll(
             onError: { NSLog("Copy: pinboard observation failed: \($0)") },
             onChange: { [weak self] in self?.pinboards = $0 })
@@ -163,6 +170,13 @@ final class ShelfViewModel {
 
     func isSelected(_ item: ClipItem) -> Bool {
         selection.selected.contains(item.uuid)
+    }
+
+    /// Backfills metadata for older visible links after link previews are enabled.
+    /// Fresh captures already take the same path in `AppCoordinator`; calling it here
+    /// is cheap because `LinkMetadataFetcher` skips resolved and in-flight items.
+    func fetchLinkPreviewIfNeeded(for item: ClipItem) {
+        linkFetcher.fetchIfNeeded(for: item, enabled: settings.fetchLinkPreviews)
     }
 
     var orderedSelectedItems: [ClipItem] {

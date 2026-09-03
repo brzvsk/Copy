@@ -431,30 +431,22 @@ struct ItemCardView: View {
         case .text, .richText:
             textBody
         case .link:
-            if let linkTitle = item.linkTitle {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        LinkFaviconView(item: item, store: store)
-                        Text(linkTitle)
-                            .font(.system(size: 13, weight: .semibold))
-                            .lineLimit(bodyLineLimit(standard: 2, compact: 1))
-                            .multilineTextAlignment(.leading)
-                    }
-                    Text(URL(string: item.plainText ?? "")?.host ?? "Link")
-                        .font(Tokens.cardBody)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 5) {
+                    LinkFaviconView(item: item, store: store)
+                    Text(item.linkTitle ?? URL(string: item.plainText ?? "")?.host ?? "Link")
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(bodyLineLimit(standard: 2, compact: 1))
+                        .multilineTextAlignment(.leading)
                 }
-            } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .top, spacing: 4) {
-                        LinkFaviconView(item: item, store: store)
-                        Text(String((item.plainText ?? "").prefix(1_500)))
-                            .font(Tokens.cardBody)
-                            .lineLimit(bodyLineLimit(standard: 5, compact: 3))
-                            .multilineTextAlignment(.leading)
-                    }
-                }
+                // URLs are identifiers, not prose: let SwiftUI wrap long path segments
+                // character-by-character instead of truncating the useful tail.
+                Text(String((item.plainText ?? "").prefix(1_500)))
+                    .font(Tokens.cardBody)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
             }
         case .image:
             imageBody
@@ -523,14 +515,9 @@ struct LinkFaviconView: View {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-            } else {
-                Image(systemName: "link")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.secondary)
+                    .frame(width: 16, height: 16)
             }
         }
-        .frame(width: 16, height: 16)
         .onAppear {
             if image == nil {
                 image = FaviconCache.shared.cached(for: item)
