@@ -58,21 +58,32 @@ struct ShelfRootView: View {
         // shader's outer pixels visible in the rectangular NSPanel corners; giving the
         // shader an inset gutter instead produces a second outline around the shelf.
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        // Card → pinboard filing is handled here, at the shelf root, because a per-tab
-        // `.onDrop` never establishes a working drop region on the small pills inside this
+        // Card filing and pinboard reordering are handled here, at the shelf root, because
+        // a per-tab `.onDrop` never establishes a working drop region on the small pills inside this
         // borderless non-activating glass panel (a shelf-level drop, by contrast, fires
         // reliably). The delegate maps the drop location to the tab under it using each
         // tab's frame, collected via PinboardTabFramesKey below.
         .coordinateSpace(name: "shelfRoot")
         .onPreferenceChange(PinboardTabFramesKey.self) { pinboardTabFrames = $0 }
-        .onDrop(of: [UTType.copyItem], delegate: PinboardDropDelegate(
+        .onDrop(of: [UTType.copyItem, UTType.copyPinboard], delegate: PinboardDropDelegate(
             tabFrames: { pinboardTabFrames },
-            onTargetChange: { viewModel.dropTargetedPinboardID = $0 },
+            onFileTargetChange: { viewModel.dropTargetedPinboardID = $0 },
+            onReorderTargetChange: { id, placeAfterTarget in
+                viewModel.reorderTargetedPinboardID = id
+                viewModel.reorderPlacesAfterTarget = placeAfterTarget
+            },
             onFile: { id, uuids in
                 guard let pinboard = viewModel.pinboards.first(where: { $0.id == id }) else { return }
                 viewModel.dropItems(uuids: uuids, toPinboard: pinboard)
                 // Open the pinboard we just filed into, so the drop's result shows at once.
                 viewModel.tab = .pinboard(id)
+            },
+            onMove: { sourceID, targetID, placeAfterTarget in
+                viewModel.movePinboard(
+                    id: sourceID,
+                    relativeTo: targetID,
+                    placeAfterTarget: placeAfterTarget
+                )
             }
         ))
         // Dark keeps the marketing electric-blue accent. The forced light/dark window
@@ -263,6 +274,9 @@ private struct ShelfTabs: View {
                     showsSymbol: false,
                     isSelected: pinboard.id.map { viewModel.tab == .pinboard($0) } ?? false,
                     isDropTargeted: pinboard.id != nil && viewModel.dropTargetedPinboardID == pinboard.id,
+                    reorderIndicatorEdge: viewModel.reorderTargetedPinboardID == pinboard.id
+                        ? (viewModel.reorderPlacesAfterTarget ? .trailing : .leading)
+                        : nil,
                     // ⌘1 is History, so pinboards start at ⌘2; only the first eight get a
                     // hint (⌘9 is the ceiling of the number-key routing).
                     shortcutHint: (viewModel.commandHeld && offset + 2 <= 9) ? "\(offset + 2)" : nil,
@@ -294,6 +308,19 @@ private struct ShelfTabs: View {
                         }
                         renamingPinboard = nil
                     }
+                }
+                .onDrag {
+                    guard let id = pinboard.id else { return NSItemProvider() }
+                    let data = Data(String(id).utf8)
+                    let provider = NSItemProvider()
+                    provider.registerDataRepresentation(
+                        forTypeIdentifier: UTType.copyPinboard.identifier,
+                        visibility: .ownProcess
+                    ) { completion in
+                        completion(data, nil)
+                        return nil
+                    }
+                    return provider
                 }
                 // Publish this tab's frame (in the shelf's "shelfRoot" space) so the
                 // shelf-level PinboardDropDelegate can map a drop location back to this
@@ -361,6 +388,8 @@ private struct TabPill: View {
     var showsSymbol: Bool = true
     let isSelected: Bool
     var isDropTargeted: Bool = false
+    /// A slim insertion marker for pinboard-tab reordering. History never receives one.
+    var reorderIndicatorEdge: Edge? = nil
     /// The ⌘-number that jumps to this tab (e.g. "1"), shown as a badge while ⌘ is held.
     var shortcutHint: String? = nil
     let action: () -> Void
@@ -396,6 +425,14 @@ private struct TabPill: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(isDropTargeted ? Color.accentColor : .clear, lineWidth: 2)
         )
+        .overlay(alignment: reorderIndicatorEdge == .trailing ? .trailing : .leading) {
+            if reorderIndicatorEdge != nil {
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(width: 3, height: 20)
+                    .offset(x: reorderIndicatorEdge == .trailing ? 3 : -3)
+            }
+        }
         // A drop-targeted tab visibly pops so it's unmistakable which pinboard a dragged
         // card will land in, even when the cursor's drag chip sits near it.
         .scaleEffect(isDropTargeted ? 1.08 : 1)

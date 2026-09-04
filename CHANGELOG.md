@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Pinboard tabs can be dragged into a new order; History stays fixed first.
+
 ## [0.3.0] - 2026-09-03
 
 A cleaner, more native shelf focused on fast clipboard history and pinboards.
