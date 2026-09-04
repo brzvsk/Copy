@@ -43,12 +43,15 @@ targets:
         SUPublicEDKey: "ic1GeI8aVeYsA3RsX9sxrbaAkWOFyLOhL8K94U7TrNA="
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
-        # Declares the internal card-drag payload type (see ShelfViewModel.UTType.copyItem)
-        # so the system recognizes it during real drag-and-drop, not just as an in-process
-        # string constant. Required for card → pinboard tab filing to work.
+        # Declares the app's internal drag payloads so the system recognizes them during
+        # real drag-and-drop, not just as in-process string constants.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: sk.brzv.copy.item
             UTTypeDescription: Copy clipboard item
+            UTTypeConformsTo:
+              - public.data
+          - UTTypeIdentifier: sk.brzv.copy.pinboard
+            UTTypeDescription: Copy pinboard
             UTTypeConformsTo:
               - public.data
     settings:

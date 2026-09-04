@@ -10,6 +10,9 @@ extension UTType {
     /// (`UTExportedTypeDeclarations`) so the system recognizes it during real
     /// drag-and-drop sessions, not just as an in-process string constant.
     static let copyItem = UTType(exportedAs: "sk.brzv.copy.item")
+    /// Internal payload used only to reorder pinboard tabs. Keeping it distinct from
+    /// `copyItem` prevents a tab drag from being interpreted as filing a card.
+    static let copyPinboard = UTType(exportedAs: "sk.brzv.copy.pinboard")
 }
 
 @MainActor
@@ -81,6 +84,10 @@ final class ShelfViewModel {
     /// Driven by the shelf-level drop delegate (see `PinboardDropDelegate`) rather than a
     /// per-tab `.onDrop`, which never established a working drop region on the small pills.
     var dropTargetedPinboardID: Int64?
+    /// Shelf-level reorder target and insertion side for a dragged pinboard tab. These
+    /// stay separate from card filing so the two drag payloads cannot affect each other.
+    var reorderTargetedPinboardID: Int64?
+    var reorderPlacesAfterTarget = false
     /// Set by a force-click (which fires before the click's own mouse-up resolves) so the
     /// release doesn't then paste the card. Consumed by the next `handleCardClick`.
     @ObservationIgnored var suppressNextCardPaste = false
@@ -572,6 +579,21 @@ final class ShelfViewModel {
             if tab == .pinboard(id) { tab = .history }
         } catch {
             NSLog("Copy: failed to delete pinboard: \(error)")
+            HUD.show("Couldn't complete that")
+        }
+    }
+
+    func movePinboard(id: Int64, relativeTo targetID: Int64, placeAfterTarget: Bool) {
+        do {
+            // Apply the returned order immediately; the observation then keeps every
+            // other consumer in sync with the same persisted database order.
+            pinboards = try pinboardStore.move(
+                id: id,
+                relativeTo: targetID,
+                placeAfterTarget: placeAfterTarget
+            )
+        } catch {
+            NSLog("Copy: failed to reorder pinboards: \(error)")
             HUD.show("Couldn't complete that")
         }
     }
